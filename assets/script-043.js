@@ -2229,8 +2229,7 @@ async function sim2026EnsureForSom(){
 async function sim2026EnsureForGeo(){
   if((GEO_STATE?.evaluation||'')!=='Simulado 2026')return false;
   const year=['2º ano','4º ano','8º ano'].includes(document.getElementById('geoEvalSegment')?.value)?document.getElementById('geoEvalSegment').value:'2º ano';
-  const selectedComp=['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP';
-  const comp=year==='2º ano'?'LP':selectedComp;
+  const comp=['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP';
   return sim2026EnsureYearForIndicator(year,comp);
 }
 
@@ -3736,17 +3735,28 @@ function geo2AnoCreTarget(value,component='LP'){
   const n=Number(rec?.[component]);
   return Number.isFinite(n)?n:null;
 }
+// v375 — meta individual da escola no Simulado 2026. Usa a mesma base de metas já exibida em Somativas/Banco de Dados.
+function geoSimSchoolTarget(point,ctx){
+  if(ctx?.evaluation!=='Simulado 2026'||!point)return null;
+  const targetFor=window.__GRA_V356_METAS__?.targetFor;
+  if(typeof targetFor!=='function')return null;
+  const year=ctx.segment||'';
+  const comp=ctx.component||'LP';
+  const cre=point.creLabel||point.cre||'';
+  const n=Number(targetFor(year,comp,point.name,cre));
+  return Number.isFinite(n)?n:null;
+}
 function geoSomSnapshot(ctx){
   const isAvalia=ctx.evaluation==='Avalia RJ';
   const isIdeb=ctx.evaluation==='IDEB 2025';
   const isSim=ctx.evaluation==='Simulado 2026';
-  const isSim2Literacy=isSim&&ctx.segment==='2º ano'&&ctx.component==='LP'&&ctx.indicator==='alfabetizacaoMeta';
   const getFilter=isSim?(document.getElementById('geoGet')?.value||''):'';
   const agentFilter=isSim?(document.getElementById('geoAgent')?.value||''):'';
   const priorityFilter=isSim?(document.getElementById('geoPriority')?.value||''):'';
   const searchFilter=isSim?norm(document.getElementById('geoSearch')?.value||''):'';
   const filterKey=isSim?[getFilter,agentFilter,priorityFilter,searchFilter].join('¦'):'';
-  const key=['SOM',ctx.evaluation,ctx.segment,ctx.component,ctx.indicator,ctx.edition,GEO_STATE.somIndexSize,GEO_STATE.somIndexScope,Array.isArray(SOM_ROWS)?SOM_ROWS.length:0,filterKey].join('\u0002');
+  const metaReady=isSim&&typeof window.__GRA_V356_METAS__?.targetFor==='function'?1:0;
+  const key=['SOM',ctx.evaluation,ctx.segment,ctx.component,ctx.indicator,ctx.edition,GEO_STATE.somIndexSize,GEO_STATE.somIndexScope,Array.isArray(SOM_ROWS)?SOM_ROWS.length:0,filterKey,metaReady].join('\u0002');
   const cached=GEO_STATE.evalCache.get(key);if(cached)return cached;
   geoBuildSomIndex();
   const isIdebGrowth=isIdeb&&ctx.indicator==='crescimento';
@@ -3771,7 +3781,7 @@ function geoSomSnapshot(ctx){
       return true;
     }).map(point=>values.get(point.name));
   }
-  const median=(isIdebGrowth||isSim2Literacy)?null:geoMedian(medianValues);
+  const median=(isIdebGrowth||isSim)?null:geoMedian(medianValues);
   const quartiles=null;
   const inverse=ctx.indicator==='abaixo';
   const threshold=isIdeb ? 0.05 : (isSim&&ctx.indicator==='proficiencia'?5:(isSim&&ctx.indicator==='notaPadronizada'?0.1:0.5));
@@ -3785,14 +3795,15 @@ function geoSomSnapshot(ctx){
       results.set(point.name,{status,delta:value,value,median:null,count:1,suffix:'',bandLabel:status==='up'?'Subiu':status==='down'?'Caiu':'Estável'});
       return;
     }
-    if(isSim2Literacy){
-      const target=geo2AnoCreTarget(point,'LP');
-      if(!Number.isFinite(target)){results.set(point.name,{status:'nodata',delta:null,value:null,target:null,median:null,count:0,suffix:'%'});return;}
+    if(isSim){
+      const target=geoSimSchoolTarget(point,ctx);
+      const simSuffix=ctx.segment==='2º ano'?'%':'';
+      if(!Number.isFinite(target)){results.set(point.name,{status:'nodata',delta:null,value,target:null,median:null,count:0,suffix:simSuffix});return;}
       const delta=value-target;
-      const status=delta>=0?'up':'down';
+      const status=delta>=-1e-9?'up':'down';
       results.set(point.name,{
-        status,delta,value,target,median:null,count:1,suffix:'%',
-        bandLabel:status==='up'?'Meta atingida/superada':'Abaixo da meta'
+        status,delta,value,target,median:null,count:1,suffix:simSuffix,
+        bandLabel:status==='up'?'Atingiu a meta':'Não atingiu a meta'
       });
       return;
     }
@@ -3811,8 +3822,8 @@ function geoEvolutionForPoint(point){
 }
 function geoLegendLabels(){
   const currentCtx=geoEvalContext();
-  if(currentCtx.evaluation==='Simulado 2026'&&currentCtx.segment==='2º ano'&&currentCtx.component==='LP'&&currentCtx.indicator==='alfabetizacaoMeta')
-    return {up:'Meta atingida/superada',down:'Abaixo da meta',flat:'',nodata:'',attention:'',excellent:''};
+  if(currentCtx.evaluation==='Simulado 2026')
+    return {up:'Atingiu a meta',down:'Não atingiu a meta',flat:'',nodata:'Sem dados',attention:'',excellent:''};
   if(GEO_STATE.evaluation==='Avalia RJ')return {down:'Abaixo da mediana',flat:'Próximo da mediana',up:'Acima da mediana',attention:'',excellent:'',nodata:''};
   if(GEO_STATE.evaluation==='IDEB 2025'&&geoEvalContext().indicator==='crescimento')return {up:'Subiu',down:'Caiu',flat:'Estável',nodata:'',attention:'',excellent:''};
   if(GEO_STATE.evaluation==='ADR'){
@@ -3828,8 +3839,8 @@ function geoLegendLabels(){
 }
 function geoLegendShortLabel(key,label){
   const currentCtx=geoEvalContext();
-  if(currentCtx.evaluation==='Simulado 2026'&&currentCtx.segment==='2º ano'&&currentCtx.component==='LP'&&currentCtx.indicator==='alfabetizacaoMeta')
-    return ({up:'Na/acima',down:'Abaixo'}[key]||label);
+  if(currentCtx.evaluation==='Simulado 2026')
+    return ({up:'Atingiu',down:'Não atingiu'}[key]||label);
   const compact=(window.matchMedia?.('(max-width:720px)').matches||false)||document.getElementById('geoDetail')?.classList.contains('open');
   if(!compact)return label;
   if(GEO_STATE.evaluation==='Avalia RJ')return {down:'Abaixo',flat:'Próx.',up:'Acima'}[key]||label;
@@ -3874,7 +3885,7 @@ function geoUpdateLegend(){
   document.querySelectorAll('[data-geo-legend]').forEach(el=>{
     const key=el.dataset.geoLegend,b=el.querySelector('b');
     if(b)b.textContent=geoLegendShortLabel(key,labels[key]||'');
-    const show=['up','down','flat'].includes(key);
+    const show=GEO_STATE.evaluation==='Simulado 2026'?['up','down'].includes(key):['up','down','flat'].includes(key);
     el.hidden=!show;
     el.style.order=String(geoLegendOrderForKey(key,isAvalia));
     el.setAttribute('role','button');
@@ -3919,13 +3930,12 @@ function geoMetricText(result){
     return `${geoFmt(result.value,2)}${Number.isFinite(result.median)?` · mediana ${geoFmt(result.median,2)}`:''}`;
   }
   if(ctx.evaluation==='Simulado 2026'){
-    if(ctx.segment==='2º ano'&&ctx.component==='LP'&&ctx.indicator==='alfabetizacaoMeta'){
-      const delta=Number(result.delta),target=Number(result.target);
-      const deltaText=Number.isFinite(delta)?` · ${delta>=0?'+':''}${geoFmt(delta,1)} p.p.`:'';
-      return `${geoFmt(result.value,1)}%${Number.isFinite(target)?` · meta ${geoFmt(target,0)}%`:''}${deltaText}`;
-    }
-    const suffix=ctx.indicator==='adqAv'?'%':'';const digits=ctx.indicator==='proficiencia'?0:1;
-    return `${geoFmt(result.value,digits)}${suffix}${Number.isFinite(result.median)?` · mediana ${geoFmt(result.median,digits)}${suffix}`:''}`;
+    const isPct=ctx.segment==='2º ano';
+    const digits=isPct?1:2;
+    const suffix=isPct?'%':'';
+    const delta=Number(result.delta),target=Number(result.target);
+    const deltaText=Number.isFinite(delta)?` · ${delta>=0?'+':''}${geoFmt(delta,isPct?1:2)}${isPct?' p.p.':''}`:'';
+    return `${geoFmt(result.value,digits)}${suffix}${Number.isFinite(target)?` · meta ${geoFmt(target,isPct?0:2)}${suffix}`:''}${deltaText}`;
   }
   return `${geoFmt(result.value,1)}%${Number.isFinite(result.median)?` · mediana ${geoFmt(result.median,1)}%`:''}`;
 }
@@ -4395,9 +4405,7 @@ function geoRefreshEvaluationFilters(keep=true){
   if(isAdr)componentItems=[{value:'LP',label:'Língua Portuguesa'},{value:'MT',label:'Matemática'}];
   else if(evaluation==='Avalia RJ')componentItems=[{value:'',label:'LP + MT combinados'}];
   else if(isIdeb)componentItems=[{value:'',label:'IDEB'}];
-  else if(evaluation==='Simulado 2026')componentItems=segment==='2º ano'
-    ?[{value:'LP',label:'Língua Portuguesa'}]
-    :[{value:'LP',label:'Língua Portuguesa'},{value:'MT',label:'Matemática'}];
+  else if(evaluation==='Simulado 2026')componentItems=[{value:'LP',label:'Língua Portuguesa'},{value:'MT',label:'Matemática'}];
   else{
     const rows=geoRowsForEvaluationFilters(evaluation,segment);
     const comps=[...new Set(rows.flatMap(r=>{
@@ -4407,12 +4415,10 @@ function geoRefreshEvaluationFilters(keep=true){
     if(comps.includes('MT'))componentItems.push({value:'MT',label:'Matemática'});
   }
   geoSetOptions(comp,componentItems.length?componentItems:[{value:'',label:'Resultado'}],keep?(saved.component||comp.value):'');
-  const sim2LiteracyLocked=evaluation==='Simulado 2026'&&segment==='2º ano';
   if(comp){
-    if(sim2LiteracyLocked)comp.value='LP';
-    comp.disabled=sim2LiteracyLocked;
-    comp.setAttribute('aria-disabled',String(sim2LiteracyLocked));
-    comp.title=sim2LiteracyLocked?'No 2º ano, o Georreferenciamento usa alfabetização em Língua Portuguesa.':'';
+    comp.disabled=false;
+    comp.setAttribute('aria-disabled','false');
+    comp.title=evaluation==='Simulado 2026'&&segment==='2º ano'?'No 2º ano, Língua Portuguesa usa % alfabetizados e Matemática usa % Adequado + Avançado.':'';
   }
   const component=comp?.value||'';
   let indicatorItems=[];
@@ -4429,7 +4435,7 @@ function geoRefreshEvaluationFilters(keep=true){
     {value:'crescimento',label:'Progressão 2023 → 2025'}
   ];
   else if(evaluation==='Simulado 2026') indicatorItems=segment==='2º ano'
-    ?[{value:'alfabetizacaoMeta',label:'% Alfabetizados'}]
+    ?(component==='MT'?[{value:'adqAv',label:'% Adequado + Avançado'}]:[{value:'alfabetizacaoMeta',label:'% Alfabetizados'}])
     :[{value:'notaPadronizada',label:'Nota Padronizada'}];
   else{
     const rows=geoRowsForEvaluationFilters(evaluation,segment,component);
@@ -4445,13 +4451,14 @@ function geoRefreshEvaluationFilters(keep=true){
   if(ind){
     const sim2Locked=evaluation==='Simulado 2026'&&segment==='2º ano';
     const simStdLocked=evaluation==='Simulado 2026'&&(segment==='4º ano'||segment==='8º ano');
-    if(sim2Locked&&ind.value!=='alfabetizacaoMeta')ind.value='alfabetizacaoMeta';
+    const sim2Indicator=component==='MT'?'adqAv':'alfabetizacaoMeta';
+    if(sim2Locked&&ind.value!==sim2Indicator)ind.value=sim2Indicator;
     if(simStdLocked&&ind.value!=='notaPadronizada')ind.value='notaPadronizada';
     const locked=sim2Locked||simStdLocked;
     ind.disabled=locked;
     ind.setAttribute('aria-disabled',String(locked));
     ind.title=sim2Locked
-      ?'No 2º ano em Língua Portuguesa, o resultado exibido no mapa é o % de alunos alfabetizados (proficiência ≥ 743). A cor continua comparando esse resultado com a meta da própria CRE.'
+      ?(component==='MT'?'No 2º ano em Matemática, o mapa usa % Adequado + Avançado e compara com a meta da própria escola.':'No 2º ano em Língua Portuguesa, o mapa usa % de alunos alfabetizados (proficiência ≥ 743) e compara com a meta da própria escola.')
       :simStdLocked?'No 4º e no 8º ano, o indicador do mapa é a Nota Padronizada da escola.':'';
   }
   GEO_STATE.evalSelections[evaluation]={segment:segment,adrView:currentAdrView,component:comp?.value||'',indicator:ind?.value||''};
@@ -4468,7 +4475,7 @@ function geoUpdateContextUI(){
     else if(ctx.evaluation==='Avalia RJ')chip.textContent=`2º ano · alfabetização combinada LP + MT${ctx.edition?' · edição '+ctx.edition:''}${priorityLabel?' · '+priorityLabel:''}`;
     else if(ctx.evaluation==='IDEB 2025')chip.textContent=[segmentLabel,idebViewLabel,priorityLabel].filter(Boolean).join(' · ');
     else if(ctx.evaluation==='Simulado 2026'&&ctx.segment==='2º ano')
-      chip.textContent=[segmentLabel,'Língua Portuguesa','% Alfabetizados',ctx.edition?`edição ${ctx.edition}`:'',priorityLabel].filter(Boolean).join(' · ');
+      chip.textContent=[segmentLabel,componentLabel,ctx.component==='MT'?'% Adequado + Avançado':'% Alfabetizados',ctx.edition?`edição ${ctx.edition}`:'',priorityLabel].filter(Boolean).join(' · ');
     else chip.textContent=[segmentLabel,componentLabel,ctx.edition?`edição ${ctx.edition}`:'',priorityLabel].filter(Boolean).join(' · ');
   }
   if(note){
@@ -4487,13 +4494,12 @@ function geoUpdateContextUI(){
       if(ctx.indicator==='crescimento')note.textContent='As cores mostram a progressão do IDEB de 2023 para 2025. Aparecem somente unidades com os dois resultados disponíveis.';
       else note.textContent=`As cores comparam o resultado de cada escola à mediana da 2ª CRE, calculada somente entre as ${snap.count} unidades com IDEB disponível no segmento selecionado.`;
     }else if(ctx.evaluation==='Simulado 2026'){
-      if(ctx.segment==='2º ano'&&ctx.component==='LP'&&ctx.indicator==='alfabetizacaoMeta'){
-        const scope=Number(document.getElementById('regionalScopeSelect')?.value||0);
-        const target=scope?geo2AnoCreTarget(scope,'LP'):null;
-        note.textContent=Number.isFinite(target)
-          ?`No 2º ano em Língua Portuguesa, o resultado exibido é o % de alunos alfabetizados (proficiência ≥ 743). Cada escola é comparada à meta de alfabetização da ${scope}ª CRE (${geoFmt(target,0)}%). Azul indica meta atingida ou superada; vermelho indica abaixo da meta.`
-          :'No 2º ano em Língua Portuguesa, o resultado exibido é o % de alunos alfabetizados (proficiência ≥ 743). Cada escola é comparada à meta de alfabetização da sua própria CRE. Azul indica meta atingida ou superada; vermelho indica abaixo da meta.';
-      }else note.textContent=`As cores comparam cada escola à mediana do universo regional selecionado no Simulado 2026. Os filtros de ano, componente, indicador e agente atuam diretamente sobre o mapa.`;
+      if(ctx.segment==='2º ano'&&ctx.component==='LP')
+        note.textContent='No 2º ano em Língua Portuguesa, o mapa usa o % de alunos alfabetizados (proficiência ≥ 743) e compara cada escola à sua própria meta 2026. Azul = atingiu a meta; vermelho = não atingiu a meta.';
+      else if(ctx.segment==='2º ano'&&ctx.component==='MT')
+        note.textContent='No 2º ano em Matemática, o mapa usa o % Adequado + Avançado e compara cada escola à sua própria meta 2026. Azul = atingiu a meta; vermelho = não atingiu a meta.';
+      else
+        note.textContent='No Simulado 2026, a Nota Padronizada de cada escola é comparada à sua própria meta 2026. Azul = atingiu a meta; vermelho = não atingiu a meta.';
     }
     else note.textContent=`As cores comparam o resultado de cada escola à mediana do universo selecionado${ctx.edition?' (edição '+ctx.edition+')':''}.`;
     if(document.getElementById('geoPriority')?.value==='sim')note.textContent+=' Filtro ativo: somente unidades prioritárias compatíveis com o ano ou segmento selecionado.';
@@ -4517,9 +4523,9 @@ function initGeoref(){
   GEO_STATE.controlsBound=true;
   populateGeoAgentFilter();geoBindLegendEvents();
   document.querySelectorAll('[data-geo-eval]').forEach(btn=>btn.addEventListener('click',()=>geoSelectEvaluation(btn.dataset.geoEval)));
-  document.getElementById('geoEvalSegment')?.addEventListener('change',async()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),segment:document.getElementById('geoEvalSegment').value};GEO_STATE.legendStatus='';if(e==='Simulado 2026'){const y=document.getElementById('geoEvalSegment').value,c=y==='2º ano'?'LP':(['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP');try{await sim2026EnsureYearForIndicator(y,c);}catch(err){console.error(err);}}geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
+  document.getElementById('geoEvalSegment')?.addEventListener('change',async()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),segment:document.getElementById('geoEvalSegment').value};GEO_STATE.legendStatus='';if(e==='Simulado 2026'){const y=document.getElementById('geoEvalSegment').value,c=['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP';try{await sim2026EnsureYearForIndicator(y,c);}catch(err){console.error(err);}}geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
   document.getElementById('geoAdrView')?.addEventListener('change',()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),adrView:document.getElementById('geoAdrView').value,indicator:''};GEO_STATE.legendStatus='';geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
-  document.getElementById('geoEvalComponent')?.addEventListener('change',async()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),component:document.getElementById('geoEvalComponent').value};GEO_STATE.legendStatus='';if(e==='Simulado 2026'){const y=['2º ano','4º ano','8º ano'].includes(document.getElementById('geoEvalSegment')?.value)?document.getElementById('geoEvalSegment').value:'2º ano',c=y==='2º ano'?'LP':(document.getElementById('geoEvalComponent').value||'LP');try{await sim2026EnsureYearForIndicator(y,c);}catch(err){console.error(err);}}geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
+  document.getElementById('geoEvalComponent')?.addEventListener('change',async()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),component:document.getElementById('geoEvalComponent').value};GEO_STATE.legendStatus='';if(e==='Simulado 2026'){const y=['2º ano','4º ano','8º ano'].includes(document.getElementById('geoEvalSegment')?.value)?document.getElementById('geoEvalSegment').value:'2º ano',c=['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP';try{await sim2026EnsureYearForIndicator(y,c);}catch(err){console.error(err);}}geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
   document.getElementById('geoEvalIndicator')?.addEventListener('change',()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),indicator:document.getElementById('geoEvalIndicator').value};GEO_STATE.legendStatus='';geoScheduleFilters(20);});
   ['geoPriority','geoGet','geoAgent'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>geoScheduleFilters(20)));
   document.getElementById('regionalScopeSelect')?.addEventListener('change',()=>{GEO_STATE.somIndexSize=-1;GEO_STATE.somIndexScope=null;GEO_STATE.evalCache.clear();GEO_STATE.evolutionCache.clear();GEO_STATE.legendStatus='';geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
