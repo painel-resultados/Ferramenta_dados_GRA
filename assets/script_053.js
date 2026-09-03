@@ -1,0 +1,1 @@
+(function(){'use strict';window.__GRA_V363__={version:'v363',changes:['Simulado 2026: hífen/nulo em habilidade não é convertido em zero','2º ano MT: habilidades dos níveis/escala ocultadas; 5 mais desafiadoras preservadas','Selo Priorizada no segmento no contexto de escola selecionada'],dataPayload:'preservado da v361'};})();
