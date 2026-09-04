@@ -2201,6 +2201,17 @@ function sim2026InjectPayload(year,component,payload){
     SOM_ROWS.push(...(payload.school||[]));
   }
   SIMULADO2026_LOADED.add(key);
+  // v376 — um novo recorte do Simulado invalida explicitamente o índice/cache do mapa.
+  // Isso evita reutilizar dados de outro ano/componente quando o número de linhas não muda.
+  try{
+    if(typeof GEO_STATE!=='undefined'){
+      GEO_STATE.somIndexSize=-1;
+      GEO_STATE.somIndexScope=null;
+      GEO_STATE.somIndex=new Map();
+      GEO_STATE.evalCache.clear();
+      GEO_STATE.evolutionCache.clear();
+    }
+  }catch(_e){}
   return payload;
 }
 async function sim2026EnsureCombo(year='2º ano',component='LP'){
@@ -3735,7 +3746,7 @@ function geo2AnoCreTarget(value,component='LP'){
   const n=Number(rec?.[component]);
   return Number.isFinite(n)?n:null;
 }
-// v375 — meta individual da escola no Simulado 2026. Usa a mesma base de metas já exibida em Somativas/Banco de Dados.
+// v376 — Simulado 2026 no mapa: resultado e meta individuais da escola, com aliases normalizados.
 function geoSimSchoolTarget(point,ctx){
   if(ctx?.evaluation!=='Simulado 2026'||!point)return null;
   const targetFor=window.__GRA_V356_METAS__?.targetFor;
@@ -3743,8 +3754,53 @@ function geoSimSchoolTarget(point,ctx){
   const year=ctx.segment||'';
   const comp=ctx.component||'LP';
   const cre=point.creLabel||point.cre||'';
-  const n=Number(targetFor(year,comp,point.name,cre));
-  return Number.isFinite(n)?n:null;
+  const candidates=[point.name,point.dataRioName,...(point.somAliases||[]),...(point.aliases||[])].filter(Boolean);
+  for(const school of candidates){
+    const n=Number(targetFor(year,comp,school,cre));
+    if(Number.isFinite(n))return n;
+  }
+  return null;
+}
+function geoSimPointAliasSet(point){
+  return new Set([point?.name,point?.dataRioName,...(point?.somAliases||[]),...(point?.aliases||[])].filter(Boolean).map(norm));
+}
+function geoSimRowsDirect(point,ctx){
+  if(ctx?.evaluation!=='Simulado 2026'||!point)return [];
+  const aliases=geoSimPointAliasSet(point);
+  const cre=geoCreNumberForTarget(point);
+  const year=ctx.segment||'';
+  const selectedComp=ctx.component||'LP';
+  const source=(typeof SIMULADO2026_SCHOOL_ROWS!=='undefined'&&Array.isArray(SIMULADO2026_SCHOOL_ROWS))?SIMULADO2026_SCHOOL_ROWS:[];
+  return source.filter(r=>{
+    if(r?.modalidade!=='Simulado 2026'||String(r.anoEscolar||'')!==String(year))return false;
+    if(year==='2º ano'&&String(r.componente||'')!==String(selectedComp))return false;
+    const rowCre=geoCreNumberForTarget(r.cre||r.regional||'');
+    if(cre&&rowCre&&cre!==rowCre)return false;
+    return aliases.has(norm(r.escola||''))||aliases.has(norm(r.escolaFonte||''));
+  });
+}
+function geoSimDirectValue(point,ctx){
+  const rows=geoSimRowsDirect(point,ctx);
+  if(!rows.length)return null;
+  const finite=v=>Number.isFinite(Number(v))?Number(v):NaN;
+  if(ctx.segment==='2º ano'){
+    if(ctx.component==='LP'){
+      for(const r of rows)for(const v of [r.alfabetizacaoPct,r.adqAv]){const n=finite(v);if(Number.isFinite(n))return n;}
+      return null;
+    }
+    for(const r of rows)for(const v of [r.adqAv,r.principal]){const n=finite(v);if(Number.isFinite(n))return n;}
+    return null;
+  }
+  // 4º/8º: a base já traz a Nota Padronizada geral repetida em LP/MT.
+  // Preferimos esse campo oficial; se ausente, calculamos média simples das notas dos componentes.
+  const general=rows.map(r=>finite(r.notaPadronizada)).filter(Number.isFinite);
+  if(general.length)return general.reduce((a,b)=>a+b,0)/general.length;
+  const byComp=new Map();
+  rows.forEach(r=>{const n=finite(r.notaPadronizadaComponente);if(Number.isFinite(n)&&!byComp.has(r.componente))byComp.set(r.componente,n);});
+  const comps=[...byComp.values()];
+  if(comps.length)return comps.reduce((a,b)=>a+b,0)/comps.length;
+  const fallback=rows.map(r=>finite(r.principal)).filter(Number.isFinite);
+  return fallback.length?fallback.reduce((a,b)=>a+b,0)/fallback.length:null;
 }
 function geoSomSnapshot(ctx){
   const isAvalia=ctx.evaluation==='Avalia RJ';
@@ -3763,8 +3819,8 @@ function geoSomSnapshot(ctx){
   const values=new Map();
   GEO_POINTS.forEach(point=>{
     if(!isAvalia&&!geoPointMatchesSegment(point,ctx.segment))return;
-    const rows=geoSomRowsForPoint(point,ctx);
-    const value=geoWeightedEval(rows,r=>geoSomMetricValue(r,ctx));
+    const rows=isSim?[]:geoSomRowsForPoint(point,ctx);
+    const value=isSim?geoSimDirectValue(point,ctx):geoWeightedEval(rows,r=>geoSomMetricValue(r,ctx));
     if(Number.isFinite(value))values.set(point.name,value);
   });
   let medianValues=[...values.values()];
@@ -3959,6 +4015,8 @@ function geoVisiblePoints(){
     const result=snapshot?.results.get(p.name)||null;
     const hasData=!!result&&Number.isFinite(Number(result.value))&&result.status!=='nodata'&&result.status!=='loading'&&Number(result.count||0)>0;
     if(!hasData)return false;
+    // v376 — no Simulado não existe estrato cinza: só entram escolas classificadas em relação à meta.
+    if(ctx.evaluation==='Simulado 2026'&&!['up','down'].includes(result.status))return false;
     if(get==='sim'&&!p.isGET)return false;
     if(get==='nao'&&p.isGET)return false;
     if(!allSchools&&agent&&p.agent!==agent)return false;
@@ -4099,10 +4157,13 @@ function geoRenderMarkers(){
   const center=geoProject(GEO_STATE.centerLat,GEO_STATE.centerLng),left=center.x-r.width/2,top=center.y-r.height/2;
   const points=geoVisiblePoints();
   const draw=[];
+  const renderCtx=geoEvalContext();
   points.forEach(p=>{
     const xy=geoProject(p.lat,p.lng),x=xy.x-left,y=xy.y-top;
     if(x<-24||x>r.width+24||y<-24||y>r.height+24)return;
     const result=geoEvolutionForPoint(p);
+    // v376 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
+    if(renderCtx.evaluation==='Simulado 2026'&&!['up','down'].includes(result?.status))return;
     draw.push({p,result,x,y,selected:GEO_STATE.selected===p.name});
   });
   // Selecionado por último para permanecer visível em regiões com pontos muito próximos.
