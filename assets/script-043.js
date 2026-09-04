@@ -3746,10 +3746,14 @@ function geo2AnoCreTarget(value,component='LP'){
   const n=Number(rec?.[component]);
   return Number.isFinite(n)?n:null;
 }
-// v377 — Georreferenciamento / Simulado 2026: meta individual resolvida de forma autônoma pelo mapa.
+// v378 — Georreferenciamento / Simulado 2026: meta individual resolvida de forma autônoma pelo mapa.
 // A busca usa primeiro a API já existente de Metas e, como salvaguarda, o JSON de metas do próprio documento.
 // Esta rotina é exclusiva do mapa; não altera Somativas, ADRs, Banco de Dados ou relatórios.
 let GEO_SIM_META_INDEX_LOCAL=null;
+let GEO_SIM_META_SOURCE_LEN=-1;
+function geoSimKey(v){
+  return norm(v).replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+}
 function geoSimMetaField(ctx){
   if(ctx?.segment==='2º ano')return ctx?.component==='MT'?'meta2MT':'meta2LP';
   if(ctx?.segment==='4º ano')return 'meta4NP';
@@ -3757,16 +3761,17 @@ function geoSimMetaField(ctx){
   return '';
 }
 function geoSimLocalMetaIndex(){
-  if(GEO_SIM_META_INDEX_LOCAL)return GEO_SIM_META_INDEX_LOCAL;
+  const raw=document.getElementById('v356-data-metas')?.textContent||'[]';
+  if(GEO_SIM_META_INDEX_LOCAL&&GEO_SIM_META_SOURCE_LEN===raw.length)return GEO_SIM_META_INDEX_LOCAL;
   const idx=new Map();
   try{
-    const raw=document.getElementById('v356-data-metas')?.textContent||'[]';
     const rows=JSON.parse(raw);
     (rows||[]).forEach(r=>{
       const cre=geoCreNumberForTarget(r?.cre||'');
-      [r?.escola,...(r?.aliases||[])].filter(Boolean).forEach(name=>idx.set(`${cre}|${norm(name)}`,r));
+      [r?.escola,...(r?.aliases||[])].filter(Boolean).forEach(name=>idx.set(`${cre}|${geoSimKey(name)}`,r));
     });
   }catch(err){console.warn('Georreferenciamento: não foi possível indexar metas locais.',err);}
+  GEO_SIM_META_SOURCE_LEN=raw.length;
   GEO_SIM_META_INDEX_LOCAL=idx;
   return idx;
 }
@@ -3786,14 +3791,14 @@ function geoSimSchoolTarget(point,ctx,row=null){
   const field=geoSimMetaField(ctx),cre=geoCreNumberForTarget(creValue),idx=geoSimLocalMetaIndex();
   if(!field||!cre)return null;
   for(const school of candidates){
-    const rec=idx.get(`${cre}|${norm(school)}`);
+    const rec=idx.get(`${cre}|${geoSimKey(school)}`);
     const n=Number(rec?.[field]);
     if(Number.isFinite(n))return n;
   }
   return null;
 }
 function geoSimPointAliasSet(point){
-  return new Set([point?.name,point?.dataRioName,...(point?.somAliases||[]),...(point?.aliases||[])].filter(Boolean).map(norm));
+  return new Set([point?.name,point?.dataRioName,...(point?.somAliases||[]),...(point?.aliases||[])].filter(Boolean).map(geoSimKey));
 }
 function geoSimRowsDirect(point,ctx){
   if(ctx?.evaluation!=='Simulado 2026'||!point)return [];
@@ -3807,7 +3812,7 @@ function geoSimRowsDirect(point,ctx){
     if(year==='2º ano'&&String(r.componente||'')!==String(selectedComp))return false;
     const rowCre=geoCreNumberForTarget(r.cre||r.regional||'');
     if(cre&&rowCre&&cre!==rowCre)return false;
-    return aliases.has(norm(r.escola||''))||aliases.has(norm(r.escolaFonte||''));
+    return aliases.has(geoSimKey(r.escola||''))||aliases.has(geoSimKey(r.escolaFonte||''));
   });
 }
 function geoSimDirectValue(point,ctx){
@@ -3834,7 +3839,8 @@ function geoSimDirectValue(point,ctx){
   return fallback.length?fallback.reduce((a,b)=>a+b,0)/fallback.length:null;
 }
 
-// v377 — snapshot do Simulado dirigido pela base de resultados, e não pelos pontos do mapa.
+
+// v378 — snapshot do Simulado dirigido pela base de resultados, e não pelos pontos do mapa.
 // Consequência: quem FEZ o Simulado e tem resultado válido é sempre resolvido como azul/vermelho;
 // quem não possui resultado no recorte simplesmente não entra no snapshot e não aparece no mapa.
 function geoSimSnapshotByRows(ctx,key){
@@ -3848,14 +3854,14 @@ function geoSimSnapshotByRows(ctx,key){
   const pointIndex=new Map();
   (GEO_POINTS||[]).forEach(point=>{
     const cre=geoCreNumberForTarget(point);
-    [point.name,point.dataRioName,...(point.somAliases||[]),...(point.aliases||[])].filter(Boolean).forEach(name=>pointIndex.set(`${cre}|${norm(name)}`,point));
+    [point.name,point.dataRioName,...(point.somAliases||[]),...(point.aliases||[])].filter(Boolean).forEach(name=>pointIndex.set(`${cre}|${geoSimKey(name)}`,point));
   });
   const grouped=new Map(),missingPoint=[];
   rows.forEach(row=>{
     const cre=geoCreNumberForTarget(row?.cre||row?.regional||'');
     let point=null;
     for(const name of [row?.escola,row?.escolaFonte].filter(Boolean)){
-      point=pointIndex.get(`${cre}|${norm(name)}`)||null;
+      point=pointIndex.get(`${cre}|${geoSimKey(name)}`)||null;
       if(point)break;
     }
     if(!point){missingPoint.push(row?.escola||row?.escolaFonte||'');return;}
@@ -4118,7 +4124,7 @@ function geoVisiblePoints(){
     const result=snapshot?.results.get(p.name)||null;
     const hasData=!!result&&Number.isFinite(Number(result.value))&&result.status!=='nodata'&&result.status!=='loading'&&Number(result.count||0)>0;
     if(!hasData)return false;
-    // v377 — no Simulado só entram escolas com resultado resolvido em relação à meta.
+    // v378 — no Simulado só entram escolas com resultado resolvido em relação à meta.
     if(ctx.evaluation==='Simulado 2026'&&!['up','down'].includes(result.status))return false;
     if(get==='sim'&&!p.isGET)return false;
     if(get==='nao'&&p.isGET)return false;
@@ -4265,7 +4271,7 @@ function geoRenderMarkers(){
     const xy=geoProject(p.lat,p.lng),x=xy.x-left,y=xy.y-top;
     if(x<-24||x>r.width+24||y<-24||y>r.height+24)return;
     const result=geoEvolutionForPoint(p);
-    // v377 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
+    // v378 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
     if(renderCtx.evaluation==='Simulado 2026'&&!['up','down'].includes(result?.status))return;
     draw.push({p,result,x,y,selected:GEO_STATE.selected===p.name});
   });
