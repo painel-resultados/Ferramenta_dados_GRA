@@ -3746,17 +3746,48 @@ function geo2AnoCreTarget(value,component='LP'){
   const n=Number(rec?.[component]);
   return Number.isFinite(n)?n:null;
 }
-// v376 — Simulado 2026 no mapa: resultado e meta individuais da escola, com aliases normalizados.
-function geoSimSchoolTarget(point,ctx){
+// v377 — Georreferenciamento / Simulado 2026: meta individual resolvida de forma autônoma pelo mapa.
+// A busca usa primeiro a API já existente de Metas e, como salvaguarda, o JSON de metas do próprio documento.
+// Esta rotina é exclusiva do mapa; não altera Somativas, ADRs, Banco de Dados ou relatórios.
+let GEO_SIM_META_INDEX_LOCAL=null;
+function geoSimMetaField(ctx){
+  if(ctx?.segment==='2º ano')return ctx?.component==='MT'?'meta2MT':'meta2LP';
+  if(ctx?.segment==='4º ano')return 'meta4NP';
+  if(ctx?.segment==='8º ano')return 'meta8NP';
+  return '';
+}
+function geoSimLocalMetaIndex(){
+  if(GEO_SIM_META_INDEX_LOCAL)return GEO_SIM_META_INDEX_LOCAL;
+  const idx=new Map();
+  try{
+    const raw=document.getElementById('v356-data-metas')?.textContent||'[]';
+    const rows=JSON.parse(raw);
+    (rows||[]).forEach(r=>{
+      const cre=geoCreNumberForTarget(r?.cre||'');
+      [r?.escola,...(r?.aliases||[])].filter(Boolean).forEach(name=>idx.set(`${cre}|${norm(name)}`,r));
+    });
+  }catch(err){console.warn('Georreferenciamento: não foi possível indexar metas locais.',err);}
+  GEO_SIM_META_INDEX_LOCAL=idx;
+  return idx;
+}
+function geoSimSchoolTarget(point,ctx,row=null){
   if(ctx?.evaluation!=='Simulado 2026'||!point)return null;
-  const targetFor=window.__GRA_V356_METAS__?.targetFor;
-  if(typeof targetFor!=='function')return null;
   const year=ctx.segment||'';
   const comp=ctx.component||'LP';
-  const cre=point.creLabel||point.cre||'';
-  const candidates=[point.name,point.dataRioName,...(point.somAliases||[]),...(point.aliases||[])].filter(Boolean);
+  const creValue=row?.cre||row?.regional||point.creLabel||point.cre||'';
+  const candidates=[row?.escola,row?.escolaFonte,point.name,point.dataRioName,...(point.somAliases||[]),...(point.aliases||[])].filter(Boolean);
+  const targetFor=window.__GRA_V356_METAS__?.targetFor;
+  if(typeof targetFor==='function'){
+    for(const school of candidates){
+      const n=Number(targetFor(year,comp,school,creValue));
+      if(Number.isFinite(n))return n;
+    }
+  }
+  const field=geoSimMetaField(ctx),cre=geoCreNumberForTarget(creValue),idx=geoSimLocalMetaIndex();
+  if(!field||!cre)return null;
   for(const school of candidates){
-    const n=Number(targetFor(year,comp,school,cre));
+    const rec=idx.get(`${cre}|${norm(school)}`);
+    const n=Number(rec?.[field]);
     if(Number.isFinite(n))return n;
   }
   return null;
@@ -3802,6 +3833,70 @@ function geoSimDirectValue(point,ctx){
   const fallback=rows.map(r=>finite(r.principal)).filter(Number.isFinite);
   return fallback.length?fallback.reduce((a,b)=>a+b,0)/fallback.length:null;
 }
+
+// v377 — snapshot do Simulado dirigido pela base de resultados, e não pelos pontos do mapa.
+// Consequência: quem FEZ o Simulado e tem resultado válido é sempre resolvido como azul/vermelho;
+// quem não possui resultado no recorte simplesmente não entra no snapshot e não aparece no mapa.
+function geoSimSnapshotByRows(ctx,key){
+  const year=ctx.segment||'';
+  const selectedComp=ctx.component||'LP';
+  const source=(typeof SIMULADO2026_SCHOOL_ROWS!=='undefined'&&Array.isArray(SIMULADO2026_SCHOOL_ROWS))?SIMULADO2026_SCHOOL_ROWS:[];
+  const rows=source.filter(r=>{
+    if(r?.modalidade!=='Simulado 2026'||String(r.anoEscolar||'')!==String(year))return false;
+    return year==='2º ano'?String(r.componente||'')===String(selectedComp):true;
+  });
+  const pointIndex=new Map();
+  (GEO_POINTS||[]).forEach(point=>{
+    const cre=geoCreNumberForTarget(point);
+    [point.name,point.dataRioName,...(point.somAliases||[]),...(point.aliases||[])].filter(Boolean).forEach(name=>pointIndex.set(`${cre}|${norm(name)}`,point));
+  });
+  const grouped=new Map(),missingPoint=[];
+  rows.forEach(row=>{
+    const cre=geoCreNumberForTarget(row?.cre||row?.regional||'');
+    let point=null;
+    for(const name of [row?.escola,row?.escolaFonte].filter(Boolean)){
+      point=pointIndex.get(`${cre}|${norm(name)}`)||null;
+      if(point)break;
+    }
+    if(!point){missingPoint.push(row?.escola||row?.escolaFonte||'');return;}
+    let group=grouped.get(point.name);
+    if(!group){group={point,rows:[]};grouped.set(point.name,group);}
+    group.rows.push(row);
+  });
+  const finite=v=>Number.isFinite(Number(v))?Number(v):NaN;
+  const valueForRows=groupRows=>{
+    if(year==='2º ano'){
+      if(selectedComp==='LP'){
+        for(const r of groupRows)for(const v of [r.alfabetizacaoPct,r.adqAv]){const n=finite(v);if(Number.isFinite(n))return n;}
+        return null;
+      }
+      for(const r of groupRows)for(const v of [r.adqAv,r.principal]){const n=finite(v);if(Number.isFinite(n))return n;}
+      return null;
+    }
+    const general=groupRows.map(r=>finite(r.notaPadronizada)).filter(Number.isFinite);
+    if(general.length)return general.reduce((a,b)=>a+b,0)/general.length;
+    const byComp=new Map();
+    groupRows.forEach(r=>{const n=finite(r.notaPadronizadaComponente);if(Number.isFinite(n)&&!byComp.has(r.componente))byComp.set(r.componente,n);});
+    const comps=[...byComp.values()];
+    if(comps.length)return comps.reduce((a,b)=>a+b,0)/comps.length;
+    const fallback=groupRows.map(r=>finite(r.principal)).filter(Number.isFinite);
+    return fallback.length?fallback.reduce((a,b)=>a+b,0)/fallback.length:null;
+  };
+  const results=new Map(),values=new Map(),missingValue=[],missingTarget=[];
+  grouped.forEach(({point,rows:groupRows})=>{
+    const value=valueForRows(groupRows);
+    if(!Number.isFinite(value)){missingValue.push(point.name);return;}
+    const target=geoSimSchoolTarget(point,ctx,groupRows[0]||null);
+    if(!Number.isFinite(target)){missingTarget.push(point.name);return;}
+    const delta=value-target,status=delta>=-1e-9?'up':'down',suffix=year==='2º ano'?'%':'';
+    values.set(point.name,value);
+    results.set(point.name,{status,delta,value,target,median:null,count:1,suffix,bandLabel:status==='up'?'Atingiu a meta':'Não atingiu a meta'});
+  });
+  const snapshot={results,median:null,quartiles:null,count:results.size};
+  GEO_STATE.evalCache.set(key,snapshot);
+  window.__GRA_GEO_SIM_DIAGNOSTICS__={year,component:selectedComp,sourceRows:rows.length,matchedSchools:grouped.size,resolvedSchools:results.size,missingPoint:[...new Set(missingPoint)],missingValue,missingTarget};
+  return snapshot;
+}
 function geoSomSnapshot(ctx){
   const isAvalia=ctx.evaluation==='Avalia RJ';
   const isIdeb=ctx.evaluation==='IDEB 2025';
@@ -3814,6 +3909,7 @@ function geoSomSnapshot(ctx){
   const metaReady=isSim&&typeof window.__GRA_V356_METAS__?.targetFor==='function'?1:0;
   const key=['SOM',ctx.evaluation,ctx.segment,ctx.component,ctx.indicator,ctx.edition,GEO_STATE.somIndexSize,GEO_STATE.somIndexScope,Array.isArray(SOM_ROWS)?SOM_ROWS.length:0,filterKey,metaReady].join('\u0002');
   const cached=GEO_STATE.evalCache.get(key);if(cached)return cached;
+  if(isSim)return geoSimSnapshotByRows(ctx,key);
   geoBuildSomIndex();
   const isIdebGrowth=isIdeb&&ctx.indicator==='crescimento';
   const values=new Map();
@@ -4004,7 +4100,14 @@ function geoVisiblePoints(){
   if(GEO_STATE.focusedSchool&&q!==norm(GEO_STATE.focusedSchool))GEO_STATE.focusedSchool='';
   if(GEO_STATE.focusedSchool){
     const focused=(GEO_POINTS||[]).find(p=>p.name===GEO_STATE.focusedSchool);
-    if(focused)return [focused];
+    if(focused){
+      const focusedCtx=geoEvalContext();
+      if(focusedCtx.evaluation==='Simulado 2026'){
+        const focusedResult=geoSomSnapshot(focusedCtx)?.results.get(focused.name);
+        if(!focusedResult||!['up','down'].includes(focusedResult.status))return [];
+      }
+      return [focused];
+    }
     GEO_STATE.focusedSchool='';
   }
   const ctx=geoEvalContext();
@@ -4015,7 +4118,7 @@ function geoVisiblePoints(){
     const result=snapshot?.results.get(p.name)||null;
     const hasData=!!result&&Number.isFinite(Number(result.value))&&result.status!=='nodata'&&result.status!=='loading'&&Number(result.count||0)>0;
     if(!hasData)return false;
-    // v376 — no Simulado não existe estrato cinza: só entram escolas classificadas em relação à meta.
+    // v377 — no Simulado só entram escolas com resultado resolvido em relação à meta.
     if(ctx.evaluation==='Simulado 2026'&&!['up','down'].includes(result.status))return false;
     if(get==='sim'&&!p.isGET)return false;
     if(get==='nao'&&p.isGET)return false;
@@ -4162,7 +4265,7 @@ function geoRenderMarkers(){
     const xy=geoProject(p.lat,p.lng),x=xy.x-left,y=xy.y-top;
     if(x<-24||x>r.width+24||y<-24||y>r.height+24)return;
     const result=geoEvolutionForPoint(p);
-    // v376 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
+    // v377 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
     if(renderCtx.evaluation==='Simulado 2026'&&!['up','down'].includes(result?.status))return;
     draw.push({p,result,x,y,selected:GEO_STATE.selected===p.name});
   });
