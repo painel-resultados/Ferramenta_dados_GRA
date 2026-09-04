@@ -1,0 +1,182 @@
+{
+  "schema": "gra-ppt-data-v388",
+  "createdAt": "2026-09-04T14:21:59.144Z",
+  "cres": [
+    {
+      "cre": 1,
+      "file": "v388-ppt-data-cre-1.json",
+      "bytes": 1805075,
+      "counts": {
+        "adr": 934,
+        "som": 415,
+        "somBase": 199,
+        "ideb": 50,
+        "simulado": 166
+      },
+      "checksums": {
+        "adr": "03333bc991898726efc132c0c4e593312f51bfee2c7d00996c97a29bee340dfa",
+        "som": "b72c75a8f9f3889e984b4fd240508d95c75d9a548a1baf5ccb70a06348943ec5"
+      }
+    },
+    {
+      "cre": 2,
+      "file": "v388-ppt-data-cre-2.json",
+      "bytes": 3991819,
+      "counts": {
+        "adr": 2154,
+        "som": 972,
+        "somBase": 471,
+        "ideb": 115,
+        "simulado": 386
+      },
+      "checksums": {
+        "adr": "fdf5cc70786b843442e05f595906f812c0a252c80677ead8feefc558b5e09ed1",
+        "som": "169fef81026200fdba62f5a705ecc2d6d058f7da46ee73ba9e4338bae42d09a1"
+      }
+    },
+    {
+      "cre": 3,
+      "file": "v388-ppt-data-cre-3.json",
+      "bytes": 3169072,
+      "counts": {
+        "adr": 1626,
+        "som": 747,
+        "somBase": 365,
+        "ideb": 86,
+        "simulado": 296
+      },
+      "checksums": {
+        "adr": "a8ff8a4ad888e5ebe333e2d1e195732b068ec8993d07e4779823b4a2f8605866",
+        "som": "e267199cf5d2ceb23048938a1685ffd5b4f0f69a01dba37446e784fe62780e46"
+      }
+    },
+    {
+      "cre": 4,
+      "file": "v388-ppt-data-cre-4.json",
+      "bytes": 3651570,
+      "counts": {
+        "adr": 1900,
+        "som": 843,
+        "somBase": 407,
+        "ideb": 102,
+        "simulado": 334
+      },
+      "checksums": {
+        "adr": "6f2fbf533041ea110e472dde817c1b674ee87c2aff2c03832e8338a133a74c80",
+        "som": "734e8472718afc97c542fcbf1008f158d4efdf28c84bda5ddc8bc8d4d94f01b5"
+      }
+    },
+    {
+      "cre": 5,
+      "file": "v388-ppt-data-cre-5.json",
+      "bytes": 3626408,
+      "counts": {
+        "adr": 1908,
+        "som": 841,
+        "somBase": 403,
+        "ideb": 102,
+        "simulado": 336
+      },
+      "checksums": {
+        "adr": "f67c520efeefe401ef3a921033a477e66c1e307dd25af11d76ecf9959bd77f84",
+        "som": "79734af53336bcda007edfd87aa2c782deb1e08a2b68079d7ee0396915c9262f"
+      }
+    },
+    {
+      "cre": 6,
+      "file": "v388-ppt-data-cre-6.json",
+      "bytes": 2355798,
+      "counts": {
+        "adr": 1200,
+        "som": 541,
+        "somBase": 262,
+        "ideb": 63,
+        "simulado": 216
+      },
+      "checksums": {
+        "adr": "22e7c1d1a3f2f0a16d5c53e144b8069b12fe7c39dfa4af5a29f3b3ed897105b8",
+        "som": "b95a47df563eb8646636fbf881c2e2a28c23283dbcb35c6b6d010d106bcd9a95"
+      }
+    },
+    {
+      "cre": 7,
+      "file": "v388-ppt-data-cre-7.json",
+      "bytes": 4653487,
+      "counts": {
+        "adr": 2272,
+        "som": 1043,
+        "somBase": 511,
+        "ideb": 118,
+        "simulado": 414
+      },
+      "checksums": {
+        "adr": "db163844dfc07769ded4e82e79ccb8b403addae2a240d50df9c05de9f2ef82f2",
+        "som": "45737d297be33c6047ad05115ea0c988967e29fac3c6624cd5905d97178ffc19"
+      }
+    },
+    {
+      "cre": 8,
+      "file": "v388-ppt-data-cre-8.json",
+      "bytes": 4656876,
+      "counts": {
+        "adr": 2430,
+        "som": 1083,
+        "somBase": 522,
+        "ideb": 127,
+        "simulado": 434
+      },
+      "checksums": {
+        "adr": "7be65f3b3621edcac0a71034f38249313b8d09419d082c06948056c3fa469d3e",
+        "som": "8e6693c0c325be96cadc6ee759b515ad5547d73156c6dc28d536e064f3cb4ab5"
+      }
+    },
+    {
+      "cre": 9,
+      "file": "v388-ppt-data-cre-9.json",
+      "bytes": 3973778,
+      "counts": {
+        "adr": 1960,
+        "som": 876,
+        "somBase": 420,
+        "ideb": 106,
+        "simulado": 350
+      },
+      "checksums": {
+        "adr": "902f2503c726f95c0bc43d052b7cc4f5a6df92da26d09917b680e38813bb9074",
+        "som": "2ace49e2cc30a3e093f7ebd6980bb1e9a017cdd6936913e86f18b05359e2292d"
+      }
+    },
+    {
+      "cre": 10,
+      "file": "v388-ppt-data-cre-10.json",
+      "bytes": 4398390,
+      "counts": {
+        "adr": 2160,
+        "som": 960,
+        "somBase": 460,
+        "ideb": 116,
+        "simulado": 384
+      },
+      "checksums": {
+        "adr": "68724f41f51663c1fe01febc3751d45499fe2f85fc44100fcd12d16e95020a0b",
+        "som": "c93f5888198d55e654622d9e82015787edefd2cba43fc850101a1425c5e8ad5b"
+      }
+    },
+    {
+      "cre": 11,
+      "file": "v388-ppt-data-cre-11.json",
+      "bytes": 1220873,
+      "counts": {
+        "adr": 668,
+        "som": 287,
+        "somBase": 135,
+        "ideb": 38,
+        "simulado": 114
+      },
+      "checksums": {
+        "adr": "525fe54b0e5494106f5fd90cf7f7bbbed8086881d7977968f040cebb228b1aa2",
+        "som": "88304d53022b17aa0ed251a7e2ebba803fb3e3c7957709e301a49001637a8543"
+      }
+    }
+  ]
+}
