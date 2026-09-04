@@ -15,8 +15,8 @@
 
   function stamp(){
     document.documentElement.dataset.graExperimental='individual-proficiency';
-    const b=document.getElementById('dashboardVersionBadge');if(b)b.textContent='v378';
-    const s=document.querySelector('.gra-start-version');if(s)s.textContent='v378';
+    const b=document.getElementById('dashboardVersionBadge');if(b)b.textContent='v379';
+    const s=document.querySelector('.gra-start-version');if(s)s.textContent='v379';
     document.title=document.title.replace(/v?283(?:_experimental_proficiencias_individuais(?:_\d+)?)?/ig,VERSION);
   }
   async function unpack(){
