@@ -3746,7 +3746,7 @@ function geo2AnoCreTarget(value,component='LP'){
   const n=Number(rec?.[component]);
   return Number.isFinite(n)?n:null;
 }
-// v379 — Georreferenciamento / Simulado 2026: meta individual resolvida de forma autônoma pelo mapa.
+// v378 — Georreferenciamento / Simulado 2026: meta individual resolvida de forma autônoma pelo mapa.
 // A busca usa primeiro a API já existente de Metas e, como salvaguarda, o JSON de metas do próprio documento.
 // Esta rotina é exclusiva do mapa; não altera Somativas, ADRs, Banco de Dados ou relatórios.
 let GEO_SIM_META_INDEX_LOCAL=null;
@@ -3840,7 +3840,7 @@ function geoSimDirectValue(point,ctx){
 }
 
 
-// v379 — snapshot do Simulado dirigido pela base de resultados, e não pelos pontos do mapa.
+// v378 — snapshot do Simulado dirigido pela base de resultados, e não pelos pontos do mapa.
 // Consequência: quem FEZ o Simulado e tem resultado válido é sempre resolvido como azul/vermelho;
 // quem não possui resultado no recorte simplesmente não entra no snapshot e não aparece no mapa.
 function geoSimSnapshotByRows(ctx,key){
@@ -3903,8 +3903,6 @@ function geoSimSnapshotByRows(ctx,key){
   window.__GRA_GEO_SIM_DIAGNOSTICS__={year,component:selectedComp,sourceRows:rows.length,matchedSchools:grouped.size,resolvedSchools:results.size,missingPoint:[...new Set(missingPoint)],missingValue,missingTarget};
   return snapshot;
 }
-window.__GRA_GEO_SIM_META_SNAPSHOT__=geoSimSnapshotByRows;
-
 function geoSomSnapshot(ctx){
   const isAvalia=ctx.evaluation==='Avalia RJ';
   const isIdeb=ctx.evaluation==='IDEB 2025';
@@ -4126,7 +4124,7 @@ function geoVisiblePoints(){
     const result=snapshot?.results.get(p.name)||null;
     const hasData=!!result&&Number.isFinite(Number(result.value))&&result.status!=='nodata'&&result.status!=='loading'&&Number(result.count||0)>0;
     if(!hasData)return false;
-    // v379 — no Simulado só entram escolas com resultado resolvido em relação à meta.
+    // v378 — no Simulado só entram escolas com resultado resolvido em relação à meta.
     if(ctx.evaluation==='Simulado 2026'&&!['up','down'].includes(result.status))return false;
     if(get==='sim'&&!p.isGET)return false;
     if(get==='nao'&&p.isGET)return false;
@@ -4273,7 +4271,7 @@ function geoRenderMarkers(){
     const xy=geoProject(p.lat,p.lng),x=xy.x-left,y=xy.y-top;
     if(x<-24||x>r.width+24||y<-24||y>r.height+24)return;
     const result=geoEvolutionForPoint(p);
-    // v379 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
+    // v378 — salvaguarda final: Simulado jamais desenha marcador cinza/indefinido.
     if(renderCtx.evaluation==='Simulado 2026'&&!['up','down'].includes(result?.status))return;
     draw.push({p,result,x,y,selected:GEO_STATE.selected===p.name});
   });
