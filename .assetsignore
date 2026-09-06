@@ -1,0 +1,11 @@
+# Do not publish Git/CI metadata as static assets
+.git/
+.git/**
+.github/
+.github/**
+.gitignore
+.gitattributes
+
+# Local/project files that are not part of the public site
+ASSETS_MANIFEST.json
+*.zip
