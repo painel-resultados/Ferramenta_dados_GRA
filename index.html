@@ -19473,7 +19473,7 @@ function masterAllows(r){
   }
   return true;
 }
-function partnerEligible(){const sc=scopeCre();return sc===0||PARTNER_CRES.has(sc)}
+function partnerEligible(){if(!isAgent())return true;const sc=scopeCre();return sc===0||PARTNER_CRES.has(sc)}
 function isOn(){return !!window.__GRA_PARTNERS_EDUCATION_ACTIVE__}
 function setOn(on){
   window.__GRA_PARTNERS_EDUCATION_ACTIVE__=!!on&&partnerEligible();
@@ -19617,6 +19617,7 @@ function saebHtml(year,comp,richRows){
   return `<div class="gra-partner-scale">${levels.map(l=>`<details><summary>${esc(l.name)}<em>${esc(l.range||'')}</em></summary><ul>${(l.skills||[]).slice(0,5).map(s=>`<li>${esc(s)}</li>`).join('')}</ul></details>`).join('')}</div>`;
 }
 function headerHtml(subtitle,count){return `<div class="gra-partner-head"><div><h3>Parceiros da Educação</h3><p>${esc(subtitle)}</p></div><span class="gra-partner-badge">${count} escola${count===1?'':'s'} parceira${count===1?'':'s'} no recorte</span></div>`}
+function partnerSplitAll(items){const source=Array.isArray(items)?items:[];if(!source.length)return {best:[],challenge:[],total:0};try{if(typeof window.graSplitOddRanking==='function')return window.graSplitOddRanking(source,Math.max(source.length,1))}catch(_){}const half=Math.floor(source.length/2);if(source.length%2===0)return {best:source.slice(0,half),challenge:source.slice(half).reverse(),total:source.length};return {best:source.slice(0,half+1),challenge:source.slice(half+1).reverse(),total:source.length}}
 let somSeq=0;
 function partnerFmtMetric(v,metric,row=null){
   const n=Number(v);
@@ -19676,7 +19677,7 @@ async function renderSomPartner(){
   const partnerItems=schoolItems.filter(x=>isPartner(x.row||x.name)),partnerValue=weighted(partnerItems);
   const officialAggregate=partnerOfficialSimAggregate(modality,year,comp,metric);
   const universeValue=modality==='Simulado 2026'?(officialAggregate.available?officialAggregate.value:null):weighted(schoolItems);
-  const lower=typeof somLowerIsBetter==='function'?somLowerIsBetter(metric):metric==='abaixo';const sorted=partnerItems.slice().sort((a,b)=>lower?a.value-b.value:b.value-a.value),best=sorted.slice(0,5),challenge=sorted.slice().reverse().slice(0,5);
+  const lower=typeof somLowerIsBetter==='function'?somLowerIsBetter(metric):metric==='abaixo';const sorted=partnerItems.slice().sort((a,b)=>lower?a.value-b.value:b.value-a.value),partnerSplit=partnerSplitAll(sorted),best=partnerSplit.best,challenge=partnerSplit.challenge;
   let rich=[];try{rich=(typeof SIMULADO2026_SCHOOL_ROWS!=='undefined'&&Array.isArray(SIMULADO2026_SCHOOL_ROWS))?SIMULADO2026_SCHOOL_ROWS.filter(r=>masterAllows(r)&&r.anoEscolar===year&&(!comp||r.componente===comp)&&isPartner(r)):[]}catch(_){}
   let skills=[];if(modality==='Simulado 2026'&&rich.length){try{skills=typeof sim2026SkillAggregate==='function'?sim2026SkillAggregate(rich,comp):genericSkillAggregate(rich)}catch(_){skills=genericSkillAggregate(rich)}skills=skills.map(x=>{const h=x.h||x.code||'',meta=(typeof SIMULADO2026_SKILL_META!=='undefined'?SIMULADO2026_SKILL_META?.[`${year}|${comp}|${h}`]:null)||{};return {code:meta.codigo?`${h} · ${meta.codigo}`:h,description:meta.descricao||x.description||'',value:x.value}}).sort((a,b)=>a.value-b.value)}else skills=genericSkillAggregate(rawRows.filter(isPartner));
   const levelRows=rich.length?rich:rawRows.filter(isPartner),levels=levelAggregate(levelRows);const subtitle=`${modality||'Avaliação'} · ${year||'todos os anos'} · ${comp||'todos os componentes'} · comparação com o agregado de ${scopeLabel()}. Filtros de agente, prioridade e busca não alteram este bloco; o universo é definido pelo filtro Master.`;
@@ -19684,7 +19685,7 @@ async function renderSomPartner(){
   const aggregateNote=modality==='Simulado 2026'?(officialAggregate.note||'valor oficial não disponível'):'agregado do universo Master';
   const aggregateDisplay=(modality==='Simulado 2026'&&officialAggregate.available&&officialAggregate.display)?officialAggregate.display:partnerFmtMetric(universeValue,metric,officialAggregate.row||schoolItems[0]?.row);
   const aggregateLabel=(modality==='Simulado 2026'&&officialAggregate.label)?officialAggregate.label:metricLabel(metric);
-  card.innerHTML=`${headerHtml(subtitle,partnerItems.length)}<div class="gra-partner-kpis"><div class="gra-partner-kpi"><small>Parceiras com resultado</small><b>${partnerItems.length}</b><span>de ${schoolItems.length} escolas no universo</span></div><div class="gra-partner-kpi"><small>${esc(metricLabel(metric))} · Parceiros</small><b>${esc(partnerFmtMetric(partnerValue,metric,partnerItems[0]?.row))}</b><span>média ponderada pelo número de avaliados</span></div><div class="gra-partner-kpi"><small>${esc(aggregateLabel)} · ${esc(scopeLabel())}</small><b>${esc(aggregateDisplay)}</b><span>${esc(aggregateNote)}</span></div><div class="gra-partner-kpi"><small>Diferença</small><b>${esc(diff)}</b><span>Parceiros menos agregado oficial do universo</span></div></div><div class="gra-partner-grid"><div class="gra-partner-box"><h4>Melhores resultados entre as parceiras</h4><p>Até cinco escolas, ordenadas pelo indicador selecionado.</p>${rankHtml(best,metric,modality)}</div><div class="gra-partner-box"><h4>Resultados mais desafiadores entre as parceiras</h4><p>Até cinco escolas que mais demandam atenção no indicador selecionado.</p>${rankHtml(challenge,metric,modality)}</div><div class="gra-partner-box"><h4>Habilidades mais desafiadoras</h4><p>Menores percentuais médios de acerto das escolas parceiras no recorte.</p>${skillsHtml(skills)}</div><div class="gra-partner-box"><h4>Níveis e escala de referência</h4><p>Distribuição dos estudantes/níveis das parceiras e habilidades associadas à escala SAEB quando aplicável.</p>${levelsHtml(levels,levelRows)}${modality==='Simulado 2026'?saebHtml(year,comp,rich):''}</div></div>`;
+  card.innerHTML=`${headerHtml(subtitle,partnerItems.length)}<div class="gra-partner-kpis"><div class="gra-partner-kpi"><small>Parceiras com resultado</small><b>${partnerItems.length}</b><span>de ${schoolItems.length} escolas no universo</span></div><div class="gra-partner-kpi"><small>${esc(metricLabel(metric))} · Parceiros</small><b>${esc(partnerFmtMetric(partnerValue,metric,partnerItems[0]?.row))}</b><span>média ponderada pelo número de avaliados</span></div><div class="gra-partner-kpi"><small>${esc(aggregateLabel)} · ${esc(scopeLabel())}</small><b>${esc(aggregateDisplay)}</b><span>${esc(aggregateNote)}</span></div><div class="gra-partner-kpi"><small>Diferença</small><b>${esc(diff)}</b><span>Parceiros menos agregado oficial do universo</span></div></div><div class="gra-partner-grid"><div class="gra-partner-box"><h4>Melhores resultados entre as parceiras</h4><p>Grupo superior do recorte Parceiros; todas as escolas com resultado são distribuídas entre os dois grupos.</p>${rankHtml(best,metric,modality)}</div><div class="gra-partner-box"><h4>Resultados mais desafiadores entre as parceiras</h4><p>Grupo mais desafiador do recorte Parceiros; nenhuma escola com resultado é omitida por limite visual.</p>${rankHtml(challenge,metric,modality)}</div><div class="gra-partner-box"><h4>Habilidades mais desafiadoras</h4><p>Menores percentuais médios de acerto das escolas parceiras no recorte.</p>${skillsHtml(skills)}</div><div class="gra-partner-box"><h4>Níveis e escala de referência</h4><p>Distribuição dos estudantes/níveis das parceiras e habilidades associadas à escala SAEB quando aplicável.</p>${levelsHtml(levels,levelRows)}${modality==='Simulado 2026'?saebHtml(year,comp,rich):''}</div></div>`;
 }
 function adrUniverseRows(){
   const mode=byId('adrMode')?.value||'individual',year=byId('adrAno')?.value||'',comp=byId('adrComp')?.value||'',adr=byId('adrSelect')?.value||'';const source=(typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS))?ADR_ROWS:[];
@@ -19692,7 +19693,7 @@ function adrUniverseRows(){
 }
 function latestAdrRows(rows){const ord=x=>Number((String(x?.adr||'').match(/\d+/)||[0])[0]);const max=Math.max(0,...rows.map(ord));return max?rows.filter(r=>ord(r)===max):rows}
 function renderAdrPartner(){
-  const card=byId('partnersAdrAnalysis');if(!card)return;card.hidden=!isOn();if(!isOn())return;buildPartnerAliases(true);const mode=byId('adrMode')?.value||'individual',year=byId('adrAno')?.value||'',comp=byId('adrComp')?.value||'',metric=byId('adrMetric')?.value||'adequado',selectedAdr=byId('adrSelect')?.value||'';let raw=adrUniverseRows();if(mode==='progressao')raw=latestAdrRows(raw);const schoolItems=groupSchool(raw,r=>Number(r?.[metric])),partnerItems=schoolItems.filter(x=>isPartner(x.row||x.name)),partnerValue=weighted(partnerItems),universeValue=weighted(schoolItems),lower=metric==='abaixo',sorted=partnerItems.slice().sort((a,b)=>lower?a.value-b.value:b.value-a.value),best=sorted.slice(0,5),challenge=sorted.slice().reverse().slice(0,5),partnerRows=raw.filter(isPartner),adrRef=mode==='progressao'?(partnerRows[0]?.adr||raw[0]?.adr||''):selectedAdr,skills=genericSkillAggregate(partnerRows,year,comp,adrRef),levels=levelAggregate(partnerRows);const subtitle=`${mode==='progressao'?'ADR mais recente do recorte de progressão':(selectedAdr||'ADR')} · ${year||'todos os anos'} · ${comp||'todos os componentes'} · comparação com o agregado de ${scopeLabel()}. O bloco usa o universo Master, independentemente dos filtros inferiores.`;card.innerHTML=`${headerHtml(subtitle,partnerItems.length)}<div class="gra-partner-kpis"><div class="gra-partner-kpi"><small>Parceiras com resultado</small><b>${partnerItems.length}</b><span>de ${schoolItems.length} escolas no universo</span></div><div class="gra-partner-kpi"><small>${esc(metric==='acerto'?'% Acerto Total':metric==='abaixo'?'% Abaixo do Básico':'% Adequado')} · Parceiros</small><b>${fmtNum(partnerValue,1)}%</b><span>média ponderada pelo número de avaliados</span></div><div class="gra-partner-kpi"><small>Agregado · ${esc(scopeLabel())}</small><b>${fmtNum(universeValue,1)}%</b><span>mesma métrica no universo Master</span></div><div class="gra-partner-kpi"><small>Diferença</small><b>${esc(deltaText(partnerValue,universeValue,metric,'ADR'))}</b><span>Parceiros menos agregado do universo</span></div></div><div class="gra-partner-grid"><div class="gra-partner-box"><h4>Melhores resultados entre as parceiras</h4>${rankHtml(best,metric,'ADR')}</div><div class="gra-partner-box"><h4>Resultados mais desafiadores entre as parceiras</h4>${rankHtml(challenge,metric,'ADR')}</div><div class="gra-partner-box"><h4>Habilidades mais desafiadoras</h4><p>Menores percentuais médios de acerto nas escolas parceiras.</p>${skillsHtml(skills)}</div><div class="gra-partner-box"><h4>Distribuição por níveis</h4><p>Distribuição agregada das escolas parceiras no recorte selecionado.</p>${levelsHtml(levels,partnerRows)}</div></div>`;
+  const card=byId('partnersAdrAnalysis');if(!card)return;card.hidden=!isOn();if(!isOn())return;buildPartnerAliases(true);const mode=byId('adrMode')?.value||'individual',year=byId('adrAno')?.value||'',comp=byId('adrComp')?.value||'',metric=byId('adrMetric')?.value||'adequado',selectedAdr=byId('adrSelect')?.value||'';let raw=adrUniverseRows();if(mode==='progressao')raw=latestAdrRows(raw);const schoolItems=groupSchool(raw,r=>Number(r?.[metric])),partnerItems=schoolItems.filter(x=>isPartner(x.row||x.name)),partnerValue=weighted(partnerItems),universeValue=weighted(schoolItems),lower=metric==='abaixo',sorted=partnerItems.slice().sort((a,b)=>lower?a.value-b.value:b.value-a.value),partnerSplit=partnerSplitAll(sorted),best=partnerSplit.best,challenge=partnerSplit.challenge,partnerRows=raw.filter(isPartner),adrRef=mode==='progressao'?(partnerRows[0]?.adr||raw[0]?.adr||''):selectedAdr,skills=genericSkillAggregate(partnerRows,year,comp,adrRef),levels=levelAggregate(partnerRows);const subtitle=`${mode==='progressao'?'ADR mais recente do recorte de progressão':(selectedAdr||'ADR')} · ${year||'todos os anos'} · ${comp||'todos os componentes'} · comparação com o agregado de ${scopeLabel()}. O bloco usa o universo Master, independentemente dos filtros inferiores.`;card.innerHTML=`${headerHtml(subtitle,partnerItems.length)}<div class="gra-partner-kpis"><div class="gra-partner-kpi"><small>Parceiras com resultado</small><b>${partnerItems.length}</b><span>de ${schoolItems.length} escolas no universo</span></div><div class="gra-partner-kpi"><small>${esc(metric==='acerto'?'% Acerto Total':metric==='abaixo'?'% Abaixo do Básico':'% Adequado')} · Parceiros</small><b>${fmtNum(partnerValue,1)}%</b><span>média ponderada pelo número de avaliados</span></div><div class="gra-partner-kpi"><small>Agregado · ${esc(scopeLabel())}</small><b>${fmtNum(universeValue,1)}%</b><span>mesma métrica no universo Master</span></div><div class="gra-partner-kpi"><small>Diferença</small><b>${esc(deltaText(partnerValue,universeValue,metric,'ADR'))}</b><span>Parceiros menos agregado do universo</span></div></div><div class="gra-partner-grid"><div class="gra-partner-box"><h4>Melhores resultados entre as parceiras</h4>${rankHtml(best,metric,'ADR')}</div><div class="gra-partner-box"><h4>Resultados mais desafiadores entre as parceiras</h4>${rankHtml(challenge,metric,'ADR')}</div><div class="gra-partner-box"><h4>Habilidades mais desafiadoras</h4><p>Menores percentuais médios de acerto nas escolas parceiras.</p>${skillsHtml(skills)}</div><div class="gra-partner-box"><h4>Distribuição por níveis</h4><p>Distribuição agregada das escolas parceiras no recorte selecionado.</p>${levelsHtml(levels,partnerRows)}</div></div>`;
 }
 function updateButtonAndPanels(){installButton();ensurePanels();const som=byId('partnersSomAnalysis'),adr=byId('partnersAdrAnalysis');if(som)som.hidden=!isOn();if(adr)adr.hidden=!isOn()}
 function refreshGeo(){ensureGeoWrapper();if(isAgent())syncAgentGeo();else syncLeaderGeo();try{if(typeof window.geoScheduleFilters==='function')window.geoScheduleFilters(0);else if(typeof window.renderGeo==='function')window.renderGeo()}catch(_){}}
@@ -19886,6 +19887,173 @@ body.exp-ui #partnersEducationBtn.active .gra-partner-switch-thumb{transform:tra
 </style>
 <script id="v400-final-version-lock">
 (function(){'use strict';const V='v400';function stamp(){document.documentElement.dataset.graVersion=V;const b=document.getElementById('dashboardVersionBadge');if(b)b.textContent=V;document.querySelectorAll('.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{if(/^v?\d+/i.test((el.textContent||'').trim()))el.textContent=V});if(!String(document.title||'').endsWith('— '+V))document.title='Ferramenta GRA de análise de dados — '+V}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',stamp,{once:true});else stamp();[300,1200,4000,9000,18000].forEach(ms=>setTimeout(stamp,ms));window.__GRA_V400__={version:V,stamp}})();
+</script>
+
+<!-- v401 — Busca universal no Banco Bruto. Adição isolada: não altera bases, filtros, Simulado, ADR, Georreferenciamento ou PPT. -->
+<style id="v401-bank-universal-style">
+#v401BankUniversalCard{margin-bottom:16px}
+#v401BankUniversalCard .v401-bank-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}
+#v401BankUniversalCard .v401-bank-head h3{margin:0 0 4px;color:var(--navy);font-size:18px}
+#v401BankUniversalCard .v401-bank-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.45;max-width:900px}
+#v401UniversalBankSearch{width:100%;max-width:none}
+#v401BankUniversalMeta{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#v401BankUniversalMeta .v401-count{font-weight:900;color:var(--navy)}
+#v401BankUniversalMeta .v401-hint{color:var(--muted);font-size:11px}
+#v401BankUniversalResults[hidden]{display:none!important}
+#v401BankUniversalTable td:nth-child(1){white-space:nowrap;font-weight:850;color:var(--navy)}
+#v401BankUniversalTable td:nth-child(2){font-weight:800;min-width:260px}
+#v401BankUniversalTable td:nth-child(3){min-width:150px}
+#v401BankUniversalTable td:nth-child(4){min-width:320px}
+#v401BankUniversalTable td:nth-child(5){white-space:nowrap;color:var(--muted);font-size:11px}
+.v401-match-list{display:flex;flex-wrap:wrap;gap:5px}
+.v401-match-chip{display:inline-flex;align-items:center;padding:4px 7px;border-radius:999px;background:#edf6fc;border:1px solid #d8e9f4;color:#214e70;font-size:10.5px;font-weight:750;line-height:1.2}
+@media(max-width:760px){#v401BankUniversalCard .v401-bank-head{flex-direction:column}#v401BankUniversalTable{min-width:900px}}
+</style>
+<script id="v401-bank-universal-runtime">
+(function(){'use strict';
+const VERSION='v401',CARD_ID='v401BankUniversalCard',INPUT_ID='v401UniversalBankSearch',TABLE_ID='v401BankUniversalTable';
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+function coreSchool(v){return norm(v).replace(/^(get\s+)?(escola municipal|e m|em|ciep|colegio municipal|c m|cm)\s+/,'').replace(/\b(prof|profa)\b/g,'professor').replace(/\brev\b/g,'reverendo').replace(/\bpres\b/g,'presidente').replace(/\s+/g,' ').trim()}
+function creNum(v){const m=String(v??'').match(/\d{1,2}/);return m?Number(m[0]):0}
+function digits(v){return String(v??'').replace(/\D/g,'')}
+function flatten(value,path='',out=[]){
+  if(value===null||value===undefined||value==='')return out;
+  if(Array.isArray(value)){value.forEach((x,i)=>flatten(x,path?`${path}[${i+1}]`:String(i+1),out));return out}
+  if(typeof value==='object'){Object.entries(value).forEach(([k,x])=>flatten(x,path?`${path}.${k}`:k,out));return out}
+  out.push({path,value:String(value)});return out;
+}
+function fieldLabel(path){
+  const clean=String(path||'').replace(/\[\d+\]/g,'');
+  const key=clean.split('.').at(-1)||clean;
+  const labels={cre:'CRE',creLabel:'CRE',territorio:'Território',territorioLabel:'Território',agente:'Agente',unidade:'Escola',escola:'Escola',bairro:'Bairro',planoAcao:'Plano de Ação',planoDimensao:'Plano de Dimensão',exclusiva:'Exclusiva',turnoEF:'Turno EF',vocacionada:'Vocacionada',idebAI:'IDEB AI',idebAF:'IDEB AF',pesoEF:'Peso EF',pesoPD:'Peso PD',tipoUnidade:'Tipo',codigoSME:'Código SME',codigoINEP:'Código INEP',sme:'Código SME',inep:'Código INEP',etapa:'Etapa',sextoCarioca:'6º ano Carioca',modalidade:'Modalidade',apoiosAI:'Apoios AI',apoiosAF:'Apoios AF',violenciaDias:'Dias de impacto por violência',semCP:'Sem CP',semDiretor:'Sem diretor',semAdjunto:'Sem adjunto',irAI:'IR AI',irAF:'IR AF',inseAI:'INSE AI',inseAF:'INSE AF',vulneraveis:'Vulneráveis',predAI:'Preditor AI',predAF:'Preditor AF',totalAlunos:'Total de alunos',totalTurmas:'Total de turmas',alunosAI:'Alunos AI',turmasAI:'Turmas AI',alunosAF:'Alunos AF',turmasAF:'Turmas AF',anos:'Ano escolar',prioritaria:'Prioritária',prioridadeTipo:'Tipo de prioridade',prioridadeAnos:'Anos prioritários',prioridadeRecorte:'Recorte prioritário'};
+  if(clean.startsWith('anos.'))return `Ano ${clean.split('.')[1]}`;
+  return labels[key]||key.replace(/([a-z])([A-Z])/g,'$1 $2');
+}
+let indexCache=null,ctxCache=null;
+function contextRows(){if(ctxCache)return ctxCache;const n=$('v392MinhaEscolaContextData');if(!n)return [];try{ctxCache=JSON.parse(n.textContent)?.rows||[]}catch(e){console.warn('v401: contexto escolar indisponível',e);ctxCache=[]}return ctxCache}
+function baseRows(){try{return (typeof DATA!=='undefined'&&Array.isArray(DATA?.records))?DATA.records:[]}catch(_){return []}}
+function allowedBase(r){try{return !window.graMasterAllowsRow||window.graMasterAllowsRow(r)}catch(_){return true}}
+function selectedCre(){const scope=creNum($('regionalScopeSelect')?.value);if(scope)return scope;const role=String(window.__GRA_ACCESS__?.role||'').toLowerCase();if(role==='agent')return creNum(window.__GRA_ACCESS__?.cre);return 0}
+function buildIndex(){
+  const base=baseRows(),ctx=contextRows();
+  const byKey=new Map(),bySme=new Map(),byInep=new Map();
+  function getOrCreate(key,seed){if(!byKey.has(key))byKey.set(key,{key,cre:seed.cre||0,school:seed.school||'',bairro:seed.bairro||'',base:null,ctx:null,fields:[]});return byKey.get(key)}
+  for(const r of base){const cre=creNum(r.cre??r.creLabel),school=String(r.unidade||r.escola||'').trim(),sme=digits(r.codigoSME),inep=digits(r.codigoINEP),key=`${cre}|${coreSchool(school)}`;const e=getOrCreate(key,{cre,school,bairro:r.bairro||''});e.base=r;e.school=e.school||school;e.bairro=e.bairro||r.bairro||'';e.fields.push(...flatten(r).map(x=>({...x,source:'Banco Bruto'})));if(sme)bySme.set(sme,e);if(inep)byInep.set(inep,e)}
+  for(const r of ctx){const cre=creNum(r.cre),school=String(r.escola||'').trim(),sme=digits(r.sme),inep=digits(r.inep);let e=(sme&&bySme.get(sme))||(inep&&byInep.get(inep));if(!e){const key=`${cre}|${coreSchool(school)}`;e=getOrCreate(key,{cre,school,bairro:r.bairro||''})}e.ctx=r;e.cre=e.cre||cre;e.school=e.school||school;e.bairro=e.bairro||r.bairro||'';e.fields.push(...flatten(r).map(x=>({...x,source:'Contexto da unidade'})))}
+  for(const e of byKey.values()){e.search=norm(e.fields.map(f=>`${fieldLabel(f.path)} ${f.value}`).join(' '))}
+  indexCache=[...byKey.values()];return indexCache;
+}
+function currentIndex(){return indexCache||buildIndex()}
+function allowedEntry(e){const cre=selectedCre();if(cre&&Number(e.cre)!==cre)return false;if(e.base&&!allowedBase(e.base))return false;const role=String(window.__GRA_ACCESS__?.role||'').toLowerCase();if(role==='agent'){const accessCre=creNum(window.__GRA_ACCESS__?.cre);if(accessCre&&Number(e.cre)!==accessCre)return false}return true}
+function matchedFields(e,terms){
+  const found=[];for(const f of e.fields){const text=norm(`${fieldLabel(f.path)} ${f.value}`);if(terms.every(t=>text.includes(t))||terms.some(t=>text.includes(t))){found.push(f)}}
+  const seen=new Set(),out=[];for(const f of found){const label=fieldLabel(f.path),value=String(f.value);const k=norm(`${label}|${value}`);if(seen.has(k))continue;seen.add(k);out.push({label,value,source:f.source});if(out.length>=5)break}return out;
+}
+function render(){
+  const input=$(INPUT_ID),results=$('v401BankUniversalResults'),count=$('v401BankUniversalCount'),table=$(TABLE_ID);if(!input||!results||!count||!table)return;
+  const raw=input.value.trim(),q=norm(raw);if(!q){results.hidden=true;count.textContent='Digite uma palavra ou trecho para pesquisar.';table.innerHTML='';return}
+  const terms=q.split(/\s+/).filter(Boolean);const rows=currentIndex().filter(allowedEntry).filter(e=>terms.every(t=>e.search.includes(t))).map(e=>({...e,matches:matchedFields(e,terms)})).sort((a,b)=>(a.cre-b.cre)||a.school.localeCompare(b.school,'pt-BR',{sensitivity:'base'}));
+  count.textContent=`${rows.length.toLocaleString('pt-BR')} ${rows.length===1?'unidade encontrada':'unidades encontradas'}.`;
+  const head='<thead><tr><th>CRE</th><th>Escola</th><th>Bairro</th><th>Correspondência encontrada</th><th>Fonte</th></tr></thead>';
+  const body='<tbody>'+rows.map(r=>{const matches=r.matches.length?r.matches:[{label:'Conteúdo',value:raw,source:r.ctx?'Contexto da unidade':'Banco Bruto'}];const chips=matches.map(m=>`<span class="v401-match-chip"><b>${esc(m.label)}:</b>&nbsp;${esc(m.value)}</span>`).join('');const sources=[...new Set(matches.map(m=>m.source))].join(' + ');return `<tr><td>${r.cre?esc(r.cre+'ª CRE'):'—'}</td><td>${esc(r.school||'—')}</td><td>${esc(r.bairro||'—')}</td><td><div class="v401-match-list">${chips}</div></td><td>${esc(sources)}</td></tr>`}).join('')+'</tbody>';
+  table.innerHTML=head+body;results.hidden=false;
+}
+function install(){
+  const banco=$('banco');if(!banco||$(CARD_ID))return false;const first=banco.querySelector(':scope > .card');const card=document.createElement('div');card.id=CARD_ID;card.className='card';card.innerHTML=`<div class="v401-bank-head"><div><h3>Busca universal no Banco Bruto</h3><p>Pesquisa qualquer palavra ou trecho em todos os campos disponíveis do banco e nos campos contextuais associados às escolas, incluindo apoios e programas.</p></div></div><div class="toolbar"><input id="${INPUT_ID}" class="search" autocomplete="off" placeholder="Pesquisar qualquer palavra (ex.: Alura, Letrus, Parceiros da Educação, bairro, código SME...)"></div><div id="v401BankUniversalMeta"><span class="v401-count" id="v401BankUniversalCount">Digite uma palavra ou trecho para pesquisar.</span><span class="v401-hint">A busca ignora maiúsculas/minúsculas e acentos e aceita trechos de palavras.</span></div><div id="v401BankUniversalResults" hidden><div class="table-wrap" style="margin-top:10px"><table id="${TABLE_ID}"></table></div></div>`;if(first)banco.insertBefore(card,first);else banco.prepend(card);$(INPUT_ID).addEventListener('input',render);$('regionalScopeSelect')?.addEventListener('change',render);return true;
+}
+function stamp(){document.documentElement.dataset.graVersion=VERSION;const b=$('dashboardVersionBadge');if(b)b.textContent=VERSION;document.querySelectorAll('.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{if(/^v?\d+/i.test(el.textContent||''))el.textContent=VERSION});if(!new RegExp('—\\s*'+VERSION+'\\s*$','i').test(document.title||''))document.title='Ferramenta GRA de análise de dados — '+VERSION}
+function boot(){install();stamp();[180,650,1500,3200,5600,8500].forEach(ms=>setTimeout(()=>{install();stamp()},ms));window.__GRA_V401_BANK_SEARCH__={version:VERSION,rebuild:()=>{indexCache=null;ctxCache=null;buildIndex();render()},render,get count(){return currentIndex().length}}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+</script>
+
+<style id="v402-partner-master-style">
+html[data-gra-partner-master="1"] #regionalScopeControl .regional-scope-select-wrap{position:relative}
+html[data-gra-partner-master="1"] #regionalScopeSelect{font-weight:900;color:#17694e;background:#f3fbf7;border-color:#b8dccc}
+html[data-gra-partner-master="1"] #partnersEducationBtn .gra-partner-switch-status{white-space:nowrap}
+</style>
+<script id="v402-partner-master-runtime">
+(function(){
+'use strict';
+const VERSION='v402',PARTNER_COUNT=38;
+const $=id=>document.getElementById(id);
+const isAgent=()=>String(window.__GRA_ACCESS__?.role||'').toLowerCase()==='agent';
+const active=()=>!!window.__GRA_PARTNERS_EDUCATION_ACTIVE__;
+const partnerApi=()=>window.__GRA_V391_PARTNERS__;
+const isPartner=row=>{try{return !!partnerApi()?.isPartner?.(row)}catch(_){return false}};
+let applied=false,savedScope='',savedDisabled=false,savedSmeText='Toda a SME',savedNote='';
+let originalSomFiltered=null,originalSomRowsForSelector=null,originalAdrFiltered=null,originalSplit=null,originalScopeUnfiltered=null;
+function isPartnerMaster(){return active()&&!isAgent()}
+function stamp(){document.documentElement.dataset.graVersion=VERSION;const b=$('dashboardVersionBadge');if(b)b.textContent=VERSION;document.querySelectorAll('.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{if(/^v?\d+/i.test(el.textContent||''))el.textContent=VERSION});}
+function refreshCore(){try{window.somRefreshSelectors?.()}catch(_){}try{window.adrRefreshSelectors?.()}catch(_){}try{window.renderResultados?.()}catch(_){}try{window.renderADRs?.()}catch(_){}try{if(typeof window.geoScheduleFilters==='function')window.geoScheduleFilters(0);else window.renderGeo?.()}catch(_){} }
+function applyMaster(){
+  const sel=$('regionalScopeSelect');if(!sel||applied||!isPartnerMaster())return;
+  applied=true;savedScope=String(sel.value||'');savedDisabled=!!sel.disabled;
+  const sme=[...sel.options].find(o=>String(o.value)==='');if(sme){savedSmeText=sme.textContent||'Toda a SME';sme.textContent='Parceiros da Educação · Rede'}
+  const note=$('regionalScopeControl')?.querySelector('small');if(note){savedNote=note.textContent||'';note.textContent=`Recorte Master: ${PARTNER_COUNT} escolas Parceiras da Educação na Rede. Filtros inferiores continuam disponíveis.`}
+  if(sel.value!==''){sel.value='';try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}}
+  sel.disabled=true;document.documentElement.setAttribute('data-gra-partner-master','1');
+  const b=$('partnersEducationBtn'),status=b?.querySelector('.gra-partner-switch-status');if(status)status.textContent=`Ativado · Rede (${PARTNER_COUNT})`;if(b)b.title=`Recorte Master ativo: ${PARTNER_COUNT} escolas Parceiras da Educação na Rede`;
+  setTimeout(refreshCore,40);
+}
+function releaseMaster(){
+  if(!applied)return;const sel=$('regionalScopeSelect');
+  document.documentElement.removeAttribute('data-gra-partner-master');
+  if(sel){const sme=[...sel.options].find(o=>String(o.value)==='');if(sme)sme.textContent=savedSmeText||'Toda a SME';sel.disabled=savedDisabled;if([...sel.options].some(o=>String(o.value)===savedScope))sel.value=savedScope;try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}}
+  const note=$('regionalScopeControl')?.querySelector('small');if(note&&savedNote)note.textContent=savedNote;
+  const b=$('partnersEducationBtn'),status=b?.querySelector('.gra-partner-switch-status');if(status)status.textContent='Desativado';if(b)b.title='Ativar recorte Master das escolas Parceiras da Educação';
+  applied=false;savedScope='';setTimeout(refreshCore,40);
+}
+function syncMaster(){
+  const b=$('partnersEducationBtn');if(b&&!isAgent())b.hidden=false;
+  if(isPartnerMaster())applyMaster();else releaseMaster();stamp();
+}
+function installWrappers(){
+  if(typeof window.somFilteredRows==='function'&&!window.somFilteredRows.__v402PartnerMaster){
+    originalSomFiltered=window.somFilteredRows;const f=function(){const out=originalSomFiltered.apply(this,arguments);return isPartnerMaster()&&Array.isArray(out)?out.filter(isPartner):out};f.__v402PartnerMaster=true;window.somFilteredRows=f;
+  }
+  if(typeof window.somRowsForSelector==='function'&&!window.somRowsForSelector.__v402PartnerMaster){
+    originalSomRowsForSelector=window.somRowsForSelector;const f=function(){const out=originalSomRowsForSelector.apply(this,arguments);return isPartnerMaster()&&Array.isArray(out)?out.filter(isPartner):out};f.__v402PartnerMaster=true;window.somRowsForSelector=f;
+  }
+  if(typeof window.adrFilteredRows==='function'&&!window.adrFilteredRows.__v402PartnerMaster){
+    originalAdrFiltered=window.adrFilteredRows;const f=function(){const out=originalAdrFiltered.apply(this,arguments);return isPartnerMaster()&&Array.isArray(out)?out.filter(isPartner):out};f.__v402PartnerMaster=true;window.adrFilteredRows=f;
+  }
+  if(typeof window.adrSplitRanking==='function'&&!window.adrSplitRanking.__v402PartnerMaster){
+    originalSplit=window.adrSplitRanking;const f=function(items){if(isPartnerMaster()&&Array.isArray(items)){try{if(typeof window.graSplitOddRanking==='function')return window.graSplitOddRanking(items,Math.max(items.length,1))}catch(_){}}return originalSplit.apply(this,arguments)};f.__v402PartnerMaster=true;window.adrSplitRanking=f;
+  }
+  if(typeof window.sim2026ScopeIsUnfiltered==='function'&&!window.sim2026ScopeIsUnfiltered.__v402PartnerMaster){
+    originalScopeUnfiltered=window.sim2026ScopeIsUnfiltered;const f=function(){if(isPartnerMaster())return false;return originalScopeUnfiltered.apply(this,arguments)};f.__v402PartnerMaster=true;window.sim2026ScopeIsUnfiltered=f;
+  }
+}
+function boot(){
+  installWrappers();syncMaster();
+  document.addEventListener('click',e=>{if(e.target?.closest?.('#partnersEducationBtn'))setTimeout(()=>{installWrappers();syncMaster()},0)},true);
+  document.addEventListener('change',e=>{if(e.target?.id==='regionalScopeSelect'&&isPartnerMaster())setTimeout(()=>{const sel=$('regionalScopeSelect');if(sel&&sel.value!==''){sel.value='';try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}}syncMaster()},0)},true);
+  [120,500,1200,2600,5200,8500].forEach(ms=>setTimeout(()=>{installWrappers();syncMaster()},ms));
+  window.__GRA_V402_PARTNER_MASTER__={version:VERSION,count:PARTNER_COUNT,isPartnerMaster,sync:syncMaster};
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+</script>
+
+<!-- v403 — Consolidação: inclui Busca Universal (v401) + Parceiros como recorte Master (v402), sem alterar as bases. -->
+<script id="v403-final-version-lock">
+(function(){'use strict';
+const V='v403';
+function stamp(){
+  document.documentElement.dataset.graVersion=V;
+  const b=document.getElementById('dashboardVersionBadge');if(b)b.textContent=V;
+  document.querySelectorAll('.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{if(/^v?\d+/i.test((el.textContent||'').trim()))el.textContent=V});
+  if(!String(document.title||'').endsWith('— '+V))document.title='Ferramenta GRA de análise de dados — '+V;
+}
+function later(ms){setTimeout(stamp,ms)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{stamp();later(120);later(600);later(1800);later(5200);later(9800);later(19000);later(23000)},{once:true});
+else{stamp();[120,600,1800,5200,9800,19000,23000].forEach(later)}
+['click','change','input'].forEach(type=>document.addEventListener(type,()=>later(220),true));
+window.__GRA_V403__={version:V,features:['Busca universal no Banco Bruto','Parceiros da Educação como recorte Master da Rede'],stamp};
+})();
 </script>
 
 </body>
