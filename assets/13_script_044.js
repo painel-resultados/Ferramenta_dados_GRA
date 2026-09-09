@@ -209,11 +209,32 @@ function badge(v) {
   let cls = s==='Sim'?'green':(s==='Não'?'gray':'');
   return `<span class="badge ${cls}">${esc(s)}</span>`;
 }
+const LARGE_TABLE_JOBS=new Map();
+function resumeLargeTableJobs(){
+  for(const job of LARGE_TABLE_JOBS.values())if(job.paused&&!job.done&&!job.cancelled){job.paused=false;requestAnimationFrame(job.step)}
+}
 function table(el, rows, cols=columns) {
-  const target = typeof el==='string' ? document.getElementById(el) : el;
+  const target = typeof el==='string' ? document.getElementById(el) : el;if(!target)return;
+  const prior=LARGE_TABLE_JOBS.get(target);if(prior)prior.cancelled=true;
   const head = '<thead><tr>'+cols.map(c=>`<th>${esc(c[1])}</th>`).join('')+'</tr></thead>';
-  const body = rows.map(r=>'<tr>'+cols.map(c=>`<td>${c[0]==='exclusiva'?badge(r[c[0]]):esc(r[c[0]])}</td>`).join('')+'</tr>').join('');
-  target.innerHTML = head + '<tbody>' + body + '</tbody>';
+  const rowHtml=r=>'<tr>'+cols.map(c=>`<td>${c[0]==='exclusiva'?badge(r[c[0]]):esc(r[c[0]])}</td>`).join('')+'</tr>';
+  const chunked=['bankTable','sim2026BankTable'].includes(target.id)&&rows.length>280;
+  if(!chunked){
+    target.dataset.graChunking='0';target.innerHTML=head+'<tbody>'+rows.map(rowHtml).join('')+'</tbody>';target.dispatchEvent(new CustomEvent('gra-table-rendered',{detail:{rows:rows.length}}));return;
+  }
+  target.dataset.graChunking='1';target.innerHTML=head+'<tbody></tbody>';
+  const body=target.tBodies[0],snapshot=rows.slice();
+  const job={target,body,rows:snapshot,cols,index:0,cancelled:false,paused:false,done:false,step:null};
+  job.step=()=>{
+    if(job.cancelled||LARGE_TABLE_JOBS.get(target)!==job)return;
+    if(!document.getElementById('banco')?.classList.contains('active')){job.paused=true;return}
+    const end=Math.min(job.index+140,job.rows.length),html=job.rows.slice(job.index,end).map(rowHtml).join('');
+    body.insertAdjacentHTML('beforeend',html);job.index=end;
+    target.dispatchEvent(new CustomEvent('gra-table-progress',{detail:{rows:job.index,total:job.rows.length}}));
+    if(job.index<job.rows.length){requestAnimationFrame(job.step);return}
+    job.done=true;target.dataset.graChunking='0';target.dispatchEvent(new CustomEvent('gra-table-rendered',{detail:{rows:job.rows.length}}));LARGE_TABLE_JOBS.delete(target);
+  };
+  LARGE_TABLE_JOBS.set(target,job);requestAnimationFrame(job.step);
 }
 function fillSelect(id, values, prefix) {
   const el=document.getElementById(id); const current=el.value;
@@ -494,13 +515,39 @@ function initAgents() {
 
 function initSimuladoBank(){
   const year=document.getElementById('sim2026BankYear'),comp=document.getElementById('sim2026BankComp'),search=document.getElementById('sim2026BankSearch');
-  if(!year||!comp||!search)return;[year,comp].forEach(el=>el.addEventListener('change',sim2026BankEnsureAndRender));search.addEventListener('input',renderSimuladoBank);
-  const tableEl=document.getElementById('sim2026BankTable');if(tableEl)tableEl.innerHTML='<tbody><tr><td class="muted">Os dados do Simulado 2026 serão carregados quando esta aba for aberta.</td></tr></tbody>';
+  if(!year||!comp||!search)return;
+  if(year.dataset.graSimBankBound!=='1'){
+    year.dataset.graSimBankBound='1';comp.dataset.graSimBankBound='1';search.dataset.graSimBankBound='1';
+    [year,comp].forEach(el=>el.addEventListener('change',sim2026BankEnsureAndRender));search.addEventListener('input',renderSimuladoBank);
+  }
+  const tableEl=document.getElementById('sim2026BankTable');if(tableEl&&!tableEl.tHead)tableEl.innerHTML='<tbody><tr><td class="muted">Os dados do Simulado 2026 serão carregados quando este quadro entrar na área visível.</td></tr></tbody>';
+  const card=document.getElementById('sim2026BankCard');
+  if(card&&card.dataset.graLazyObserved!=='1'){
+    card.dataset.graLazyObserved='1';let timer=0;
+    const request=()=>{clearTimeout(timer);timer=setTimeout(()=>{if(document.getElementById('banco')?.classList.contains('active'))sim2026BankEnsureAndRender()},320)};
+    if(typeof IntersectionObserver==='function'){
+      const observer=new IntersectionObserver(entries=>{for(const entry of entries){if(entry.isIntersecting){request();break}else clearTimeout(timer)}},{threshold:.04});observer.observe(card);window.__GRA_SIMBANK_OBSERVER__=observer;
+    }else document.addEventListener('click',e=>{if(e.target?.closest?.('.nav button[data-section="banco"]'))request()},true);
+  }
+}
+function sim2026BankRenderKey(){
+  const year=document.getElementById('sim2026BankYear')?.value||'2º ano';
+  const comp=document.getElementById('sim2026BankComp')?.value||'LP';
+  const q=norm(document.getElementById('sim2026BankSearch')?.value||'');
+  const regional=String(document.getElementById('regionalScopeSelect')?.value||'');
+  const scope=String(window.__GRA_MASTER_SCOPE__||'');
+  const access=window.__GRA_ACCESS__||{};
+  return [year,comp,q,regional,scope,access.role||'',access.cre||'',SIMULADO2026_SCHOOL_ROWS.length].join('|');
 }
 async function sim2026BankEnsureAndRender(){
   const year=document.getElementById('sim2026BankYear')?.value||'2º ano',comp=document.getElementById('sim2026BankComp')?.value||'LP';
+  const tableEl=document.getElementById('sim2026BankTable'),wantedKey=sim2026BankRenderKey();
+  /* v404: reabrir Banco Bruto não deve reconstruir uma tabela somativa grande se
+     o mesmo recorte já está renderizado. Mudanças de ano/componente/busca/escopo
+     alteram a chave e continuam forçando atualização normalmente. */
+  if(tableEl?.dataset?.graSimBankRenderKey===wantedKey&&tableEl.tBodies?.length)return;
   const count=document.getElementById('sim2026BankCount');if(count)count.textContent='carregando…';
-  try{await sim2026EnsureCombo(year,comp);renderSimuladoBank();}catch(err){if(count)count.textContent='erro';const tableEl=document.getElementById('sim2026BankTable');if(tableEl)tableEl.innerHTML=`<tbody><tr><td>${esc(err.message||err)}</td></tr></tbody>`;}
+  try{await sim2026EnsureCombo(year,comp);if(!document.getElementById('banco')?.classList.contains('active'))return;renderSimuladoBank();}catch(err){if(count)count.textContent='erro';if(tableEl)tableEl.innerHTML=`<tbody><tr><td>${esc(err.message||err)}</td></tr></tbody>`;}
 }
 function renderSimuladoBank(){
   const year=document.getElementById('sim2026BankYear')?.value||'2º ano',comp=document.getElementById('sim2026BankComp')?.value||'LP',q=norm(document.getElementById('sim2026BankSearch')?.value||'');
@@ -512,6 +559,7 @@ function renderSimuladoBank(){
   const view=rows.map(r=>{const obj={cre:r.cre,escola:r.escola,agente:r.agente||somRowAgent(r)||'—',previstos:r.previstos,avaliados:r.avaliados,avaliadosPct:Number.isFinite(Number(r.avaliadosPct))?fmtPctValue(r.avaliadosPct,1):'—',proficiencia:somFormatRowMeasure(r,'proficiencia'),notaPadronizada:somFormatRowMeasure(r,'notaPadronizada'),abaixo:somFormatRowMeasure(r,'abaixo'),basico:somFormatRowMeasure(r,'basico'),adequado:somFormatRowMeasure(r,'adequado'),avancado:somFormatRowMeasure(r,'avancado'),adqAv:somFormatRowMeasure(r,'adqAv')};(r.habilidades||[]).forEach((h,i)=>{const raw=h?.valor,rawText=String(raw??'').trim();obj[`h${i+1}`]=(raw!==null&&raw!==undefined&&rawText!==''&&!/^[-–—]$/.test(rawText)&&Number.isFinite(Number(raw)))?fmtPctValue(raw,1):'—';});return obj;});
   const cols=[['cre','CRE'],['escola','Escola'],['agente','Agente'],['previstos','Previstos'],['avaliados','Avaliados'],['avaliadosPct','% Avaliados'],['proficiencia','Proficiência'],['notaPadronizada','Nota Padronizada'],['abaixo','Abaixo'],['basico','Básico'],['adequado','Adequado'],['avancado','Avançado'],['adqAv','ADQ+AVA'],...skillCols];
   table('sim2026BankTable',view,cols);
+  const renderedTable=document.getElementById('sim2026BankTable');if(renderedTable)renderedTable.dataset.graSimBankRenderKey=sim2026BankRenderKey();
   const ths=document.querySelectorAll('#sim2026BankTable th');skillCols.forEach((c,i)=>{const h=c[1],meta=SIMULADO2026_SKILL_META[`${year}|${comp}|${h}`];const th=ths[13+i];if(th&&meta)th.title=`${h}${meta.codigo?' · '+meta.codigo:''} — ${meta.descricao}`;});
 }
 
@@ -4499,6 +4547,12 @@ function geoAdrOverview(point){
   return `<div class="geo-adr-overview">${rows.map(x=>`<div class="geo-adr-overview-row"><strong>${esc(x.year)} · ${esc(x.comp)}</strong><div class="geo-adr-metrics"><div class="geo-adr-metric"><small>Adequado</small><span>${geoFmt(x.r1.adequado,1)}% → ${geoFmt(x.r2.adequado,1)}%</span>${geoDeltaBadge(x.r2.adequado-x.r1.adequado)}</div><div class="geo-adr-metric"><small>Abaixo do Básico</small><span>${geoFmt(x.r1.abaixo,1)}% → ${geoFmt(x.r2.abaixo,1)}%</span>${geoDeltaBadge(x.r1.abaixo-x.r2.abaixo)}</div></div></div>`).join('')}</div>`;
 }
 function geoOpenDetail(point){
+  /* v404: evita corrida entre a abertura do mapa e o carregamento sob demanda
+     do carômetro. O mapa/índices continuam independentes das fotos. */
+  if(!document.getElementById('v231-data-geo-agent-photos')&&typeof window.__graEnsureGeoPhotoSource==='function'){
+    window.__graEnsureGeoPhotoSource().then(()=>geoOpenDetail(point)).catch(error=>console.warn('Fotos do georreferenciamento',error));
+    return;
+  }
   GEO_STATE.selected=point.name;geoRenderMarkers();const detail=document.getElementById('geoDetail');if(!detail)return;
   const photo=GEO_AGENT_PHOTOS[point.agent]||'',pos=GEO_AGENT_PHOTO_POS[point.agent]||'50% 25%';const somRows=(SOM_ROWS||[]).filter(r=>geoIsCre2Row(r)&&somFindRecord(r.escola||'')?.unidade===point.name);const ideb=somRows.filter(r=>String(r.modalidade||'').includes('IDEB'));const pick=segment=>ideb.filter(r=>r.anoEscolar===segment).sort((a,b)=>Number(b.edicao||0)-Number(a.edicao||0))[0]||null;const nonIdeb=somRows.filter(r=>!String(r.modalidade||'').includes('IDEB')&&r.modalidade!=='Simulado 2026').sort((a,b)=>Number(b.edicao||0)-Number(a.edicao||0));const uniq=[],seen=new Set();nonIdeb.forEach(r=>{const k=[r.modalidade,r.edicao,r.anoEscolar,r.componente].join('|');if(!seen.has(k)){seen.add(k);uniq.push(r);}});
   detail.innerHTML=`<div class="geo-detail-head"><div><h3>${esc(point.name)}</h3><div class="geo-detail-tags"><span class="chip">${esc(point.segment)}</span>${priorityMetaForSchool(point.name)?'<span class="priority-badge">Prioritária</span>':''}<span class="chip">T${esc(point.territory)}</span></div></div><button class="geo-detail-close" data-gra-no-school-nav="1" type="button" aria-label="Fechar">×</button></div><div class="geo-detail-body"><div class="geo-agent">${photo?`<img class="geo-agent-photo" src="${photo}" alt="Foto de ${esc(point.agent)}" style="object-position:${pos}">`:'<div class="geo-agent-photo"></div>'}<div><small>Agente GRA</small><strong>${esc(point.agent)}</strong></div></div><div class="geo-result-block"><div class="geo-result-title"><strong>IDEB — análise integrada</strong><span>2023 → 2025</span></div><div class="geo-ideb-grid">${geoIdebCard('Anos Iniciais',pick('Anos Iniciais'),point.idebAI)}${geoIdebCard('Anos Finais',pick('Anos Finais'),point.idebAF)}</div></div><div class="geo-result-block"><div class="geo-result-title"><strong>Demais avaliações somativas</strong><span>resultados mais recentes</span></div>${uniq.length?`<div class="geo-mini-list">${uniq.slice(0,8).map(r=>`<div class="geo-mini-row"><div><strong>${esc(r.modalidade||r.avaliacao||'Avaliação')}</strong><span>${esc([r.anoEscolar,r.componente,r.edicao].filter(Boolean).join(' · '))}</span></div>${geoSomReference(r)}</div>`).join('')}</div>`:'<div class="geo-empty">Não há outra avaliação somativa pré-carregada para esta unidade.</div>'}</div><div class="geo-result-block"><div class="geo-result-title"><strong>ADRs — visão consolidada</strong><span>ADR 1 → ADR 2</span></div>${geoAdrOverview(point)}</div></div>`;
@@ -4753,7 +4807,8 @@ function initNav() {
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     const section=document.getElementById(id); if(section) section.classList.add('active');
     const group=btn.closest('.nav-group'); if(group) group.classList.add('open');
-    if(id==='georreferenciamento')setTimeout(()=>{try{window.__graActivateSection?.('georreferenciamento');}catch(error){console.warn('Abertura do georreferenciamento',error);}},20);if(id==='banco')setTimeout(()=>sim2026BankEnsureAndRender(),30);
+    if(id==='georreferenciamento')setTimeout(()=>{try{window.__graActivateSection?.('georreferenciamento');}catch(error){console.warn('Abertura do georreferenciamento',error);}},20);
+    if(id==='banco')resumeLargeTableJobs();
     window.scrollTo({top:0,behavior:'smooth'});
   };
   document.querySelectorAll('.nav button[data-section]').forEach(btn=>btn.onclick=()=>openSection(btn));
@@ -4764,5 +4819,10 @@ function initNav() {
   });
 }
 
-initNav(); initGlobalSearch(); initResultados();
+initNav(); initGlobalSearch();
+/* v404-opt — initResultados materializa as bases Somativas/IDEB. O runtime de acesso
+   intercepta DOMContentLoaded e só libera os inicializadores após autenticação.
+   Assim a tela de login não paga o custo das bases e, para Agentes, o recorte da CRE
+   já está aplicado antes da primeira materialização. */
+document.addEventListener('DOMContentLoaded',()=>initResultados(),{once:true});
 
