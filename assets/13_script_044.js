@@ -2471,7 +2471,33 @@ function somAvg(rows, metric) {
   return sw ? sv/sw : null;
 }
 function somSum(rows,key){ return rows.reduce((a,r)=>a+(Number(r[key])||0),0); }
-function somRecordText(r){ return norm(`${r.modalidade} ${r.avaliacao} ${r.edicao} ${r.anoEscolar} ${r.componente} ${r.cre} ${r.escola} ${somRowAgent(r)} ${r.territorio} ${r.bairro} ${r.fonte} ${prioritySearchText(r.escola,r.cre)}`); }
+function somSchoolSearchKey(value) {
+  return norm(value)
+    .replace(/[._\-/]+/g,' ')
+    .replace(/\bescola\s+municipal\b/g,' em ')
+    .replace(/\be\s+m\b/g,' em ')
+    .replace(/\bcreche\s+municipal\b/g,' cm ')
+    .replace(/\bc\s+m\b/g,' cm ')
+    .replace(/\bespaco\s+de\s+desenvolvimento\s+infantil\b/g,' edi ')
+    .replace(/\bginasio\s+educacional\s+tecnologico\b/g,' get ')
+    .replace(/[^a-z0-9]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function somRecordText(r){ return norm(`${r.modalidade} ${r.avaliacao} ${r.edicao} ${r.anoEscolar} ${r.componente} ${r.cre} ${r.escola} ${r.escolaFonte||''} ${somRowAgent(r)} ${r.territorio} ${r.bairro} ${r.fonte} ${prioritySearchText(r.escola,r.cre)}`); }
+function somSearchMatches(r, query) {
+  const raw=String(query??'').trim();
+  if(!raw)return true;
+  const q=norm(raw);
+  if(somRecordText(r).includes(q))return true;
+  const schoolQuery=somSchoolSearchKey(raw);
+  if(!schoolQuery)return false;
+  const names=[r?.escola,r?.escolaFonte].filter(Boolean);
+  return names.some(name=>{
+    const key=somSchoolSearchKey(name);
+    return key&&(key.includes(schoolQuery)||schoolQuery.includes(key));
+  });
+}
 function somComponentMatches(rowComp, comp, modalidade) {
   if(!comp) return true;
   if(rowComp===comp) return true;
@@ -2599,7 +2625,7 @@ function somFilteredRows({ignoreEdicao=false, ignoreCre=false, ignoreSearch=fals
     if(!ignoreCre && cre && r.cre!==cre) return false;
     if(somIsSpecificAgent(agente) && somRowAgent(r)!==agente) return false;
     if(priorityOnly && !priorityMatchesContext(r.escola,ano,modalidade,r.cre)) return false;
-    if(!ignoreSearch && q && !somRecordText(r).includes(q)) return false;
+    if(!ignoreSearch && q && !somSearchMatches(r,q)) return false;
     return true;
   });
 }
