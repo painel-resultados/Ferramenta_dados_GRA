@@ -1,5 +1,5 @@
 /*
- * GRA v410 — Simulado 2026 · 2º ano · 2ª CRE
+ * GRA v412 — Simulado 2026 · 2º ano · todas as seleções do filtro Master
  * - Nova visualização "Gráfico de Dispersão" no filtro Componente.
  * - X = Proficiência em Leitura / Língua Portuguesa (SAEB), corte 743.
  * - Y = Proficiência na escala CAEd (Matemática), corte 500.
@@ -13,7 +13,7 @@
 (function(){
   'use strict';
 
-  const VERSION='v410';
+  const VERSION='v412';
   const SCATTER_VALUE='GRAFICO_DISPERSAO';
   const SCATTER_LABEL='Gráfico de Dispersão';
   const X_MIN=696, X_MAX=840, X_CUT=743;
@@ -39,7 +39,8 @@
   function currentYear(){return $('somAnoEscolar')?.value||'';}
   function isSim(){return $('somModalidade')?.value==='Simulado 2026';}
   function regionalScope(){return Number($('regionalScopeSelect')?.value||0);}
-  function eligible(){return isSim()&&currentYear()==='2º ano'&&regionalScope()===2;}
+  function eligible(){return isSim()&&currentYear()==='2º ano';}
+  function scatterScopeLabel(){const scope=regionalScope();return scope?`${scope}ª CRE`:'Toda a SME';}
   function isScatter(){return eligible()&&(scatterSticky||$('somComponente')?.value===SCATTER_VALUE);}
   function normalComponent(){
     const el=$('somComponente');
@@ -108,7 +109,7 @@
       if(token===ensureEpoch&&host){
         host.innerHTML=`<div class="som-empty">Não foi possível carregar LP e Matemática para a dispersão.<br>${safe(err?.message||err)}</div>`;
       }
-      console.error('v410 scatter: falha ao carregar LP+MT',err);
+      console.error('v412 scatter: falha ao carregar LP+MT',err);
       return false;
     }
   }
@@ -132,7 +133,7 @@
     try{
       if(typeof window.somFilteredRows==='function')return window.somFilteredRows(options)||[];
       if(typeof somFilteredRows==='function')return somFilteredRows(options)||[];
-    }catch(err){console.warn('v410 scatter: recorte indisponível',err);}
+    }catch(err){console.warn('v412 scatter: recorte indisponível',err);}
     return [];
   }
 
@@ -257,9 +258,9 @@
         : `<circle class="v410-marker" cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="6.4" fill="${fill}" stroke="#ffffff" stroke-width="1.1"/>`;
       const halo=selected?`<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="11" fill="none" stroke="#12385d" stroke-width="2"/>`:'';
       const label=selected?`<text x="${Math.min(W-R-4,cx+12).toFixed(2)}" y="${Math.max(T+12,cy-10).toFixed(2)}" font-size="10.5" font-weight="800" fill="#12385d" paint-order="stroke" stroke="#fff" stroke-width="3">${safe(p.school)}</text>`:'';
-      markerHtml+=`<g class="v410-scatter-point" data-som-school="${safe(p.school)}" role="button" tabindex="0" aria-label="Selecionar ${safe(p.school)}" style="opacity:${opacity}"><title>${safe(title)}</title>${halo}${marker}${label}</g>`;
+      markerHtml+=`<g class="v410-scatter-point" data-som-school="${safe(p.school)}" data-som-cre="${safe(p.cre)}" role="button" tabindex="0" aria-label="Selecionar ${safe(p.school)}" style="opacity:${opacity}"><title>${safe(title)}</title>${halo}${marker}${label}</g>`;
     }
-    return `<svg class="v410-scatter-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dispersão das proficiências do Simulado 2026 do 2º ano da 2ª CRE"><rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="#fff" stroke="#dce7ef"/>${gridX}${gridY}<line x1="${x(X_CUT).toFixed(2)}" y1="${T}" x2="${x(X_CUT).toFixed(2)}" y2="${H-B}" stroke="#d85b70" stroke-width="1.7" stroke-dasharray="8 7"/><line x1="${L}" y1="${y(Y_CUT).toFixed(2)}" x2="${W-R}" y2="${y(Y_CUT).toFixed(2)}" stroke="#d85b70" stroke-width="1.7" stroke-dasharray="8 7"/><text x="${(x(X_CUT)+5).toFixed(2)}" y="${T+14}" font-size="10.5" font-weight="800" fill="#b44a60">corte 743</text><text x="${W-R-5}" y="${(y(Y_CUT)-7).toFixed(2)}" text-anchor="end" font-size="10.5" font-weight="800" fill="#b44a60">corte 500</text>${markerHtml}<text x="${L+pw/2}" y="${H-17}" text-anchor="middle" font-size="13" font-weight="850" fill="#12385d">Proficiência em Leitura / Língua Portuguesa (SAEB)</text><text x="21" y="${T+ph/2}" transform="rotate(-90 21 ${T+ph/2})" text-anchor="middle" font-size="13" font-weight="850" fill="#12385d">Proficiência na escala CAEd (Matemática)</text></svg>`;
+    return `<svg class="v410-scatter-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dispersão das proficiências do Simulado 2026 do 2º ano — ${safe(scatterScopeLabel())}"><rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="#fff" stroke="#dce7ef"/>${gridX}${gridY}<line x1="${x(X_CUT).toFixed(2)}" y1="${T}" x2="${x(X_CUT).toFixed(2)}" y2="${H-B}" stroke="#d85b70" stroke-width="1.7" stroke-dasharray="8 7"/><line x1="${L}" y1="${y(Y_CUT).toFixed(2)}" x2="${W-R}" y2="${y(Y_CUT).toFixed(2)}" stroke="#d85b70" stroke-width="1.7" stroke-dasharray="8 7"/><text x="${(x(X_CUT)+5).toFixed(2)}" y="${T+14}" font-size="10.5" font-weight="800" fill="#b44a60">corte 743</text><text x="${W-R-5}" y="${(y(Y_CUT)-7).toFixed(2)}" text-anchor="end" font-size="10.5" font-weight="800" fill="#b44a60">corte 500</text>${markerHtml}<text x="${L+pw/2}" y="${H-17}" text-anchor="middle" font-size="13" font-weight="850" fill="#12385d">Proficiência em Leitura / Língua Portuguesa (SAEB)</text><text x="21" y="${T+ph/2}" transform="rotate(-90 21 ${T+ph/2})" text-anchor="middle" font-size="13" font-weight="850" fill="#12385d">Proficiência na escala CAEd (Matemática)</text></svg>`;
   }
 
   function renderScatter(){
@@ -272,7 +273,7 @@
     // respeitam a busca e passam ao recorte da escola.
     const rows=scatterRows({ignoreSearch:!!selectedQuery()});
     const points=pairRows(rows);
-    if(title)title.textContent='Dispersão das proficiências das escolas — 2ª CRE — 2º ano';
+    if(title)title.textContent=`Dispersão das proficiências das escolas — ${scatterScopeLabel()} — 2º ano`;
     if(subtitle)subtitle.textContent='Leitura / Língua Portuguesa (SAEB) no eixo X e Matemática (CAEd) no eixo Y. Linhas tracejadas: 743 e 500.';
     host.classList.add('v410-scatter-chart');
     if(!points.length){
@@ -418,7 +419,7 @@
         else if(typeof sim2026EnsureYearForIndicator==='function')await sim2026EnsureYearForIndicator(year,comp);
         if(token!==skillEpoch||!isSim()||currentYear()!==year)return false;
         let rows=skillScopeRows(true);
-        try{window.__GRA_V301_SIM_DUAL__?.render?.();}catch(err){console.warn('v410 skills: render dual histórico',err);}
+        try{window.__GRA_V301_SIM_DUAL__?.render?.();}catch(err){console.warn('v412 skills: render dual histórico',err);}
         await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
         if(token!==skillEpoch||!isSim()||currentYear()!==year)return false;
         rows=skillScopeRows(true);
@@ -437,7 +438,7 @@
         try{
           const fn=window.renderSomSkills||renderSomSkills;
           if(typeof fn==='function')fn(rows);
-        }catch(err){console.warn('v410 skills: render 2º ano',err);}
+        }catch(err){console.warn('v412 skills: render 2º ano',err);}
         const expected=expectedSkillCount(rows,year,comp);
         const dom=document.querySelectorAll('#somSkillBars .sim2026-skill-row').length;
         if(expected&&dom===0){
@@ -451,7 +452,7 @@
         if(expected)showSkillCard();
         return true;
       }
-    }catch(err){console.error('v410: falha ao estabilizar habilidades do Simulado',err);}
+    }catch(err){console.error('v412: falha ao estabilizar habilidades do Simulado',err);}
     return false;
   }
 
@@ -566,7 +567,7 @@
       const host=$('somMainChart');if(host)host.innerHTML='<div class="sim2026-loading">Carregando Língua Portuguesa e Matemática para o gráfico de dispersão…</div>';
       await ensureScatterData();
       if(!isScatter())return;
-      try{window.renderResultados?.();}catch(err){console.error('v410 scatter: render após seleção',err);}
+      try{window.renderResultados?.();}catch(err){console.error('v412 scatter: render após seleção',err);}
       renderScatter();renderScatterSkills();queueSkills(30);
     },0);
   }
@@ -590,6 +591,36 @@
     if(event.target?.id!=='somSearch')return;
     if(isScatter())queueScatter(95);
     queueSkills(115);
+  }
+
+  function installPointNavigation(){
+    const chart=$('somMainChart');
+    if(!chart||chart.dataset.v411SmeScatterNav==='1')return;
+    chart.dataset.v411SmeScatterNav='1';
+    const activate=event=>{
+      if(!isScatter())return;
+      const point=event.target?.closest?.('.v410-scatter-point[data-som-school]');
+      if(!point||!chart.contains(point))return;
+      if(event.type==='keydown'&&!['Enter',' '].includes(event.key))return;
+      const school=String(point.dataset.somSchool||'').trim();
+      const cre=String(point.dataset.somCre||'').trim();
+      if(!school)return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      event.stopPropagation();
+      // Reusa a navegação canônica das listas por nível: primeiro seleciona pelo nome
+      // e só acrescenta a CRE à busca se houver homônimos na Rede.
+      try{
+        if(typeof window.__GRA_V311__?.selectSchool==='function'){
+          window.__GRA_V311__.selectSchool(cre,school);
+          return;
+        }
+      }catch(_){ }
+      const input=$('somSearch');
+      if(input){input.value=school;input.dispatchEvent(new Event('input',{bubbles:true}));}
+    };
+    chart.addEventListener('click',activate,true);
+    chart.addEventListener('keydown',activate,true);
   }
 
   function installObserver(){
@@ -635,6 +666,9 @@
   function install(){
     installStyle();wrapRefresh();wrapRender('renderResultados');wrapRender('renderResultadosSearchOnly');ensureOption();installObserver();
     document.documentElement.dataset.graV410Scatter='installed';
+    document.documentElement.dataset.graV411Scatter='installed';
+    document.documentElement.dataset.graV412Scatter='installed';
+    installPointNavigation();
     queueSkills(70);
     if(isScatter())queueScatter(0);
   }
@@ -655,9 +689,13 @@
   // externo/final. Por isso não reatribuímos renderizadores após o boot.
   [350,1200,3000].forEach(ms=>setTimeout(()=>{ensureOption();installObserver();if(scatterSticky&&eligible()){const el=$('somComponente');if(el)el.value=SCATTER_VALUE;}},ms));
 
-  window.__GRA_V410_SCATTER__={
+  const scatterApi={
     version:VERSION,value:SCATTER_VALUE,label:SCATTER_LABEL,
     limits:{xMin:X_MIN,xMax:X_MAX,yMin:Y_MIN,yMax:Y_MAX},cuts:{x:X_CUT,y:Y_CUT},
-    eligible,isScatter,ensureOption,ensureScatterData,render:renderScatter,renderSkills:renderScatterSkills,stabilizeSkills,audit,schoolKey
+    eligible,isScatter,ensureOption,ensureScatterData,render:renderScatter,renderSkills:renderScatterSkills,stabilizeSkills,audit,schoolKey,scatterScopeLabel
   };
+  // Mantém o alias v410 para não quebrar nenhuma integração criada na versão anterior.
+  window.__GRA_V410_SCATTER__=scatterApi;
+  window.__GRA_V411_SCATTER__=scatterApi;
+  window.__GRA_V412_SCATTER__=scatterApi;
 })();
