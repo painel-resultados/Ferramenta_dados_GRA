@@ -15,6 +15,11 @@
   const $=id=>document.getElementById(id);
   const delay=(fn,ms=0)=>setTimeout(fn,ms);
   let scheduled=0, epoch=0;
+  let searchEpoch=0;
+  const searchMatchCache=new WeakMap();
+  const schoolKeyCache=new Map();
+
+  function invalidateSearchCache(){searchEpoch++;}
 
   function fold(value){
     return String(value??'')
@@ -23,7 +28,9 @@
   }
 
   function schoolKey(value){
-    return fold(value)
+    const raw=String(value??'');
+    if(schoolKeyCache.has(raw))return schoolKeyCache.get(raw);
+    const key=fold(raw)
       .replace(/^\s*\d{5,}\s*[-–—:]?\s*/,'')
       .replace(/[._\-/]+/g,' ')
       .replace(/\bescola\s+municipal\b/g,' em ')
@@ -35,6 +42,9 @@
       .replace(/[^a-z0-9]+/g,' ')
       .replace(/\s+/g,' ')
       .trim();
+    if(schoolKeyCache.size>=4096)schoolKeyCache.clear();
+    schoolKeyCache.set(raw,key);
+    return key;
   }
 
   function schoolNames(row){
@@ -71,8 +81,19 @@
     if(typeof current!=='function'||current.__graV409HardSchoolMatch)return;
     const base=current;
     const wrapped=function(row,query){
-      try{if(base.apply(this,arguments))return true;}catch(_){ }
-      return schoolMatches(row,query);
+      const cacheable=!!row&&typeof row==='object';
+      const queryKey=fold(query);
+      let entry=cacheable?searchMatchCache.get(row):null;
+      if(entry?.epoch===searchEpoch&&entry.values.has(queryKey))return entry.values.get(queryKey);
+      let matched=false;
+      try{matched=!!base.apply(this,arguments);}catch(_){ }
+      if(!matched)matched=schoolMatches(row,query);
+      if(cacheable){
+        if(!entry||entry.epoch!==searchEpoch){entry={epoch:searchEpoch,values:new Map()};searchMatchCache.set(row,entry);}
+        if(entry.values.size>=8)entry.values.clear();
+        entry.values.set(queryKey,matched);
+      }
+      return matched;
     };
     wrapped.__graV409HardSchoolMatch=true;
     wrapped.__native=base;
@@ -264,13 +285,14 @@
   }
 
   function install(){
+    invalidateSearchCache();
     patchSearchMatcher();patchFilteredRows();wrapRender('renderResultados');wrapRender('renderResultadosSearchOnly');
     document.documentElement.dataset.graSimuladoSchoolGuard='installed';
     schedule(80);
   }
 
-  document.addEventListener('input',event=>{if(event.target?.id==='somSearch')schedule(120);},true);
-  document.addEventListener('change',event=>{const id=event.target?.id||'';if(id==='regionalScopeSelect'||id.startsWith('som'))schedule(50);},true);
+  document.addEventListener('input',event=>{if(event.target?.id==='somSearch'){invalidateSearchCache();schedule(120);}},true);
+  document.addEventListener('change',event=>{const id=event.target?.id||'';if(id==='regionalScopeSelect'||id.startsWith('som')){invalidateSearchCache();schedule(50);}},true);
   document.addEventListener('click',event=>{if(event.target?.closest?.('.nav button[data-section="resultados"]'))schedule(80);},true);
   const bars=$('somSkillBars');
   if(bars&&typeof MutationObserver==='function')new MutationObserver(()=>{

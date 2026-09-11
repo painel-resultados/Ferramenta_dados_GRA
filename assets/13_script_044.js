@@ -4851,4 +4851,3 @@ initNav(); initGlobalSearch();
    Assim a tela de login não paga o custo das bases e, para Agentes, o recorte da CRE
    já está aplicado antes da primeira materialização. */
 document.addEventListener('DOMContentLoaded',()=>initResultados(),{once:true});
-
