@@ -4303,26 +4303,48 @@ const c=document.currentScript; c.parentNode.insertBefore(s,c);
     5:'assets/06_script_011.js',6:'assets/07_script_012.js',7:'assets/08_script_013.js',
     8:'assets/09_script_014.js',9:'assets/10_script_015.js',10:'assets/11_script_016.js'
   };
-  const promises=new Map();
+  const promises=new Map(),loaded=new Set();
   const nodeId=cre=>'v318-data-adr-cre-'+cre;
+  const sourceReady=cre=>loaded.has(Number(cre))||!!document.getElementById(nodeId(cre));
   function targetCres(explicitCre){
     const c=Number(explicitCre||window.__GRA_AGENT_SCOPE__||0);
     if(c)return FILES[c]?[c]:[];
     return Object.keys(FILES).map(Number);
   }
   function ready(explicitCre){
-    return targetCres(explicitCre).every(cre=>!!document.getElementById(nodeId(cre)));
+    return targetCres(explicitCre).every(sourceReady);
   }
   function loadOne(cre){
-    if(!FILES[cre]||document.getElementById(nodeId(cre)))return Promise.resolve(true);
+    if(!FILES[cre]||sourceReady(cre))return Promise.resolve(true);
     if(promises.has(cre))return promises.get(cre);
     const promise=new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=FILES[cre];script.async=true;script.dataset.graLazy='adr-cre-'+cre;
       script.onload=()=>{
         script.remove();
-        if(document.getElementById(nodeId(cre)))resolve(true);
-        else{promises.delete(cre);reject(new Error('Base ADR da CRE '+cre+' não foi materializada.'));}
+        const node=document.getElementById(nodeId(cre));
+        /* v412 hotfix ADR: ADR_INITIAL/ADR_ROWS podem ter sido materializadas por uma
+           inicialização histórica antes de este asset tardio chegar. Nesse caso, o
+           proxy já possui um snapshot e não voltaria a ler o novo nó. Reconciliamos
+           somente a CRE recém-carregada. O Set `loaded` mantém a prontidão mesmo
+           quando o nó JSON é consumido/removido após a reconciliação. */
+        try{
+          const initialLoaded=(typeof ADR_INITIAL!=='undefined'&&ADR_INITIAL?.__graLoaded===true);
+          const rowsLoaded=(typeof ADR_ROWS!=='undefined'&&ADR_ROWS?.__graLoaded===true);
+          if(node&&(initialLoaded||rowsLoaded)){
+            const lateRows=JSON.parse(node.textContent||'[]');
+            if(!Array.isArray(lateRows))throw new Error('Base ADR tardia não é uma lista.');
+            node.textContent='';node.remove();
+            if(initialLoaded)ADR_INITIAL.push(...lateRows);
+            if(rowsLoaded)ADR_ROWS.push(...lateRows);
+          }else if(!node&&!initialLoaded&&!rowsLoaded){
+            throw new Error('Base ADR da CRE '+cre+' não foi materializada.');
+          }
+          loaded.add(Number(cre));
+        }catch(error){
+          promises.delete(cre);reject(new Error('Falha ao reconciliar ADR da CRE '+cre+': '+(error?.message||error)));return;
+        }
+        resolve(true);
       };
       script.onerror=()=>{script.remove();promises.delete(cre);reject(new Error('Falha ao carregar '+FILES[cre]));};
       document.head.appendChild(script);
@@ -4342,7 +4364,7 @@ const c=document.currentScript; c.parentNode.insertBefore(s,c);
     groupPromise=(async()=>{for(const cre of targets){await loadOne(cre);await new Promise(resolve=>setTimeout(resolve,0));}return true;})().finally(()=>{try{stop?.()}catch(_){};groupPromise=null;groupKey='';});
     return groupPromise;
   };
-  window.__GRA_ADR_LAZY_SOURCES__={files:{...FILES},get loaded(){return Object.keys(FILES).filter(c=>document.getElementById(nodeId(c))).map(Number)},ready};
+  window.__GRA_ADR_LAZY_SOURCES__={files:{...FILES},get loaded(){return Object.keys(FILES).map(Number).filter(sourceReady)},ready};
   // A navegação antiga torna a seção ativa imediatamente. Interceptamos a primeira abertura
   // para que nenhum observer/patch histórico consiga materializar ADR enquanto só parte das CREs chegou.
   document.addEventListener('click',event=>{
