@@ -3504,7 +3504,7 @@ html.gra-access-locked #graAccessGate{visibility:visible!important}
 </style>
 
 <style id="v414-trajectory-consistency-style">
-#consistencia .tc-controls{display:grid;grid-template-columns:minmax(145px,.65fr) minmax(170px,.82fr) minmax(210px,1.05fr) minmax(240px,1.35fr);gap:12px;align-items:end;margin-top:12px}
+#consistencia .tc-controls{display:grid;grid-template-columns:minmax(145px,.65fr) minmax(170px,.82fr) minmax(260px,1.55fr);gap:12px;align-items:end;margin-top:12px}
 #consistencia .tc-controls label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:850;letter-spacing:.02em}
 #consistencia .tc-controls select,#consistencia .tc-controls input{width:100%;min-width:0}
 #consistencia .tc-method-note{margin-top:12px;padding:10px 12px;border:1px solid #d7e4ed;border-radius:12px;background:#f8fbfd;color:#4f6476;font-size:11.5px;line-height:1.45}
@@ -3530,17 +3530,23 @@ html.gra-access-locked #graAccessGate{visibility:visible!important}
 .tc-tooltip{position:absolute;z-index:5;pointer-events:none;max-width:310px;padding:10px 12px;border-radius:12px;background:rgba(18,56,93,.97);color:#fff;box-shadow:0 8px 24px rgba(15,37,57,.18);font-size:11.5px;line-height:1.42;transform:translate(10px,10px)}
 .tc-tooltip strong{display:block;font-size:12.5px;margin-bottom:5px}.tc-tooltip .tc-tip-grid{display:grid;grid-template-columns:auto auto;gap:2px 12px}.tc-tooltip .tc-tip-muted{opacity:.78;margin-top:6px}
 .tc-empty{display:grid;place-items:center;min-height:390px;color:var(--muted);font-weight:800;text-align:center;padding:30px}
-.tc-table-wrap{max-height:620px;overflow:auto}
-#tcTable{width:100%;border-collapse:separate;border-spacing:0;font-size:11.3px}
-#tcTable th{position:sticky;top:0;z-index:2;background:#f4f8fb;color:#456074;font-size:10px;text-transform:uppercase;letter-spacing:.035em;padding:9px 7px;border-bottom:1px solid #dbe6ee;white-space:nowrap}
-#tcTable td{padding:9px 7px;border-bottom:1px solid #edf2f6;vertical-align:middle}
-#tcTable th:first-child,#tcTable td:first-child{position:sticky;left:0;z-index:3;background:#fff}#tcTable th:first-child{z-index:4;background:#12385d;color:#fff}#tcTable tbody tr:hover td:first-child{background:#f4f9fd}.tc-relation{font-weight:750;color:#536a7d;white-space:nowrap}
+.tc-table-wrap{max-height:620px;overflow-y:auto;overflow-x:hidden;width:100%}
+#tcTable{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:10.9px}
+#tcTable th{position:sticky;top:0;z-index:2;background:#f4f8fb;color:#456074;font-size:9.6px;text-transform:uppercase;letter-spacing:.025em;padding:8px 5px;border-bottom:1px solid #dbe6ee;white-space:normal;line-height:1.15;vertical-align:bottom;overflow-wrap:anywhere}
+#tcTable td{padding:8px 5px;border-bottom:1px solid #edf2f6;vertical-align:middle;min-width:0}
+#tcTable th:first-child{background:#12385d;color:#fff}
 #tcTable tbody tr{transition:background .12s ease}#tcTable tbody tr:hover{background:#f4f9fd}
-.tc-entity{display:flex;align-items:center;gap:8px;min-width:170px;font-weight:850;color:#243b50}.tc-swatch{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
-.tc-num{font-variant-numeric:tabular-nums;font-weight:850;text-align:right;white-space:nowrap}.tc-pctl{color:#6a7c8c;font-size:10.5px}
+#tcTable .tc-sort-btn{appearance:none;border:0;background:transparent;color:inherit;font:inherit;font-weight:900;text-transform:inherit;letter-spacing:inherit;display:flex;align-items:center;justify-content:space-between;gap:4px;width:100%;min-width:0;padding:0;cursor:pointer;text-align:left;line-height:1.15}
+#tcTable .tc-sort-label{min-width:0;overflow-wrap:anywhere}
+#tcTable .tc-sort-arrows{display:inline-flex;flex-direction:column;justify-content:center;align-items:center;line-height:.72;font-size:8px;flex:0 0 auto;opacity:.62}
+#tcTable .tc-sort-arrows span{display:block;opacity:.34}
+#tcTable th[aria-sort="ascending"] .tc-sort-arrows .tc-up,#tcTable th[aria-sort="descending"] .tc-sort-arrows .tc-down{opacity:1;font-weight:950}
+#tcTable .tc-sort-btn:focus-visible{outline:2px solid #2b82bd;outline-offset:3px;border-radius:3px}
+.tc-entity{display:flex;align-items:flex-start;gap:7px;min-width:0;font-weight:850;color:#243b50;line-height:1.2}.tc-entity span:last-child{min-width:0;overflow-wrap:anywhere}.tc-swatch{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-top:2px}
+.tc-num{font-variant-numeric:tabular-nums;font-weight:850;text-align:right;white-space:nowrap;font-size:10.7px}.tc-pctl{color:#6a7c8c;font-size:10.5px}
 .tc-score{font-weight:950;color:#12385d;white-space:nowrap}.tc-reading{font-weight:850;white-space:nowrap}
 .tc-reading.good{color:#11734f}.tc-reading.warn{color:#a46c10}.tc-reading.alert{color:#a33a3a}.tc-reading.neutral{color:#4d6477}
-@media(max-width:900px){#consistencia .tc-controls{grid-template-columns:1fr}.tc-kpis{grid-template-columns:1fr}.tc-chart-wrap{min-height:350px}.tc-chart-svg{min-height:330px}.tc-table-wrap{overflow:auto}}
+@media(max-width:900px){#consistencia .tc-controls{grid-template-columns:1fr}.tc-kpis{grid-template-columns:1fr}.tc-chart-wrap{min-height:350px}.tc-chart-svg{min-height:330px}.tc-table-wrap{overflow-x:hidden}.tc-table-card{padding-left:10px!important;padding-right:10px!important}#tcTable{font-size:8.4px}#tcTable th{font-size:7.7px;padding:6px 2px;letter-spacing:0}#tcTable td{padding:6px 2px}.tc-num{font-size:8.2px}.tc-entity{gap:4px}.tc-swatch{width:7px;height:7px}#tcTable .tc-sort-arrows{font-size:6.5px}}
 @media(prefers-reduced-motion:reduce){.tc-series .tc-line,.tc-series .tc-point,#tcTable tbody tr{transition:none!important}}
 </style>
 
@@ -4204,16 +4210,6 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
             <select id="tcComponent">
               <option value="LP" selected>Língua Portuguesa</option>
               <option value="MT">Matemática</option>
-            </select>
-          </label>
-          <label>Ordenar por
-            <select id="tcSort">
-              <option value="entity" selected>Entidade (ordem padrão)</option>
-              <option value="v1">ADR 1 — maior → menor</option>
-              <option value="v2">ADR 2 — maior → menor</option>
-              <option value="v3">Simulado 2026 — maior → menor</option>
-              <option value="dAdr">Δ ADR 1→2 — maior → menor</option>
-              <option value="dSim">Δ ADR 2→Simulado — maior → menor</option>
             </select>
           </label>
           <label class="tc-search-label">Buscar linha
@@ -20694,6 +20690,7 @@ const YEARS=new Set(['2º ano','4º ano','8º ano']);
 const COMPS=new Set(['LP','MT']);
 const packageCache=new Map();
 let renderTimer=0,lastRows=[],pinnedKey='';
+let tableSort={key:'entity',dir:'asc'};
 
 const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const schoolKey=value=>norm(value)
@@ -20817,19 +20814,37 @@ function renderChart(rows,year,comp){
 }
 function renderTable(rows,year,comp){
   const table=$('tcTable');if(!table)return;
-  const master=currentMaster(),sortKey=$('tcSort')?.value||'entity';
-  const natural=(a,b)=>!master.cre?(Number(a.cre)-Number(b.cre)):a.label.localeCompare(b.label,'pt-BR');
-  const sorted=rows.slice().sort((a,b)=>{
-    if(sortKey==='entity')return natural(a,b);
-    const av=Number(a?.[sortKey]),bv=Number(b?.[sortKey]);
-    if(Number.isFinite(av)&&Number.isFinite(bv)&&bv!==av)return bv-av;
+  const master=currentMaster();
+  const natural=(a,b)=>!master.cre?(Number(a.cre)-Number(b.cre)):a.label.localeCompare(b.label,'pt-BR',{sensitivity:'base'});
+  const numeric=(a,b,key)=>{
+    const av=Number(a?.[key]),bv=Number(b?.[key]);
+    if(Number.isFinite(av)&&Number.isFinite(bv)&&av!==bv)return av-bv;
     if(Number.isFinite(av)!==Number.isFinite(bv))return Number.isFinite(av)?-1:1;
     return natural(a,b);
+  };
+  const sorted=rows.slice().sort((a,b)=>{
+    const base=tableSort.key==='entity'?natural(a,b):numeric(a,b,tableSort.key);
+    return tableSort.dir==='desc'?-base:base;
   });
   const simHead=`Simulado 2026 (${esc(simMetricLabel(year,comp))})`;
-  table.innerHTML=`<thead><tr><th>Entidade</th><th>ADR 1 (% Adequado)</th><th>ADR 2 (% Adequado)</th><th>${simHead}</th><th>Δ ADR 1→2 (p.p.)</th><th>Δ ADR 2→Simulado (p.p.)</th></tr></thead><tbody>${sorted.map(r=>`<tr data-key="${esc(r.key)}"><td><div class="tc-entity"><span class="tc-swatch" style="background:${r.color}"></span><span>${esc(r.label)}</span></div></td><td class="tc-num">${fmt(r.v1)}</td><td class="tc-num">${fmt(r.v2)}</td><td class="tc-num">${fmt(r.v3)}</td><td class="tc-num">${r.dAdr>=0?'+':''}${Number(r.dAdr).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td><td class="tc-num">${r.dSim>=0?'+':''}${Number(r.dSim).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td></tr>`).join('')}</tbody>`;
+  const headers=[
+    ['entity','Entidade'],['v1','ADR 1 (% Adequado)'],['v2','ADR 2 (% Adequado)'],['v3',simHead],['dAdr','Δ ADR 1→2 (p.p.)'],['dSim','Δ ADR 2→Simulado (p.p.)']
+  ];
+  const colWidths=['17%','14%','14%','21%','16%','18%'];
+  const headHtml=headers.map(([key,label])=>{
+    const active=tableSort.key===key,aria=active?(tableSort.dir==='asc'?'ascending':'descending'):'none';
+    return `<th scope="col" aria-sort="${aria}"><button type="button" class="tc-sort-btn" data-sort-key="${key}" title="Ordenar por ${esc(label)}"><span class="tc-sort-label">${label}</span><span class="tc-sort-arrows" aria-hidden="true"><span class="tc-up">▲</span><span class="tc-down">▼</span></span></button></th>`;
+  }).join('');
+  table.innerHTML=`<colgroup>${colWidths.map(w=>`<col style="width:${w}">`).join('')}</colgroup><thead><tr>${headHtml}</tr></thead><tbody>${sorted.map(r=>`<tr data-key="${esc(r.key)}"><td><div class="tc-entity"><span class="tc-swatch" style="background:${r.color}"></span><span>${esc(r.label)}</span></div></td><td class="tc-num">${fmt(r.v1)}</td><td class="tc-num">${fmt(r.v2)}</td><td class="tc-num">${fmt(r.v3)}</td><td class="tc-num">${r.dAdr>=0?'+':''}${Number(r.dAdr).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td><td class="tc-num">${r.dSim>=0?'+':''}${Number(r.dSim).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td></tr>`).join('')}</tbody>`;
+  table.querySelectorAll('.tc-sort-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    const key=btn.dataset.sortKey||'entity';
+    if(tableSort.key===key)tableSort.dir=tableSort.dir==='asc'?'desc':'asc';
+    else{tableSort.key=key;tableSort.dir=key==='entity'?'asc':'desc';}
+    renderTable(rows,year,comp);
+  }));
   table.querySelectorAll('tbody tr').forEach(tr=>{tr.addEventListener('mouseenter',e=>highlight(tr.dataset.key,e.clientX,e.clientY));tr.addEventListener('mouseleave',clearHighlight);});
 }
+
 function render(){
   clearTimeout(renderTimer);pinnedKey='';
   const section=$('consistencia');if(!section)return;
@@ -20845,7 +20860,7 @@ function schedule(ms=80){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{i
 function boot(){
   const button=document.querySelector('.nav button[data-section="consistencia"]');
   button?.addEventListener('click',()=>setTimeout(render,0));
-  $('tcYear')?.addEventListener('change',()=>render());$('tcComponent')?.addEventListener('change',()=>render());$('tcSort')?.addEventListener('change',()=>render());$('tcSearch')?.addEventListener('input',()=>schedule(110));
+  $('tcYear')?.addEventListener('change',()=>render());$('tcComponent')?.addEventListener('change',()=>render());$('tcSearch')?.addEventListener('input',()=>schedule(110));
   $('regionalScopeSelect')?.addEventListener('change',()=>schedule(80));
   document.addEventListener('gra-master-scope-change',()=>schedule(80));
   document.addEventListener('pointerdown',e=>{
