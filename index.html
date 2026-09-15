@@ -3504,7 +3504,7 @@ html.gra-access-locked #graAccessGate{visibility:visible!important}
 </style>
 
 <style id="v414-trajectory-consistency-style">
-#consistencia .tc-controls{display:grid;grid-template-columns:minmax(150px,.72fr) minmax(180px,.9fr) minmax(240px,1.5fr);gap:12px;align-items:end;margin-top:12px}
+#consistencia .tc-controls{display:grid;grid-template-columns:minmax(145px,.65fr) minmax(170px,.82fr) minmax(210px,1.05fr) minmax(240px,1.35fr);gap:12px;align-items:end;margin-top:12px}
 #consistencia .tc-controls label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:850;letter-spacing:.02em}
 #consistencia .tc-controls select,#consistencia .tc-controls input{width:100%;min-width:0}
 #consistencia .tc-method-note{margin-top:12px;padding:10px 12px;border:1px solid #d7e4ed;border-radius:12px;background:#f8fbfd;color:#4f6476;font-size:11.5px;line-height:1.45}
@@ -4206,6 +4206,16 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
               <option value="MT">Matemática</option>
             </select>
           </label>
+          <label>Ordenar por
+            <select id="tcSort">
+              <option value="entity" selected>Entidade (ordem padrão)</option>
+              <option value="v1">ADR 1 — maior → menor</option>
+              <option value="v2">ADR 2 — maior → menor</option>
+              <option value="v3">Simulado 2026 — maior → menor</option>
+              <option value="dAdr">Δ ADR 1→2 — maior → menor</option>
+              <option value="dSim">Δ ADR 2→Simulado — maior → menor</option>
+            </select>
+          </label>
           <label class="tc-search-label">Buscar linha
             <input id="tcSearch" class="search" type="search" placeholder="Escola ou CRE..." autocomplete="off">
           </label>
@@ -4234,7 +4244,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
         <div class="panel-title">
           <div>
             <h3>Tabela da trajetória da própria entidade</h3>
-            <p>Sem percentis, ranking ou interpretação subjetiva. A tabela mostra apenas os três resultados e a variação objetiva entre ADR 1 e ADR 2.</p>
+            <p>Sem percentis, ranking ou interpretação subjetiva. A tabela mostra os três resultados e as diferenças objetivas entre marcos consecutivos.</p>
           </div>
           <span class="status-chip" id="tcTableCount">—</span>
         </div>
@@ -20744,7 +20754,7 @@ function creAggregate(cre,year,comp){
   return {key:`cre:${cre}`,cre,label:`${cre}ª CRE`,agent:'',v1,v2,v3,n1:a1.reduce((s,r)=>s+(Number(r.avaliados)||0),0),n2:a2.reduce((s,r)=>s+(Number(r.avaliados)||0),0),n3:sim.reduce((s,r)=>s+(Number(r.avaliados)||Number(r.presentes)||0),0)};
 }
 function analyzeSelf(row){
-  return {dAdr:Number(row.v2)-Number(row.v1)};
+  return {dAdr:Number(row.v2)-Number(row.v1),dSim:Number(row.v3)-Number(row.v2)};
 }
 function buildRows(){
   const year=YEARS.has($('tcYear')?.value)?$('tcYear').value:'4º ano',comp=COMPS.has($('tcComponent')?.value)?$('tcComponent').value:'LP',master=currentMaster();
@@ -20759,13 +20769,14 @@ function kpis(rows){
   const host=$('tcKpis');if(!host)return;host.innerHTML=`
     <div class="tc-kpi"><div class="tc-kpi-label">Linhas com dados completos</div><div class="tc-kpi-value">${rows.length}</div><div class="tc-kpi-note">Entidades com ADR 1, ADR 2 e Simulado 2026 disponíveis.</div></div>`;
 }
-function tooltipHtml(r,year,comp){return `<strong>${esc(r.label)}</strong><div class="tc-tip-grid"><span>ADR 1 (% Adequado)</span><b>${fmt(r.v1)}</b><span>ADR 2 (% Adequado)</span><b>${fmt(r.v2)}</b><span>Simulado 2026 (${esc(simMetricLabel(year,comp))})</span><b>${fmt(r.v3)}</b></div><div class="tc-tip-muted">Δ ADR 1→ADR 2: ${r.dAdr>=0?'+':''}${Number(r.dAdr).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</div>`;}
+function tooltipHtml(r,year,comp){return `<strong>${esc(r.label)}</strong><div class="tc-tip-grid"><span>ADR 1 (% Adequado)</span><b>${fmt(r.v1)}</b><span>ADR 2 (% Adequado)</span><b>${fmt(r.v2)}</b><span>Simulado 2026 (${esc(simMetricLabel(year,comp))})</span><b>${fmt(r.v3)}</b></div><div class="tc-tip-muted">Δ ADR 1→ADR 2: ${r.dAdr>=0?'+':''}${Number(r.dAdr).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p. · Δ ADR 2→Simulado: ${r.dSim>=0?'+':''}${Number(r.dSim).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</div>`;}
 function highlight(key,clientX,clientY){
   const wrap=$('tcChartWrap');if(!wrap)return;wrap.querySelectorAll('.tc-series').forEach(g=>{const hot=g.dataset.key===key;g.classList.toggle('is-hot',hot);g.classList.toggle('is-dim',!hot);});
   const row=lastRows.find(r=>r.key===key),tip=wrap.querySelector('.tc-tooltip');if(!row||!tip)return;tip.innerHTML=tooltipHtml(row,$('tcYear')?.value,$('tcComponent')?.value);tip.hidden=false;
   const box=wrap.getBoundingClientRect(),x=clientX?clientX-box.left:box.width*.56,y=clientY?clientY-box.top:24;tip.style.left=clamp(x,8,Math.max(8,box.width-330))+'px';tip.style.top=clamp(y,8,Math.max(8,box.height-125))+'px';
 }
 function clearHighlight(){if(pinnedKey)return;const wrap=$('tcChartWrap');if(!wrap)return;wrap.querySelectorAll('.tc-series').forEach(g=>g.classList.remove('is-hot','is-dim'));const tip=wrap.querySelector('.tc-tooltip');if(tip)tip.hidden=true;}
+function clearPinnedHighlight(){pinnedKey='';clearHighlight();}
 function renderChart(rows,year,comp){
   const wrap=$('tcChartWrap');if(!wrap)return;lastRows=rows;
   if(!rows.length){wrap.innerHTML='<div class="tc-empty">Nenhuma linha possui os três marcos completos neste recorte.</div>';return;}
@@ -20806,10 +20817,17 @@ function renderChart(rows,year,comp){
 }
 function renderTable(rows,year,comp){
   const table=$('tcTable');if(!table)return;
-  const master=currentMaster();
-  const sorted=rows.slice().sort((a,b)=>!master.cre?(Number(a.cre)-Number(b.cre)):a.label.localeCompare(b.label,'pt-BR'));
+  const master=currentMaster(),sortKey=$('tcSort')?.value||'entity';
+  const natural=(a,b)=>!master.cre?(Number(a.cre)-Number(b.cre)):a.label.localeCompare(b.label,'pt-BR');
+  const sorted=rows.slice().sort((a,b)=>{
+    if(sortKey==='entity')return natural(a,b);
+    const av=Number(a?.[sortKey]),bv=Number(b?.[sortKey]);
+    if(Number.isFinite(av)&&Number.isFinite(bv)&&bv!==av)return bv-av;
+    if(Number.isFinite(av)!==Number.isFinite(bv))return Number.isFinite(av)?-1:1;
+    return natural(a,b);
+  });
   const simHead=`Simulado 2026 (${esc(simMetricLabel(year,comp))})`;
-  table.innerHTML=`<thead><tr><th>Entidade</th><th>ADR 1 (% Adequado)</th><th>ADR 2 (% Adequado)</th><th>${simHead}</th><th>Δ ADR 1→2 (p.p.)</th></tr></thead><tbody>${sorted.map(r=>`<tr data-key="${esc(r.key)}"><td><div class="tc-entity"><span class="tc-swatch" style="background:${r.color}"></span><span>${esc(r.label)}</span></div></td><td class="tc-num">${fmt(r.v1)}</td><td class="tc-num">${fmt(r.v2)}</td><td class="tc-num">${fmt(r.v3)}</td><td class="tc-num">${r.dAdr>=0?'+':''}${Number(r.dAdr).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td></tr>`).join('')}</tbody>`;
+  table.innerHTML=`<thead><tr><th>Entidade</th><th>ADR 1 (% Adequado)</th><th>ADR 2 (% Adequado)</th><th>${simHead}</th><th>Δ ADR 1→2 (p.p.)</th><th>Δ ADR 2→Simulado (p.p.)</th></tr></thead><tbody>${sorted.map(r=>`<tr data-key="${esc(r.key)}"><td><div class="tc-entity"><span class="tc-swatch" style="background:${r.color}"></span><span>${esc(r.label)}</span></div></td><td class="tc-num">${fmt(r.v1)}</td><td class="tc-num">${fmt(r.v2)}</td><td class="tc-num">${fmt(r.v3)}</td><td class="tc-num">${r.dAdr>=0?'+':''}${Number(r.dAdr).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td><td class="tc-num">${r.dSim>=0?'+':''}${Number(r.dSim).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.</td></tr>`).join('')}</tbody>`;
   table.querySelectorAll('tbody tr').forEach(tr=>{tr.addEventListener('mouseenter',e=>highlight(tr.dataset.key,e.clientX,e.clientY));tr.addEventListener('mouseleave',clearHighlight);});
 }
 function render(){
@@ -20827,10 +20845,16 @@ function schedule(ms=80){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{i
 function boot(){
   const button=document.querySelector('.nav button[data-section="consistencia"]');
   button?.addEventListener('click',()=>setTimeout(render,0));
-  $('tcYear')?.addEventListener('change',()=>render());$('tcComponent')?.addEventListener('change',()=>render());$('tcSearch')?.addEventListener('input',()=>schedule(110));
+  $('tcYear')?.addEventListener('change',()=>render());$('tcComponent')?.addEventListener('change',()=>render());$('tcSort')?.addEventListener('change',()=>render());$('tcSearch')?.addEventListener('input',()=>schedule(110));
   $('regionalScopeSelect')?.addEventListener('change',()=>schedule(80));
   document.addEventListener('gra-master-scope-change',()=>schedule(80));
-  window.GRAConsistency={version:VERSION,render,buildRows,parsePackage};
+  document.addEventListener('pointerdown',e=>{
+    if(!pinnedKey)return;
+    const chart=$('tcChartWrap');
+    if(chart&&chart.contains(e.target))return;
+    clearPinnedHighlight();
+  });
+  window.GRAConsistency={version:VERSION,render,buildRows,parsePackage,clearSelection:clearPinnedHighlight};
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
