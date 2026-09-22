@@ -1,3 +1,4 @@
+
 /*
  * GRA v409 — HARD REGRESSION GUARD: direct school search -> Simulado skills.
  *
@@ -312,3 +313,4 @@
     }
   };
 })();
+

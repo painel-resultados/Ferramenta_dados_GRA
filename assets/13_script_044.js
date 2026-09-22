@@ -1,5 +1,6 @@
 
 
+
 function __graParseEmbeddedJson(id){
   const node=document.getElementById(id);
   if(!node) throw new Error('Base incorporada não encontrada: '+id);
@@ -4864,3 +4865,4 @@ initNav(); initGlobalSearch();
    Assim a tela de login não paga o custo das bases e, para Agentes, o recorte da CRE
    já está aplicado antes da primeira materialização. */
 document.addEventListener('DOMContentLoaded',()=>initResultados(),{once:true});
+

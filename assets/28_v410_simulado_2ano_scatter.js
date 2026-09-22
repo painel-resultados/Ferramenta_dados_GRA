@@ -1,3 +1,4 @@
+
 /*
  * GRA v412 — Simulado 2026 · 2º ano · todas as seleções do filtro Master
  * - Nova visualização "Gráfico de Dispersão" no filtro Componente.
@@ -699,3 +700,4 @@
   window.__GRA_V411_SCATTER__=scatterApi;
   window.__GRA_V412_SCATTER__=scatterApi;
 })();
+
