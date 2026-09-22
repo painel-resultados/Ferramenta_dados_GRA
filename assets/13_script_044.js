@@ -2950,14 +2950,16 @@ function sim2026OpenLevelSchools(category, rows){
   const key=keyMap[category];if(!key)return;
   const year=document.getElementById('somAnoEscolar')?.value||'';
   const comp=document.getElementById('somComponente')?.value||'';
+  const turmaCode=(ord)=>{const y=parseInt(String(year),10),base=({2:12,4:14,8:18})[y],n=Number(ord);return base&&Number.isFinite(n)?base*100+n:n;};
   const ranked=(rows||[]).filter(r=>r&&r.modalidade==='Simulado 2026'&&r.anoEscolar===year&&(!comp||r.componente===comp)&&r.escola).map(r=>{
     const pct=Number(r[key]),avaliados=Number(r.avaliados);
     const qtd=Number.isFinite(pct)&&Number.isFinite(avaliados)?Math.max(0,Math.round(avaliados*pct/100)):null;
-    return {cre:r.cre||'',escola:r.escola||'',agente:typeof somRowAgent==='function'?somRowAgent(r):(r.agente||''),avaliados:Number.isFinite(avaliados)?avaliados:null,pct:Number.isFinite(pct)?pct:null,qtd};
+    const turmas=Array.isArray(r.turmas)?r.turmas.slice().sort((a,b)=>(Number(a?.ord)||0)-(Number(b?.ord)||0)):[];
+    return {cre:r.cre||'',escola:r.escola||'',agente:typeof somRowAgent==='function'?somRowAgent(r):(r.agente||''),avaliados:Number.isFinite(avaliados)?avaliados:null,pct:Number.isFinite(pct)?pct:null,qtd,turmas};
   }).filter(r=>Number.isFinite(r.qtd)).sort((a,b)=>b.qtd-a.qtd||(b.pct??-Infinity)-(a.pct??-Infinity)||String(a.escola).localeCompare(String(b.escola),'pt-BR'));
   const drawer=document.getElementById('detailDrawer'),backdrop=document.getElementById('drawerBackdrop');if(!drawer||!backdrop)return;
   document.getElementById('drawerTitle').textContent=`${category} — escolas com mais alunos`;
-  document.getElementById('drawerSubtitle').textContent=`${year} · ${comp==='LP'?'Língua Portuguesa':comp==='MT'?'Matemática':comp} · ranking no universo selecionado. Quantidade estimada a partir de avaliados × percentual do extrato.`;
+  document.getElementById('drawerSubtitle').textContent=`${year} · ${comp==='LP'?'Língua Portuguesa':comp==='MT'?'Matemática':comp} · ranking no universo selecionado. Cada escola aparece primeiro com seu resultado geral e, logo abaixo, com a estratificação por turma.`;
   const total=ranked.reduce((a,r)=>a+(r.qtd||0),0);const schools=ranked.length;const max=ranked[0]?.qtd||0;
   document.getElementById('drawerKpis').innerHTML=[
     `<div class="mini-card"><div class="n">${schools.toLocaleString('pt-BR')}</div><div class="t">Escolas no extrato</div></div>`,
@@ -2965,10 +2967,21 @@ function sim2026OpenLevelSchools(category, rows){
     `<div class="mini-card"><div class="n">${max.toLocaleString('pt-BR')}</div><div class="t">Maior quantidade em uma escola</div></div>`
   ].join('');
   const input=document.getElementById('drawerSearch');if(input)input.value='';
+  const turmaRows=(r)=>{
+    const ts=r.turmas||[];if(!ts.length)return '';
+    const single=ts.length===1;
+    return ts.map(t=>{
+      const tav=single?r.avaliados:Number(t?.avaliados),tpct=single?r.pct:Number(t?.[key]);
+      const tqtd=single?r.qtd:(Number.isFinite(tav)&&Number.isFinite(tpct)?Math.max(0,Math.round(tav*tpct/100)):null);
+      const code=turmaCode(t?.ord);const unique=single?' <small>(única turma do segmento)</small>':'';
+      return `<tr class="sim414-turma-row" data-sim414-turma-row="1"><td></td><td></td><td><span class="sim414-turma-name">↳ Turma ${esc(code)}${unique}</span></td><td></td><td>${Number.isFinite(tav)?Math.round(tav).toLocaleString('pt-BR'):'—'}</td><td>${Number.isFinite(tpct)?fmtPctValue(tpct,1):'—'}</td><td>${Number.isFinite(tqtd)?`<b>${tqtd.toLocaleString('pt-BR')}</b>`:'—'}</td></tr>`;
+    }).join('');
+  };
   const render=()=>{
-    const q=norm(input?.value||'');const filtered=q?ranked.filter(r=>norm([r.cre,r.escola,r.agente].join(' ')).includes(q)):ranked;
+    const q=norm(input?.value||'');
+    const filtered=q?ranked.filter(r=>{const turmaText=(r.turmas||[]).map(t=>`Turma ${turmaCode(t?.ord)}`).join(' ');return norm([r.cre,r.escola,r.agente,turmaText].join(' ')).includes(q);}):ranked;
     const target=document.getElementById('drawerTable');if(!target)return;
-    target.innerHTML='<thead><tr><th>Pos.</th><th>CRE</th><th>Escola</th><th>Agente</th><th>Avaliados</th><th>% no extrato</th><th>Alunos no extrato (estim.)</th></tr></thead><tbody>'+filtered.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.cre)}</td><td>${esc(r.escola)}</td><td>${esc(r.agente)}</td><td>${Number.isFinite(r.avaliados)?Math.round(r.avaliados).toLocaleString('pt-BR'):'—'}</td><td>${Number.isFinite(r.pct)?fmtPctValue(r.pct,1):'—'}</td><td><b>${r.qtd.toLocaleString('pt-BR')}</b></td></tr>`).join('')+'</tbody>';
+    target.innerHTML='<thead><tr><th>Pos.</th><th>CRE</th><th>Escola / turma</th><th>Agente</th><th>Avaliados</th><th>% no extrato</th><th>Alunos no extrato (estim.)</th></tr></thead><tbody>'+filtered.map((r,i)=>`<tr class="sim414-school-row"><td>${i+1}</td><td>${esc(r.cre)}</td><td>${esc(r.escola)}</td><td>${esc(r.agente)}</td><td>${Number.isFinite(r.avaliados)?Math.round(r.avaliados).toLocaleString('pt-BR'):'—'}</td><td>${Number.isFinite(r.pct)?fmtPctValue(r.pct,1):'—'}</td><td><b>${r.qtd.toLocaleString('pt-BR')}</b></td></tr>${turmaRows(r)}`).join('')+'</tbody>';
   };
   if(input)input.oninput=render;render();drawer.classList.add('open');backdrop.classList.add('open');drawer.setAttribute('aria-hidden','false');setTimeout(()=>input?.focus(),120);
 }

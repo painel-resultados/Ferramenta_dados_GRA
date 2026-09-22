@@ -3550,6 +3550,16 @@ html.gra-access-locked #graAccessGate{visibility:visible!important}
 @media(prefers-reduced-motion:reduce){.tc-series .tc-line,.tc-series .tc-point,#tcTable tbody tr{transition:none!important}}
 </style>
 
+
+<style id="v414-sim-extrato-turmas-styles">
+#detailDrawer.sim307-drill-list #drawerTable tbody tr.sim414-school-row td{border-top:1px solid #d8e5ee;}
+#detailDrawer.sim307-drill-list #drawerTable tbody tr.sim414-turma-row{cursor:default!important;}
+#detailDrawer.sim307-drill-list #drawerTable tbody tr.sim414-turma-row td{background:#f7fafc;color:#60758a;border-top:1px solid #edf2f6;font-size:.94em;}
+#detailDrawer.sim307-drill-list #drawerTable tbody tr.sim414-turma-row:hover td{background:#f7fafc!important;}
+#detailDrawer.sim307-drill-list #drawerTable tbody tr.sim414-turma-row td:nth-child(3){font-weight:700;color:#355a76;padding-left:28px;}
+#detailDrawer.sim307-drill-list .sim414-turma-name{display:inline-flex;align-items:baseline;gap:5px;white-space:normal;}
+#detailDrawer.sim307-drill-list .sim414-turma-name small{font-size:.82em;font-weight:650;color:#718597;}
+</style>
 </head>
 <body class="exp-ui">
 <div id="graAccessGate" role="dialog" aria-modal="true" aria-labelledby="graAccessTitle">
@@ -12984,10 +12994,10 @@ function closeSimAll(){closeTurmaOnly();closeSchoolOnly();const detail=$('#detai
 function decorateSimList(){
   const d=$('#detailDrawer'),title=$('#drawerTitle')?.textContent||'',active=$('#somModalidade')?.value==='Simulado 2026'&&/escolas com mais alunos/i.test(title);if(d&&d.classList.contains('sim307-drill-list')!==!!active)d.classList.toggle('sim307-drill-list',!!active);if(!active)return;
   const sub=$('#drawerSubtitle');if(sub&&!/Clique em uma escola/i.test(sub.textContent))sub.textContent+=' Clique em uma escola para abrir suas turmas e use a seta para voltar.';
-  $$('#drawerTable tbody tr').forEach(tr=>{if(tr.tabIndex!==0)tr.tabIndex=0;if(tr.getAttribute('role')!=='button')tr.setAttribute('role','button');const aria='Abrir detalhamento da escola '+(tr.cells?.[2]?.textContent||'');if(tr.getAttribute('aria-label')!==aria)tr.setAttribute('aria-label',aria);});
+  $$('#drawerTable tbody tr').forEach(tr=>{if(tr.classList.contains('sim414-turma-row')){tr.removeAttribute('tabindex');tr.removeAttribute('role');tr.removeAttribute('aria-label');return;}if(tr.tabIndex!==0)tr.tabIndex=0;if(tr.getAttribute('role')!=='button')tr.setAttribute('role','button');const aria='Abrir detalhamento da escola '+(tr.cells?.[2]?.textContent||'');if(tr.getAttribute('aria-label')!==aria)tr.setAttribute('aria-label',aria);});
 }
 function listDrill(e){
-  const tr=e.target.closest?.('#detailDrawer.sim307-drill-list #drawerTable tbody tr');if(!tr)return;if(e.type==='keydown'&&!['Enter',' '].includes(e.key))return;if(e.type==='keydown')e.preventDefault();const cre=txt(tr.cells?.[1]?.textContent),school=txt(tr.cells?.[2]?.textContent),category=txt($('#drawerTitle')?.textContent).split('—')[0].trim();if(school)openSchool(cre,school,category,tr);
+  const tr=e.target.closest?.('#detailDrawer.sim307-drill-list #drawerTable tbody tr');if(!tr||tr.classList.contains('sim414-turma-row'))return;if(e.type==='keydown'&&!['Enter',' '].includes(e.key))return;if(e.type==='keydown')e.preventDefault();const cre=txt(tr.cells?.[1]?.textContent),school=txt(tr.cells?.[2]?.textContent),category=txt($('#drawerTitle')?.textContent).split('—')[0].trim();if(school)openSchool(cre,school,category,tr);
 }
 function inlineTurmaDrill(e){const tr=e.target.closest?.('#sim306DetailCard tr[data-sim306-turma]');if(!tr)return;e.preventDefault();e.stopImmediatePropagation();const r=uniqueCurrentSchool();if(!r)return;const yc=currentYearComp();drillState={...drillState,school:r,year:yc.year,comp:yc.comp,category:'',schoolFromList:false,lastTurmaFocus:tr};openTurma(Number(tr.dataset.sim306Turma),tr)}
 function observer(){
