@@ -9488,7 +9488,10 @@ function cleanText(value){
     ['somModalidade','somAnoEscolar','somComponente','somEdicao','somAgente','somMetric','somPriority'].forEach(id=>{
       document.getElementById(id)?.addEventListener('change',()=>setTimeout(updateIdebScopeMessage,30));
     });
-    setTimeout(refreshUniverse,220);
+    // v415 hotfix: no primeiro carregamento, os seletores/resultados já foram
+    // inicializados pelo núcleo. Evita um segundo refresh+render integral; mudanças
+    // posteriores de escopo continuam usando refreshUniverse normalmente.
+    setTimeout(()=>{forceHiddenCreSelectors();updateIdebScopeMessage();},220);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
   else install();
@@ -9702,7 +9705,10 @@ function cleanText(value){
     return previousTable(rows);
   };
 
-  function refresh(){ if(typeof window.renderResultados==='function')window.renderResultados(); }
+  function refresh(){
+    if(document.getElementById('somModalidade')?.value!=='IDEB')return;
+    if(typeof window.renderResultados==='function')window.renderResultados();
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(refresh,420),{once:true});
   else setTimeout(refresh,420);
 })();
@@ -10060,8 +10066,9 @@ function cleanText(value){
   });
   ['regionalScopeSelect','somModalidade','somAnoEscolar','somComponente','somEdicao','somMetric','somAgente','somPriority','somMode'].forEach(id=>byId(id)?.addEventListener('change',closeDrawer));
   byId('somSearch')?.addEventListener('input',closeDrawer);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(typeof window.renderResultados==='function')window.renderResultados();},520),{once:true});
-  else setTimeout(()=>{if(typeof window.renderResultados==='function')window.renderResultados();},520);
+  const initialIdebRender=()=>{if(byId('somModalidade')?.value==='IDEB'&&typeof window.renderResultados==='function')window.renderResultados();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(initialIdebRender,520),{once:true});
+  else setTimeout(initialIdebRender,520);
 })();
 </script>
 <!-- v172: a distribuição IDEB é ocultada quando o recorte não forma três estratos ou quando uma escola é destacada. Fatias e legendas abrem um drawer lateral com CREs/escolas e os atributos que determinam o estrato. -->
@@ -10619,7 +10626,7 @@ function cleanText(value){
     ensureButton();
     ['regionalScopeSelect','somMode','somModalidade','somAnoEscolar','somComponente','somEdicao','somMetric','somAgente','somPriority'].forEach(id=>byId(id)?.addEventListener('change',()=>setTimeout(updateLayout,0)));
     byId('somSearch')?.addEventListener('input',()=>setTimeout(updateLayout,0));
-    if(typeof window.renderResultados==='function')window.renderResultados();
+    if(byId('somModalidade')?.value==='IDEB'&&typeof window.renderResultados==='function')window.renderResultados();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,650),{once:true});else setTimeout(install,650);
 })();
@@ -10904,12 +10911,14 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
     const patchRows=rows=>{
       if(!Array.isArray(rows))return 0;
       let changed=0;
+      // v415 hotfix: do not call somFindRecord once per result row.
+      // After the Somativas data is expanded, that legacy lookup becomes effectively
+      // quadratic and can block the main thread during the loading gate. The target
+      // schools are already normalized above, so the direct school-name match is
+      // both deterministic and sufficient for this historical CRE 5 reassignment.
       rows.forEach(row=>{
         const cre=typeof creNumber==='function'?creNumber(row?.cre||row?.regional||''):Number(String(row?.cre||row?.regional||'').match(/\d+/)?.[0]||0);
-        if(cre!==5)return;
-        let record=null;
-        try{record=typeof somFindRecord==='function'?somFindRecord(row?.escola||''):null;}catch(_){}
-        if((record&&matchesName(record.unidade))||matchesName(row?.escola)){row.agente=NEW_AGENT;changed++;}
+        if(cre===5&&matchesName(row?.escola)){row.agente=NEW_AGENT;changed++;}
       });
       return changed;
     };
@@ -10968,9 +10977,10 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
   // v408: toda reaplicação histórica fica atrás do gate de acesso. O runtime de acesso
   // retém DOMContentLoaded até a autenticação, evitando mutações tardias na tela inicial.
   const scheduleApplyAll=()=>{
+    // v415 hotfix: o runtime retém DOMContentLoaded até todo o arquivo terminar de
+    // ser analisado. Portanto as bases já existem aqui e as duas reaplicações
+    // históricas (160/900 ms) apenas repetiam filtros/renderizações pesadas.
     applyAll();
-    setTimeout(applyAll,160);
-    setTimeout(applyAll,900);
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',scheduleApplyAll,{once:true});
   else scheduleApplyAll();
@@ -11220,7 +11230,7 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
   function install(){
     ['regionalScopeSelect','somModalidade','somAnoEscolar','somMetric','somAgente','somPriority'].forEach(id=>byId(id)?.addEventListener('change',()=>setTimeout(applyLayout,12)));
     byId('somSearch')?.addEventListener('input',()=>setTimeout(applyLayout,12));
-    setTimeout(()=>{if(typeof window.renderResultados==='function')window.renderResultados();},80);
+    setTimeout(()=>{if(isIdeb()&&typeof window.renderResultados==='function')window.renderResultados();},80);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();
@@ -15455,25 +15465,23 @@ body.exp-ui .meter span{
 (function(){
   'use strict';
   const NAME='Ferramenta GRA de análise de dados';
-  const VERSION='v414';
   const scope=()=>document.getElementById('regionalScopeSelect')?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME';
   function syncIdentity(){
     const brand=document.querySelector('.brand-title h1');
     if(brand&&brand.textContent.trim()!==NAME)brand.textContent=NAME;
     const small=document.querySelector('.brand-title small');
     if(small&&small.textContent.trim()!==scope())small.textContent=scope();
-    // v408: versão e document.title são mantidos por um único carimbo global.
-    const badge=document.getElementById('dashboardVersionBadge');
-    if(badge&&badge.textContent.trim()!==VERSION)badge.textContent=VERSION;
-    document.querySelectorAll('.exp-badge').forEach(item=>{if(item.textContent.trim()!==VERSION)item.textContent=VERSION;});
+    // v415 hotfix: identidade não toca mais no carimbo de versão.
+    // O selo/título são responsabilidade exclusiva do lock final, evitando
+    // disputa v414 <-> v415 entre MutationObservers durante a inicialização.
   }
   function install(){
     syncIdentity();
     document.getElementById('regionalScopeSelect')?.addEventListener('change',()=>setTimeout(syncIdentity,0));
-    const brand=document.querySelector('.brand-title');
-    if(brand)new MutationObserver(syncIdentity).observe(brand,{childList:true,characterData:true,subtree:true});
-    const topbar=document.querySelector('.topbar .title');
-    if(topbar)new MutationObserver(()=>setTimeout(syncIdentity,0)).observe(topbar,{childList:true,characterData:true,subtree:true});
+    // v415 hotfix: não manter observers permanentes na marca/topbar. Diversos módulos
+    // atualizam esses nós durante a inicialização e os observers antigos amplificavam
+    // cada mutação, atrasando o gate de carregamento. A mudança de escopo continua
+    // sincronizada pelo evento acima e pelos renderizadores das próprias seções.
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();

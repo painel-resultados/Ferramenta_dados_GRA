@@ -203,7 +203,10 @@ function rerenderIfNeeded(){
 function sync(){
   if(STATE.syncing)return;STATE.syncing=true;
   try{stamp();syncSom();syncAdr();}catch(error){console.warn('v415 filtro escolar',error)}finally{STATE.syncing=false;}
-  rerenderIfNeeded();
+  // v415 hotfix: não rerenderizar automaticamente após ajustar disponibilidade.
+  // O render que originou a mudança de escola já reflete o recorte selecionado; um
+  // novo render aqui podia redisparar eventos de filtros e formar um ciclo infinito.
+  STATE.dirtySom=false;STATE.dirtyAdr=false;
 }
 function schedule(ms=20){clearTimeout(STATE.timer);STATE.timer=setTimeout(sync,ms);}
 function wrapFilter(name,stateKey){
@@ -211,14 +214,70 @@ function wrapFilter(name,stateKey){
   const f=function(){if(STATE[stateKey])return [];return old.apply(this,arguments)};
   f.__gra415Availability=true;f.__gra415Base=old;window[name]=f;try{globalThis[name]=f}catch(_){}
 }
-function installWrappers(){wrapFilter('somFilteredRows','somInvalid');wrapFilter('adrFilteredRows','adrInvalid');}
+function wrapRenderer(name,stateKey){
+  const old=window[name];if(typeof old!=='function'||old.__gra415AvailabilityRender)return;
+  const f=function(){
+    // Alguns renderizadores legados pressupõem ano/componente sempre preenchidos.
+    // Com '-' intencional, essa premissa podia entrar em laço. Não renderizamos
+    // enquanto a combinação estiver incompleta; o próximo filtro válido libera.
+    if(STATE[stateKey])return undefined;
+    return old.apply(this,arguments);
+  };
+  f.__gra415AvailabilityRender=true;f.__gra415Base=old;window[name]=f;try{globalThis[name]=f}catch(_){}
+}
+function installWrappers(){
+  wrapFilter('somFilteredRows','somInvalid');wrapFilter('adrFilteredRows','adrInvalid');
+  wrapRenderer('renderResultados','somInvalid');wrapRenderer('renderADRs','adrInvalid');
+}
 function boot(){
   installWrappers();stamp();sync();
-  document.addEventListener('change',e=>{const id=e.target?.id||'';if(id.startsWith('som')||id.startsWith('adr')||id==='regionalScopeSelect')schedule(id==='somAnoEscolar'&&$('somModalidade')?.value==='Simulado 2026'?180:35);},true);
-  document.addEventListener('input',e=>{if(e.target?.id==='somSearch'||e.target?.id==='adrSearch')schedule(90);},true);
-  document.addEventListener('click',e=>{if(e.target?.closest?.('[data-gra-school-name],.gra-school-clickable,.gra-school-clear,.nav button[data-section]'))schedule(130);},true);
-  const obs=new MutationObserver(ms=>{let versionTouched=false,filterTouched=false;for(const m of ms){const t=m.target;if(t?.id==='dashboardVersionBadge'||t?.classList?.contains('gra-access-version'))versionTouched=true;if(t?.closest?.('#somFiltersCard,#adrFiltersCard'))filterTouched=true;}if(versionTouched)stamp();if(filterTouched)schedule(25);});
-  obs.observe(document.body,{subtree:true,childList:true,characterData:true});
+  document.addEventListener('change',e=>{
+    const id=e.target?.id||'';
+    // Atualiza o estado de disponibilidade ainda na fase capture, antes dos
+    // renderizadores ligados diretamente aos selects. Assim um valor '-' nunca
+    // chega a um renderer legado que pressupõe ano/componente preenchido.
+    if(id.startsWith('som')){try{syncSom();}catch(_){}}
+    else if(id.startsWith('adr')){try{syncAdr();}catch(_){}}
+    if(id.startsWith('som')||id.startsWith('adr')||id==='regionalScopeSelect')schedule(id==='somAnoEscolar'&&$('somModalidade')?.value==='Simulado 2026'?180:35);
+  },true);
+  document.addEventListener('input',e=>{
+    const id=e.target?.id||'';
+    if(id==='somSearch'){
+      // Ajusta o ano antes que os listeners de renderização recebam a busca. Isso
+      // evita tentar desenhar uma escola em um ano inexistente e só então corrigi-la.
+      try{syncSom();}catch(_){}
+      schedule(90);
+    }else if(id==='adrSearch'){
+      try{syncAdr();}catch(_){}
+      schedule(90);
+    }
+  },true);
+  document.addEventListener('click',e=>{
+    const nav=e.target?.closest?.('.nav button[data-section]');
+    if(nav){
+      // A navegação entre áreas deve começar sem herdar a escola da tela anterior.
+      // Fazemos isso na fase capture: o listener legado da própria navegação roda
+      // depois e já encontra __GRA_SELECTED_SCHOOL__ vazio, evitando refocar a escola.
+      const old=String(window.__GRA_SELECTED_SCHOOL__||'').trim();
+      window.__GRA_SELECTED_SCHOOL__='';
+      delete document.documentElement.dataset.graSchoolUniverse;
+      document.querySelectorAll('.gra-school-universe-banner').forEach(b=>b.remove());
+      if(old){
+        const oldKey=schoolKey(old);
+        for(const id of ['somSearch','adrSearch','geoSearch','bankSearch','exclusiveSearch','efpdSearch','territorySearch','globalSearch']){
+          const el=$(id);if(el&&schoolKey(el.value)===oldKey)el.value='';
+        }
+      }
+      resetSomGuard();resetAdrGuard();
+      schedule(130);return;
+    }
+    if(e.target?.closest?.('[data-gra-school-name],.gra-school-clickable,.gra-school-clear'))schedule(130);
+  },true);
+  // v415 hotfix: não usar MutationObserver nos cards de filtros. O próprio sync pode
+  // alterar/recriar opções e disparar renderizações; observar essas mutações criava
+  // um ciclo sync → render → mutation → sync em escolas com anos indisponíveis.
+  // Eventos de change/input/click e os passes retardados abaixo cobrem a atualização
+  // sem realimentar o renderizador.
   [250,900,1800,3500].forEach(ms=>setTimeout(()=>{installWrappers();stamp();sync();},ms));
   window.__GRA_V415__={version:VERSION,feature:'school-year-component-edition-availability',simIndexSchools:Object.keys(SIM_INDEX).length,state:STATE,sync};
 }
