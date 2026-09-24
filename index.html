@@ -3538,7 +3538,7 @@ html.gra-access-locked #graAccessGate{visibility:visible!important}
 <body class="exp-ui">
 <div id="graAccessGate" role="dialog" aria-modal="true" aria-labelledby="graAccessTitle">
   <div class="gra-access-shell">
-    <div class="gra-access-head"><div class="gra-access-eyebrow">Acesso institucional</div><h2 id="graAccessTitle">Ferramenta GRA de análise de dados</h2><p>O cadastro de acesso já está compilado. Os dados da ferramenta serão carregados somente após a autenticação.</p><span class="gra-access-version">v415</span></div>
+    <div class="gra-access-head"><div class="gra-access-eyebrow">Acesso institucional</div><h2 id="graAccessTitle">Ferramenta GRA de análise de dados</h2><p>O cadastro de acesso já está compilado. Os dados da ferramenta serão carregados somente após a autenticação.</p><span class="gra-access-version">v416</span></div>
     <div class="gra-access-body">
       <div class="gra-access-progress-box" aria-live="polite">
         <div class="gra-access-progress-row"><span id="graAccessProgressLabel">Cadastro de acesso pronto. Identifique-se para continuar.</span><b id="graAccessProgressPct">100%</b></div>
@@ -3866,7 +3866,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
           <input id="globalSearch" class="global-search" placeholder="Buscar escola, agente, bairro ou telefone..." autocomplete="off">
           <div id="globalSearchPanel" class="global-search-panel" aria-live="polite"></div>
         </div>
-        <button id="pdfExportBtn" class="btn export-action-btn pdf-export-btn" onclick="printActiveSection()" aria-label="Gerar PDF da aba atual"><span class="export-action-icon">PDF</span><span class="export-action-label">PDF ↓</span></button>
+        <button id="pdfExportBtn" class="btn export-action-btn pdf-export-btn" aria-label="Gerar Dossiê da escola selecionada"><span class="export-action-icon">DOS</span><span class="export-action-label">Dossiê</span></button>
         <button id="slideExportBtn" type="button" class="btn export-action-btn slide-export-btn" onclick="window.GRA_PPT_V388()" aria-label="Gerar apresentação em PowerPoint" title="O motor PowerPoint será validado ao solicitar a exportação"><span class="export-action-icon">▰</span><span class="export-action-label">SLIDES ↓</span></button>
       </div>
     </div>
@@ -21012,6 +21012,7 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
 })();
 </script>
 <script src="assets/32_v415_school_filter_guard.js"></script>
+<script src="assets/33_v416_dossier.js"></script>
 
 </body>
 </html>
