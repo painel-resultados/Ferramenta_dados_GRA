@@ -158,14 +158,33 @@ function reportCss(){return `
 function buildReportHtml(data){
  const logo=assetUrl('assets/gra_loading_wheel.png');let no=1;const pages=[coverPage(data,logo)];if(data.context){pages.push(contextIdentityPage(data,++no),contextOperationsPage(data,++no),contextIndicatorsPage(data,++no));}const add=fn=>{const h=fn(data,++no);if(h)pages.push(h);else no--;};add(idebPage);add((d,n)=>adrPage(d,n,false));add((d,n)=>adrPage(d,n,true));add(simPage);add(provaPage);add(groupsPage);
  const title=`Dossiê - ${data.record.unidade}${data.demo?' - DADOS FICTÍCIOS':''}`;
- return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${reportCss()}</style></head><body><div class="screenbar"><button onclick="window.print()">Imprimir / Salvar em PDF</button></div>${pages.join('')}<script>document.documentElement.dataset.dossierReady='1';setTimeout(function(){try{window.print()}catch(e){}},700);<\/script></body></html>`;
+ return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${reportCss()}</style></head><body><div class="screenbar"><button id="dossierPdfBtn" type="button">Salvar em PDF</button></div>${pages.join('')}</body></html>`;
+}
+function bindReportControls(win){
+ if(!win||win.closed)return false;
+ const doc=win.document,btn=doc.getElementById('dossierPdfBtn');
+ if(!btn)return false;
+ if(btn.dataset.v416Bound==='1')return true;
+ btn.dataset.v416Bound='1';
+ btn.addEventListener('click',function(e){
+  e.preventDefault();e.stopPropagation();
+  try{
+   win.focus();
+   win.print();
+  }catch(err){
+   console.error('v416 Dossiê PDF',err);
+   toast('Não foi possível abrir a janela para salvar o PDF. Tente Ctrl+P dentro do Dossiê.');
+  }
+ },false);
+ doc.documentElement.dataset.dossierReady='1';
+ return true;
 }
 function loadingHtml(name,logo){return `<!doctype html><html><head><meta charset="utf-8"><title>Gerando Dossiê</title><style>body{margin:0;font-family:Arial;background:#f4f8fb;color:#12385d;display:grid;place-items:center;height:100vh}.box{text-align:center}.wheel{width:95px;height:95px;object-fit:contain;animation:spin 1.4s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}h1{font-size:22px;margin:18px 0 6px}p{color:#667788}</style></head><body><div class="box"><img class="wheel" src="${esc(logo)}"><h1>Preparando o Dossiê</h1><p>${esc(name||'Unidade selecionada')}</p></div></body></html>`;}
 async function generate(explicitName,opts={}){
  if(state.generating&&!opts.test)return null;const selected=resolveSelection(explicitName);if(!selected){toast('Selecione uma escola antes de gerar o Dossiê.');return null;}
  const record=selected.record;let win=null;const logo=assetUrl('assets/gra_loading_wheel.png');
  if(opts.open!==false){win=window.open('','_blank');if(!win){toast('O navegador bloqueou a abertura do Dossiê. Permita pop-ups para esta página.');return null;}win.document.open();win.document.write(loadingHtml(record.unidade,logo));win.document.close();}
- state.generating=true;const t0=performance.now();try{const data=await collect(record,selected.demo);const t1=performance.now();const html=buildReportHtml(data);const t2=performance.now();state.lastTiming={school:record.unidade,collectMs:Math.round(t1-t0),buildMs:Math.round(t2-t1),totalMs:Math.round(t2-t0),pages:(html.match(/<section class="page(?: |")/g)||[]).length};state.lastSchool=record.unidade;if(win){win.document.open();win.document.write(html);win.document.close();}return {data,html,timing:state.lastTiming};}catch(e){console.error('v416 Dossiê',e);if(win){win.document.open();win.document.write(`<h2 style="font-family:Arial;color:#a33">Não foi possível gerar o Dossiê.</h2><pre>${esc(e?.message||e)}</pre>`);win.document.close();}toast('Não foi possível gerar o Dossiê desta escola.');return null;}finally{state.generating=false;}
+ state.generating=true;const t0=performance.now();try{const data=await collect(record,selected.demo);const t1=performance.now();const html=buildReportHtml(data);const t2=performance.now();state.lastTiming={school:record.unidade,collectMs:Math.round(t1-t0),buildMs:Math.round(t2-t1),totalMs:Math.round(t2-t0),pages:(html.match(/<section class="page(?: |")/g)||[]).length};state.lastSchool=record.unidade;if(win){win.document.open();win.document.write(html);win.document.close();bindReportControls(win);}return {data,html,timing:state.lastTiming};}catch(e){console.error('v416 Dossiê',e);if(win){win.document.open();win.document.write(`<h2 style="font-family:Arial;color:#a33">Não foi possível gerar o Dossiê.</h2><pre>${esc(e?.message||e)}</pre>`);win.document.close();}toast('Não foi possível gerar o Dossiê desta escola.');return null;}finally{state.generating=false;}
 }
 function installDemoSearch(){
  const input=$('globalSearch'),panel=$('globalSearchPanel');if(!input||!panel)return;
