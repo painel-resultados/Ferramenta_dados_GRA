@@ -9,9 +9,6 @@
     {name:'Escola Municipal Irã', cre:5, scope:'ALFA', type:'Alfabetização', years:['2º ano']},
     {name:'Escola Municipal Pires e Albuquerque', cre:5, scope:'ALFA', type:'Alfabetização', years:['2º ano']},
     {name:'Escola Municipal Albert Sabin', cre:5, scope:'ALFA', type:'Alfabetização', years:['2º ano']},
-    {name:'Escola Municipal Sebastião de Lacerda', cre:5, scope:'ALFA_AI', type:'Alfabetização + Anos Iniciais', years:['2º ano','4º ano','5º ano']},
-    {name:'Escola Municipal Mato Grosso', cre:5, scope:'ALFA_AI', type:'Alfabetização + Anos Iniciais', years:['2º ano','4º ano','5º ano']},
-    {name:'Escola Municipal Rostham Pedro de Farias', cre:5, scope:'ALFA_AI', type:'Alfabetização + Anos Iniciais', years:['2º ano','4º ano','5º ano']},
     {name:'Escola Municipal Rodrigo Otávio Filho', cre:5, scope:'AF', type:'Anos Finais', years:['8º ano','9º ano']}
   ];
 
@@ -47,13 +44,8 @@
   priorityMatchesContext=function(school,year='',evaluation='',cre=''){
     const meta=priorityMetaForSchool(school);
     if(!meta || !metaMatchesCre(meta,cre)) return false;
-    const requested=priorityScopeFromContext(year,evaluation);
-    if(!requested) return true;
-    const token=String(meta.type||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-    if(requested==='ALFA') return meta.scope==='ALFA' || meta.scope==='ALFA_AI' || token.includes('alfabet') || token.includes('alfa');
-    if(requested==='AI') return meta.scope==='AI' || meta.scope==='ALFA_AI' || token.includes('iniciais');
-    if(requested==='AF') return meta.scope==='AF' || token.includes('finais');
-    return true;
+    const scope=priorityScopeFromContext(year,evaluation);
+    return !scope || meta.scope===scope;
   };
 
   prioritySearchText=function(name,cre=''){
