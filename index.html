@@ -21015,5 +21015,188 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
 <script src="assets/33_v416_dossier.js"></script>
 
 <!-- Dashboard Definitivo 28 hotfix: nomenclatura canônica de prioridades e correção aditiva da 5ª CRE. -->
+
+<!-- Dashboard Definitivo 28 · Avalia RJ por componente + rankings contextuais -->
+<style id="v416-dashboard28-avalia-component-style">
+/* Hotfix aditivo: preserva dispersão e bases; reorganiza apenas a leitura pedagógica do Avalia RJ. */
+#resultados.v241-avalia-only #somSkillBars .som-skill-context-label{grid-column:1/-1!important;margin-bottom:0!important}
+#resultados.v241-avalia-only #somSkillBars .v428-skill-pair{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 22px;align-items:start}
+#resultados.v241-avalia-only #somSkillBars .v428-skill-pair .som-skill-component + .som-skill-component{margin-top:0!important;border-top:1px solid #dce8f1!important;padding-top:14px!important}
+#resultados.v241-avalia-only #somSkillBars .v428-single-skill{grid-column:1/-1}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-wrap{grid-column:1/-1;margin-top:2px;padding-top:18px;border-top:2px solid #dbe8f1}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 11px}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-head h4{margin:0;color:#12385d;font-size:14px;font-weight:950}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-head p{margin:3px 0 0;color:#607487;font-size:10.5px;line-height:1.35}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-head span{flex:0 0 auto;color:#607487;font-size:10px;font-weight:850;text-align:right}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 22px;align-items:start}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-col{min-width:0;border:1px solid #dce8f1;border-radius:14px;padding:13px 14px;background:#fbfdff}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-col h5{margin:0 0 9px;color:#12385d;font-size:12px;font-weight:950}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e7eef4}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-row:last-child{border-bottom:0}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-pos{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:999px;background:#eef6fb;color:#12385d;font-size:10px;font-weight:950}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-name{min-width:0}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-name strong{display:block;color:#26465f;font-size:11px;font-weight:900;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-name small{display:block;margin-top:2px;color:#718397;font-size:9.5px;line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+#resultados.v241-avalia-only #somSkillBars .v428-rank-value{color:#12385d;font-size:12px;font-weight:950;white-space:nowrap}
+#resultados.v241-avalia-only #somSkillBars .v428-empty{padding:12px;border:1px dashed #cbdde8;border-radius:11px;color:#65798b;font-size:10.5px;line-height:1.4;background:#fff}
+#resultados.v241-avalia-only #somFiltersCard label[for="somComponente"]{display:grid!important}
+@media(max-width:900px){
+  #resultados.v241-avalia-only #somSkillBars .v428-skill-pair,
+  #resultados.v241-avalia-only #somSkillBars .v428-rank-grid{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+<script id="v416-dashboard28-avalia-component-script">
+(function(){'use strict';
+  if(window.__GRA_D28_AVALIA_COMPONENT__)return;
+  const byId=id=>document.getElementById(id);
+  const isAvalia=()=>byId('somModalidade')?.value==='Avalia RJ';
+  const safe=v=>typeof window.esc==='function'?window.esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const normSafe=v=>typeof window.norm==='function'?window.norm(v):String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();
+  const fmtPct=v=>Number.isFinite(Number(v))?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—';
+  const compLabel=c=>c==='MT'?'Matemática':c==='LP'?'Língua Portuguesa':'LP + MT';
+  let preferredAvaliaComp='LP+MT';
+
+  function syncComponentControl(preferred=''){
+    if(!isAvalia())return;
+    const sel=byId('somComponente');if(!sel)return;
+    const wanted=['LP+MT','LP','MT'].includes(preferred)?preferred:(['LP+MT','LP','MT'].includes(preferredAvaliaComp)?preferredAvaliaComp:'LP+MT');
+    sel.innerHTML='<option value="LP+MT">LP + MT</option><option value="LP">Língua Portuguesa</option><option value="MT">Matemática</option>';
+    sel.value=wanted;preferredAvaliaComp=wanted;
+    try{if(typeof window.setControlVisibility==='function')window.setControlVisibility('somComponente',true);else{sel.style.display='';sel.closest?.('.v222-field-label')?.classList.remove('is-control-hidden')}}catch(_){sel.style.display=''}
+  }
+  function syncContext(){
+    if(!isAvalia())return;
+    const sel=byId('somComponente'),ctx=byId('somFilterContext');
+    if(sel){sel.style.display='';sel.closest?.('.v222-field-label')?.classList.remove('is-control-hidden')}
+    if(ctx){
+      const fixed=[...ctx.querySelectorAll('.ctx-chip.fixed')];
+      fixed.forEach(chip=>{if(/Componente\s*:/i.test(chip.textContent||''))chip.remove()});
+      const span=document.createElement('span');span.className='ctx-chip fixed';span.textContent=`Componente: ${compLabel(sel?.value||'LP+MT')}`;ctx.appendChild(span);
+    }
+  }
+
+  const prevRefresh=window.somRefreshSelectors;
+  if(typeof prevRefresh==='function'){
+    const wrapped=function(){
+      const before=isAvalia()?(byId('somComponente')?.value||preferredAvaliaComp):'';
+      const out=prevRefresh.apply(this,arguments);
+      if(isAvalia()){syncComponentControl(before);syncContext()}
+      return out;
+    };
+    wrapped.__d28AvaliaComponent=true;wrapped.__native=prevRefresh;window.somRefreshSelectors=wrapped;try{somRefreshSelectors=wrapped}catch(_){ }
+  }
+  const prevUX=window.somUpdateFilterUX;
+  if(typeof prevUX==='function'){
+    const wrapped=function(){const out=prevUX.apply(this,arguments);if(isAvalia()){syncComponentControl(byId('somComponente')?.value||preferredAvaliaComp);syncContext()}return out;};
+    wrapped.__d28AvaliaComponent=true;wrapped.__native=prevUX;window.somUpdateFilterUX=wrapped;try{somUpdateFilterUX=wrapped}catch(_){ }
+  }
+
+  function currentScopeRows(rows){
+    const src=Array.isArray(rows)?rows:[];
+    return src.filter(r=>r?.modalidade==='Avalia RJ');
+  }
+  function scopeLabel(rows){
+    const q=String(byId('somSearch')?.value||'').trim();
+    const agent=byId('somAgente')?.value||'';
+    const regional=Number(byId('regionalScopeSelect')?.value||0);
+    let specific=false;try{specific=typeof window.somIsSpecificAgent==='function'&&window.somIsSpecificAgent(agent)}catch(_){ }
+    const schools=new Set((rows||[]).map(r=>`${r?.cre||''}|${r?.escola||''}`).filter(x=>!x.endsWith('|'))).size;
+    if(q)return {text:`Busca: ${q}`,schools};
+    if(specific)return {text:`Agente: ${agent}`,schools};
+    if(regional)return {text:`CRE ${String(regional).padStart(2,'0')}`,schools};
+    return {text:'Toda a SME',schools};
+  }
+  function aggregateSkills(rows){
+    const map=new Map();
+    (rows||[]).forEach(row=>{
+      (row?.habilidades||[]).forEach(skill=>{
+        const value=Number(skill?.valor);if(!Number.isFinite(value))return;
+        const code=typeof window.somCanonicalSkillCode==='function'?window.somCanonicalSkillCode(skill.codigo,row?.componente):String(skill?.codigo||'').trim().toUpperCase();
+        const component=String(code).startsWith('MT ')?'MT':String(code).startsWith('LP ')?'LP':'';if(!component)return;
+        if(!map.has(code))map.set(code,{code,component,sv:0,sw:0,count:0,evaluated:[],description:''});
+        const item=map.get(code),ev=Number(skill?.avaliados),rw=Number(row?.avaliados),weight=Number.isFinite(ev)&&ev>0?ev:(Number.isFinite(rw)&&rw>0?rw:1);
+        item.sv+=value*weight;item.sw+=weight;item.count++;
+        if(Number.isFinite(ev)&&ev>0)item.evaluated.push(ev);
+        if(!item.description){
+          const fallback=skill?.descricao||skill?.descricaoHabilidade||'';
+          item.description=typeof window.somSkillDescription==='function'?window.somSkillDescription(code,fallback):String(fallback||'');
+        }
+      });
+    });
+    return [...map.values()].map(x=>({...x,value:x.sw?x.sv/x.sw:NaN,evaluated:x.evaluated.length?Math.max(...x.evaluated):null})).filter(x=>Number.isFinite(x.value));
+  }
+  function skillRow(item,singleSchool){
+    const width=Math.max(3,Math.min(100,Number(item.value)||0));
+    const desc=item.description||'Habilidade sem descrição carregada na matriz desta versão.';
+    const count=singleSchool&&Number.isFinite(item.evaluated)?`${Math.round(item.evaluated).toLocaleString('pt-BR')} avaliados`:`${item.count.toLocaleString('pt-BR')} registro${item.count===1?'':'s'}`;
+    return `<div class="bar-row som-skill-row" title="${safe(item.code+' — '+desc)}"><div class="bar-name som-skill-name"><div class="som-skill-meta"><strong>${safe(item.code)}</strong><span class="som-skill-count">${safe(count)}</span></div><span class="som-skill-description">${safe(desc)}</span></div><div class="meter pd"><b style="width:${width.toFixed(1)}%"></b><span>${Number(item.value).toFixed(1)}</span></div><div class="muted">${safe(fmtPct(item.value))}</div><div></div></div>`;
+  }
+  function skillGroup(all,component,singleSchool){
+    const items=all.filter(x=>x.component===component).sort((a,b)=>a.value-b.value||String(a.code).localeCompare(String(b.code),'pt-BR')).slice(0,5);
+    const label=compLabel(component);
+    return `<section class="som-skill-component" data-component="${component}"><div class="som-skill-component-head"><strong>${safe(label)}</strong><span>5 menores percentuais</span></div>${items.length?items.map(x=>skillRow(x,singleSchool)).join(''):`<div class="som-skill-component-empty">Não há habilidades de ${safe(label)} disponíveis neste recorte.</div>`}</section>`;
+  }
+
+  function schoolResults(rows,component){
+    const keyName=component==='MT'?'mt':'lp',groups=new Map();
+    (rows||[]).forEach(r=>{
+      const school=String(r?.escola||'').trim(),value=Number(r?.[keyName]);if(!school||!Number.isFinite(value))return;
+      const key=normSafe(`${r?.cre||''}|${school}`);
+      if(!groups.has(key))groups.set(key,{school,cre:String(r?.cre||''),agent:typeof window.somRowAgent==='function'?window.somRowAgent(r):String(r?.agente||''),values:[]});
+      groups.get(key).values.push(value);
+    });
+    return [...groups.values()].map(g=>({...g,value:g.values.reduce((a,b)=>a+b,0)/g.values.length})).sort((a,b)=>b.value-a.value||String(a.school).localeCompare(String(b.school),'pt-BR'));
+  }
+  function splitRanking(items){
+    const n=items.length;
+    if(n<=1)return {best:items.slice(),challenge:[],total:n,capped:false,omitted:0,maxPerGroup:n};
+    const perGroup=Math.min(10,Math.floor(n/2));
+    const omitted=Math.max(0,n-(perGroup*2));
+    return {best:items.slice(0,perGroup),challenge:items.slice(n-perGroup).reverse(),total:n,capped:n>20,omitted,maxPerGroup:perGroup};
+  }
+  function rankColumn(title,items){
+    if(!items.length)return `<section class="v428-rank-col"><h5>${safe(title)}</h5><div class="v428-empty">Não há unidades suficientes neste grupo.</div></section>`;
+    return `<section class="v428-rank-col"><h5>${safe(title)}</h5>${items.map((x,i)=>`<div class="v428-rank-row"><span class="v428-rank-pos">${i+1}</span><span class="v428-rank-name"><strong>${safe(x.school)}</strong><small>${safe([x.cre,x.agent].filter(Boolean).join(' · '))}</small></span><span class="v428-rank-value">${safe(fmtPct(x.value))}</span></div>`).join('')}</section>`;
+  }
+  function rankHtml(rows,component,scope){
+    const items=schoolResults(rows,component),split=splitRanking(items),shown=(split.best?.length||0)+(split.challenge?.length||0);
+    const note=split.omitted?`${shown} de ${split.total} unidades exibidas; ${split.omitted} intermediária${split.omitted===1?'':'s'} omitida${split.omitted===1?'':'s'} para manter grupos paralelos sem repetição.`:`${split.total} unidade${split.total===1?'':'s'} distribuída${split.total===1?'':'s'} entre os dois grupos, sem repetição.`;
+    return `<div class="v428-rank-wrap"><div class="v428-rank-head"><div><h4>Resultados por unidade — ${safe(compLabel(component))}</h4><p>${safe(scope.text)} · ranking pelo % Adequado + Avançado, apenas com unidades que possuem resultado válido no componente selecionado.</p></div><span>${safe(note)}</span></div><div class="v428-rank-grid">${rankColumn('Melhores resultados (até 10)',split.best||[])}${rankColumn('Resultados mais desafiadores (até 10)',split.challenge||[])}</div></div>`;
+  }
+
+  const prevSkills=window.renderSomSkills;
+  if(typeof prevSkills==='function'){
+    const wrapped=function(rows){
+      if(!isAvalia())return prevSkills.apply(this,arguments);
+      const target=byId('somSkillBars'),title=byId('somSkillTitle'),subtitle=byId('somSkillSubtitle'),card=byId('somSkillCard');if(!target)return;
+      const source=currentScopeRows(rows),scope=scopeLabel(source),component=byId('somComponente')?.value||'LP+MT',all=aggregateSkills(source),singleSchool=scope.schools===1;
+      if(card){card.classList.remove('is-hidden');card.hidden=false}
+      if(title)title.textContent='Habilidades mais desafiadoras — Avalia RJ';
+      if(component==='LP+MT'){
+        if(subtitle)subtitle.textContent=`${scope.text}. Cinco menores percentuais médios de acerto de Língua Portuguesa e Matemática.`;
+        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> Os percentuais usam somente os registros pertencentes ao universo atual.</div><div class="v428-skill-pair">${skillGroup(all,'LP',singleSchool)}${skillGroup(all,'MT',singleSchool)}</div>`;
+      }else{
+        if(subtitle)subtitle.textContent=`${scope.text}. Habilidades mais desafiadoras e resultados das unidades em ${compLabel(component)}.`;
+        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> O componente selecionado é ${safe(compLabel(component))}.</div><div class="v428-single-skill">${skillGroup(all,component,singleSchool)}</div>${rankHtml(source,component,scope)}`;
+      }
+      return true;
+    };
+    wrapped.__d28AvaliaComponent=true;wrapped.__native=prevSkills;window.renderSomSkills=wrapped;try{renderSomSkills=wrapped}catch(_){ }
+  }
+
+  function refreshAvalia(){
+    if(!isAvalia())return;
+    const sel=byId('somComponente');if(sel&&['LP+MT','LP','MT'].includes(sel.value))preferredAvaliaComp=sel.value;
+    syncComponentControl(preferredAvaliaComp);syncContext();
+  }
+  document.addEventListener('change',event=>{
+    if(event.target?.id==='somComponente'&&isAvalia())preferredAvaliaComp=event.target.value||'LP+MT';
+    if(event.target?.id==='somModalidade')setTimeout(refreshAvalia,0);
+  },true);
+  function boot(){if(isAvalia()){syncComponentControl(byId('somComponente')?.value||preferredAvaliaComp);syncContext();try{window.renderResultados?.()}catch(_){ }}window.__GRA_D28_AVALIA_COMPONENT__={version:'v416',refresh:refreshAvalia,component:()=>byId('somComponente')?.value||''};}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
+})();
+</script>
+
 </body>
 </html>
