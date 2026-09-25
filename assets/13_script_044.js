@@ -418,7 +418,7 @@ DATA.records.forEach(r=>{
   r.prioritaria=meta||basePriority?'Sim':'Não';
   r.prioridadeTipo=meta?meta.type:(r.prioridadeTipoBase||r.prioridadeTipo||'');
   r.prioridadeAnos=meta?meta.years.join(', '):(r.prioridadeAnosBase||r.prioridadeAnos||'');
-  r.prioridadeRecorte=meta?meta.type:(r.prioridadeRecorteBase||r.prioridadeRecorte||r.prioridadeTipo||'');
+  r.prioridadeRecorte=meta?`${meta.type} · ${meta.years.join(' e ')}`:(r.prioridadeRecorteBase||r.prioridadeRecorte||r.prioridadeTipo||'');
 });
 
 function recordText(r) { return norm([r.territorio,r.agente,r.unidade,r.planoAcao,r.planoDimensao,r.exclusiva,r.turnoEF,r.vocacionada,r.idebAI,r.idebAF,r.bairro,r.prioritaria,r.prioridadeTipo,r.prioridadeAnos,prioritySearchText(r.unidade)].join(' ')); }
