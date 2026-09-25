@@ -65,7 +65,7 @@
     record.prioridadeTipoBase=meta.type;
     record.prioridadeAnos=meta.years.join(', ');
     record.prioridadeAnosBase=meta.scope==='AF'?'8º e 9º anos':meta.years.join(', ');
-    record.prioridadeRecorte=`${meta.type} · ${meta.years.join(' e ')}`;
+    record.prioridadeRecorte=meta.type;
     record.prioridadeRecorteBase=meta.type;
   });
 
