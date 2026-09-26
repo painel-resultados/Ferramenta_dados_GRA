@@ -18144,7 +18144,7 @@ body, .app, .main {
     const agent=document.getElementById('somAgente')?.value||'';
     const q=String(document.getElementById('somSearch')?.value||'').trim();
     const scopeLabel=q?`Busca: ${q}`:(typeof window.somIsSpecificAgent==='function'&&window.somIsSpecificAgent(agent))?`Agente: ${agent}`:scope?`CRE ${String(scope).padStart(2,'0')}`:'Toda a SME';
-    sub.textContent=(year()?.value==='2º ano'&&comp()?.value==='MT')?`${scopeLabel}. Matemática do 2º ano é apresentada sem níveis e sem matriz de habilidades.`:`${scopeLabel}. Habilidades de ${c}; o ranking de Nota Padronizada acima permanece combinado entre LP e MT.`;
+    sub.textContent=(year()?.value==='2º ano'&&comp()?.value==='MT')?`${scopeLabel}. Matemática do 2º ano: habilidades exibidas por percentual de acerto, sem associação a níveis da escala CAEd.`:`${scopeLabel}. Habilidades de ${c}; o ranking de Nota Padronizada acima permanece combinado entre LP e MT.`;
   }
 
   // A lógica-base da v299 já calcula Nota Padronizada com somFilteredRows({ignoreComp:true}).
@@ -21148,8 +21148,8 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
   }
   function skillGroup(all,component,singleSchool){
     const items=all.filter(x=>x.component===component).sort((a,b)=>a.value-b.value||String(a.code).localeCompare(String(b.code),'pt-BR')).slice(0,5);
-    const label=compLabel(component),scaleLabel=component==='MT'?' · escala CAEd':'';
-    return `<section class="som-skill-component" data-component="${component}"><div class="som-skill-component-head"><strong>${safe(label+scaleLabel)}</strong><span>${component==='MT'?'5 menores percentuais · sem associação a níveis':'5 menores percentuais'}</span></div>${items.length?items.map(x=>skillRow(x,singleSchool)).join(''):`<div class="som-skill-component-empty">Não há habilidades de ${safe(label)} disponíveis neste recorte.</div>`}</section>`;
+    const label=compLabel(component);
+    return `<section class="som-skill-component" data-component="${component}"><div class="som-skill-component-head"><strong>${safe(label)}</strong><span>5 menores percentuais</span></div>${items.length?items.map(x=>skillRow(x,singleSchool)).join(''):`<div class="som-skill-component-empty">Não há habilidades de ${safe(label)} disponíveis neste recorte.</div>`}</section>`;
   }
 
   function schoolResults(rows,component){
@@ -21186,13 +21186,13 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
       const target=byId('somSkillBars'),title=byId('somSkillTitle'),subtitle=byId('somSkillSubtitle'),card=byId('somSkillCard');if(!target)return;
       const source=currentScopeRows(rows),scope=scopeLabel(source),component=byId('somComponente')?.value||'LP+MT',all=aggregateSkills(source),singleSchool=scope.schools===1,isSecond=byId('somAnoEscolar')?.value==='2º ano';
       if(card){card.classList.remove('is-hidden');card.hidden=false}
-      if(title)title.textContent=(isSecond&&component==='MT')?'Resultados das unidades — Avalia RJ':'Habilidades mais desafiadoras — Avalia RJ';
+      if(title)title.textContent='Habilidades mais desafiadoras — Avalia RJ';
       if(component==='LP+MT'){
-        if(subtitle)subtitle.textContent=isSecond?`${scope.text}. Habilidades mais desafiadoras de Língua Portuguesa. Em Matemática do 2º ano, são exibidos somente os resultados das unidades.`:`${scope.text}. Cinco menores percentuais médios de acerto de Língua Portuguesa e Matemática.`;
-        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> Os percentuais usam somente os registros pertencentes ao universo atual.</div><div class="${isSecond?'v428-single-skill':'v428-skill-pair'}">${skillGroup(all,'LP',singleSchool)}${isSecond?'':skillGroup(all,'MT',singleSchool)}</div>`;
+        if(subtitle)subtitle.textContent=`${scope.text}. Cinco menores percentuais médios de acerto de Língua Portuguesa e Matemática.`;
+        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> Os percentuais usam somente os registros pertencentes ao universo atual. Em Matemática do 2º ano, as habilidades são exibidas por percentual de acerto, sem associação a níveis ou faixas de escala.</div><div class="v428-skill-pair">${skillGroup(all,'LP',singleSchool)}${skillGroup(all,'MT',singleSchool)}</div>`;
       }else if(isSecond&&component==='MT'){
-        if(subtitle)subtitle.textContent=`${scope.text}. Resultados das unidades em Matemática do 2º ano.`;
-        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> Matemática do 2º ano é apresentada sem classificação por níveis e sem matriz de habilidades.</div>${rankHtml(source,component,scope)}`;
+        if(subtitle)subtitle.textContent=`${scope.text}. Habilidades mais desafiadoras e resultados das unidades em Matemática do 2º ano.`;
+        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> As habilidades de Matemática do 2º ano são exibidas somente pelos percentuais de acerto, sem associação a níveis ou faixas da escala CAEd.</div><div class="v428-single-skill">${skillGroup(all,component,singleSchool)}</div>${rankHtml(source,component,scope)}`;
       }else{
         if(subtitle)subtitle.textContent=`${scope.text}. Habilidades mais desafiadoras e resultados das unidades em ${compLabel(component)}.`;
         target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> O componente selecionado é ${safe(compLabel(component))}.</div><div class="v428-single-skill">${skillGroup(all,component,singleSchool)}</div>${rankHtml(source,component,scope)}`;
@@ -21248,7 +21248,7 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
     if(['somModalidade','somAnoEscolar','somComponente'].includes(e.target?.id))setTimeout(annotate,0);
   },true);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(annotate,0),{once:true});else setTimeout(annotate,0);
-  window.__GRA_D28_CAED_2MT__={version:'v416',scale:'CAEd',scope:['Avalia RJ · 2º ano · Matemática','Simulado 2026 · 2º ano · Matemática'],levels:false,skills:false,skillLevelMapping:false};
+  window.__GRA_D28_CAED_2MT__={version:'v416',scale:'CAEd',scope:['Avalia RJ · 2º ano · Matemática','Simulado 2026 · 2º ano · Matemática'],levels:false,skills:true,skillLevelMapping:false};
 })();
 </script>
 
@@ -21264,24 +21264,24 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
     else if(el.hasAttribute('data-d28-caed-prev-display')){el.style.display=el.getAttribute('data-d28-caed-prev-display')||'';el.removeAttribute('data-d28-caed-prev-display');}
   }
   function scrub(){
-    const secondMath=isSecondMath(),mod=modality(),sim=secondMath&&mod==='Simulado 2026';
-    const pie=byId('somPie')?.closest('.card');setHidden(pie,sim);
-    const skills=byId('somSkillCard');setHidden(skills,sim);
-    if(sim){
+    const secondMath=isSecondMath(),mod=modality(),hideLevels=secondMath&&(mod==='Simulado 2026'||mod==='Avalia RJ');
+    const pie=byId('somPie')?.closest('.card');setHidden(pie,hideLevels);
+    const skills=byId('somSkillCard');setHidden(skills,false);
+    if(hideLevels){
       document.querySelectorAll('#sim306DetailCard .sim306-section').forEach(sec=>{const t=sec.querySelector('h4')?.textContent||'';if(/Distribuição por níveis/i.test(t))setHidden(sec,true);});
       document.querySelectorAll('#sim307SchoolBody .sim307-section,#sim307TurmaBody .sim307-section').forEach(sec=>{const t=sec.querySelector('h4')?.textContent||'';if(/Distribuição por níveis/i.test(t))setHidden(sec,true);});
     }else{
       document.querySelectorAll('[data-d28-caed-prev-display]').forEach(el=>{if(el!==pie&&el!==skills)setHidden(el,false);});
     }
     const partner=byId('partnersSomAnalysis');
-    if(partner){partner.querySelectorAll('.gra-partner-box').forEach(box=>{const h=box.querySelector('h4')?.textContent||'';const hide=secondMath&&(mod==='Simulado 2026'||mod==='Avalia RJ')&&(/Habilidades/i.test(h)||/Níveis|escala de referência|Distribuição por níveis/i.test(h));setHidden(box,hide);});}
+    if(partner){partner.querySelectorAll('.gra-partner-box').forEach(box=>{const h=box.querySelector('h4')?.textContent||'';const hide=secondMath&&(mod==='Simulado 2026'||mod==='Avalia RJ')&&(/Níveis|escala de referência|Distribuição por níveis/i.test(h));setHidden(box,hide);});}
   }
   const prev=window.renderResultados;
   if(typeof prev==='function'&&!prev.__d28NoCaedLevelsSkills){const wrapped=function(){const out=prev.apply(this,arguments);setTimeout(scrub,0);return out;};wrapped.__d28NoCaedLevelsSkills=true;wrapped.__native=prev;window.renderResultados=wrapped;try{renderResultados=wrapped}catch(_){}}
   document.addEventListener('change',e=>{if(['somModalidade','somAnoEscolar','somComponente','somAgente','regionalScopeSelect'].includes(e.target?.id))setTimeout(scrub,0);},true);
   const mo=new MutationObserver(()=>{clearTimeout(window.__d28CaedScrubTimer);window.__d28CaedScrubTimer=setTimeout(scrub,20);});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{mo.observe(document.body,{childList:true,subtree:true});scrub();},{once:true});else{mo.observe(document.body,{childList:true,subtree:true});scrub();}
-  window.__GRA_D28_CAED_2MT_NO_LEVEL_SKILLS__={version:'v416',year:'2º ano',component:'MT',levels:false,skills:false,proficiencyScale:'CAEd'};
+  window.__GRA_D28_CAED_2MT_NO_LEVEL_SKILLS__={version:'v416',year:'2º ano',component:'MT',levels:false,skills:true,skillLevelMapping:false,proficiencyScale:'CAEd'};
 })();
 </script>
 
