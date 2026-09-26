@@ -2990,6 +2990,16 @@ function sim2026OpenLevelSchools(category, rows){
 function renderSomDonut(rows) {
   const metric=document.getElementById('somMetric').value;
   const modality=document.getElementById('somModalidade').value;
+  const year=document.getElementById('somAnoEscolar')?.value||'';
+  const component=document.getElementById('somComponente')?.value||'';
+  const pieCard=document.getElementById('somPie')?.closest('.card');
+  if(modality==='Simulado 2026'&&year==='2º ano'&&component==='MT'){
+    if(pieCard)pieCard.style.display='none';
+    const donut=document.getElementById('somPie'),legend=document.getElementById('somPieLegend'),subtitle=document.getElementById('somPieSubtitle');
+    if(donut)donut.innerHTML='';if(legend)legend.innerHTML='';if(subtitle)subtitle.textContent='';
+    return;
+  }
+  if(pieCard)pieCard.style.display='';
   if(modality==='Simulado 2026'){
     const shares=sim2026CurrentLevelShares(rows);
     const items=[['Abaixo do Básico','abaixo'],['Básico','basico'],['Adequado','adequado'],['Avançado','avancado']].map(([categoria,key])=>({categoria,total:Number(shares[key])||0}));
@@ -3261,6 +3271,9 @@ function renderSomSkills(rows) {
     const year=document.getElementById('somAnoEscolar')?.value||'';const component=document.getElementById('somComponente')?.value||'LP';
     const skillCard=document.getElementById('somSkillCard');
     const skillShortcut=[...document.querySelectorAll('#resultados .v222-section-jumps button')].find(btn=>(btn.textContent||'').trim()==='Habilidades');
+    if(year==='2º ano'&&component==='MT'){
+      if(skillCard)skillCard.classList.add('is-hidden');if(skillShortcut)skillShortcut.hidden=true;target.innerHTML='';if(title)title.textContent='';if(subtitle)subtitle.textContent='';return;
+    }
     const current=sim2026ScopeSkills(rows||[],year,component).sort((a,b)=>a.value-b.value||a.h.localeCompare(b.h,'pt-BR')).slice(0,5);
     const network=sim2026NetworkSkills(year,component);const networkMap=new Map(network.map(x=>[x.h,x.value]));
     const regionalScope=Number(document.getElementById('regionalScopeSelect')?.value||0);const agent=document.getElementById('somAgente')?.value||'';const q=String(document.getElementById('somSearch')?.value||'').trim();
