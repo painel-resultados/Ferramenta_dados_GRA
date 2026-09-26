@@ -21285,5 +21285,117 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
 })();
 </script>
 
+
+<!-- Dashboard Definitivo 28 · hotfix MT 2º ano: habilidades visíveis sem níveis de escala -->
+<style id="d28-mt2-skills-visible-style">
+/* Corrige o auto-bloqueio herdado do v367: se o cartão de habilidades é reativado,
+   a classe de layout que o escondia não pode continuar prevalecendo com !important. */
+#resultados .grid.two-col.v367-som-main-grid:not(.v367-skill-hidden) > #somSkillCard.d28-mt2-skills-visible{
+  display:block!important;
+}
+</style>
+<script id="d28-mt2-skills-visible-script">
+(function(){
+  'use strict';
+  if(window.__GRA_D28_MT2_SKILLS_VISIBLE__)return;
+  const byId=id=>document.getElementById(id);
+  const isSim2MT=()=>byId('somModalidade')?.value==='Simulado 2026'&&byId('somAnoEscolar')?.value==='2º ano'&&byId('somComponente')?.value==='MT';
+  const isAvalia2MT=()=>byId('somModalidade')?.value==='Avalia RJ'&&byId('somAnoEscolar')?.value==='2º ano'&&byId('somComponente')?.value==='MT';
+  const safe=v=>typeof window.esc==='function'?window.esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const fmtPct=v=>typeof window.fmtPctValue==='function'?window.fmtPctValue(v,1):(Number.isFinite(Number(v))?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—');
+  function unlockSkillCard(){
+    const card=byId('somSkillCard');if(!card)return;
+    card.hidden=false;
+    card.classList.remove('is-hidden','v408-skill-loading');
+    card.classList.add('d28-mt2-skills-visible');
+    card.style.removeProperty('display');
+    card.parentElement?.classList.remove('v367-skill-hidden');
+    const shortcut=[...document.querySelectorAll('#resultados .v222-section-jumps button')].find(btn=>(btn.textContent||'').trim()==='Habilidades');
+    if(shortcut)shortcut.hidden=false;
+  }
+  function scopeLabel(){
+    const q=String(byId('somSearch')?.value||'').trim();
+    const agent=byId('somAgente')?.value||'';
+    const regional=Number(byId('regionalScopeSelect')?.value||0);
+    let specific=false;try{specific=typeof window.somIsSpecificAgent==='function'&&window.somIsSpecificAgent(agent)}catch(_){ }
+    if(q)return `Busca: ${q}`;
+    if(specific)return `Agente: ${agent}`;
+    if(regional)return `CRE ${String(regional).padStart(2,'0')}`;
+    return 'Toda a SME';
+  }
+  function skillMeta(h,item){
+    try{
+      const meta=(typeof SIMULADO2026_SKILL_META!=='undefined'?SIMULADO2026_SKILL_META:{})[`2º ano|MT|${h}`]||{};
+      return {codigo:meta.codigo||item?.descriptor||'',descricao:meta.descricao||item?.description||''};
+    }catch(_){return {codigo:item?.descriptor||'',descricao:item?.description||''}}
+  }
+  function renderSim2MTSkills(rows){
+    if(!isSim2MT())return false;
+    const card=byId('somSkillCard'),target=byId('somSkillBars'),title=byId('somSkillTitle'),subtitle=byId('somSkillSubtitle');
+    if(!card||!target)return false;
+    unlockSkillCard();
+    let current=[],network=[];
+    try{
+      const src=Array.isArray(rows)?rows:(typeof window.somFilteredRows==='function'?window.somFilteredRows():[]);
+      if(typeof window.sim2026ScopeSkills==='function')current=window.sim2026ScopeSkills(src,'2º ano','MT')||[];
+      else if(typeof sim2026ScopeSkills==='function')current=sim2026ScopeSkills(src,'2º ano','MT')||[];
+      if(typeof window.sim2026NetworkSkills==='function')network=window.sim2026NetworkSkills('2º ano','MT')||[];
+      else if(typeof sim2026NetworkSkills==='function')network=sim2026NetworkSkills('2º ano','MT')||[];
+    }catch(err){console.error('D28 MT2: falha ao agregar habilidades',err)}
+    current=current.slice().sort((a,b)=>Number(a.value)-Number(b.value)||String(a.h).localeCompare(String(b.h),'pt-BR')).slice(0,5);
+    const networkMap=new Map((network||[]).map(x=>[x.h,Number(x.value)]));
+    if(title)title.textContent='5 habilidades mais desafiadoras — Matemática';
+    if(subtitle)subtitle.textContent=`${scopeLabel()}. Percentuais médios de acerto das habilidades do 2º ano; não há associação dessas habilidades a níveis ou faixas da escala CAEd.`;
+    if(!current.length){
+      target.innerHTML='<div class="v301-empty">Carregando habilidades de Matemática do 2º ano…</div>';
+      return true;
+    }
+    target.innerHTML=current.map(item=>{
+      const meta=skillMeta(item.h,item),ref=networkMap.get(item.h),delta=Number.isFinite(ref)?Number(item.value)-ref:null;
+      const code=meta.codigo?`${item.h} · ${meta.codigo}`:item.h;
+      const deltaText=Number.isFinite(delta)?`${delta>0?'+':''}${delta.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})} p.p.`:'—';
+      const width=Math.max(3,Math.min(100,Number(item.value)||0));
+      return `<div class="bar-row sim2026-skill-row d28-mt2-skill-row"><div class="bar-name"><strong>${safe(code)}</strong><span>${safe(meta.descricao)}</span><small class="sim2026-skill-compare">Recorte: <b>${safe(fmtPct(item.value))}</b> · Rede: <b>${safe(Number.isFinite(ref)?fmtPct(ref):'—')}</b> · Dif.: <b class="${Number.isFinite(delta)&&delta<0?'neg':'pos'}">${safe(deltaText)}</b></small></div><div class="meter pd"><b style="width:${width.toFixed(1)}%"></b></div><div class="muted">${safe(fmtPct(item.value))}</div><div></div></div>`;
+    }).join('');
+    return true;
+  }
+  const prevSkills=window.renderSomSkills;
+  if(typeof prevSkills==='function'){
+    const wrapped=function(rows){
+      if(isSim2MT())return renderSim2MTSkills(rows);
+      const out=prevSkills.apply(this,arguments);
+      const modal=byId('somModalidade')?.value||'',year=byId('somAnoEscolar')?.value||'';
+      if(modal==='Avalia RJ'||(modal==='Simulado 2026'&&year==='2º ano'))unlockSkillCard();
+      return out;
+    };
+    wrapped.__d28MT2SkillsVisible=true;wrapped.__native=prevSkills;
+    window.renderSomSkills=wrapped;try{renderSomSkills=wrapped}catch(_){ }
+  }
+  let refreshToken=0;
+  async function refresh(){
+    const token=++refreshToken;
+    if(!(isSim2MT()||isAvalia2MT()))return;
+    unlockSkillCard();
+    if(isSim2MT()){
+      try{
+        if(typeof window.sim2026EnsureCombo==='function')await window.sim2026EnsureCombo('2º ano','MT');
+        else if(typeof sim2026EnsureCombo==='function')await sim2026EnsureCombo('2º ano','MT');
+      }catch(err){console.error('D28 MT2: falha ao carregar base de habilidades',err)}
+      if(token!==refreshToken||!isSim2MT())return;
+      let rows=[];try{rows=typeof window.somFilteredRows==='function'?window.somFilteredRows():[]}catch(_){ }
+      renderSim2MTSkills(rows);
+    }else{
+      try{if(typeof window.renderResultados==='function')window.renderResultados()}catch(_){ }
+      setTimeout(unlockSkillCard,0);
+    }
+  }
+  document.addEventListener('change',e=>{
+    if(['somModalidade','somAnoEscolar','somComponente','somAgente','regionalScopeSelect','somPriority'].includes(e.target?.id))setTimeout(refresh,0);
+  },true);
+  document.addEventListener('input',e=>{if(e.target?.id==='somSearch')setTimeout(refresh,80)},true);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(refresh,120),{once:true});else setTimeout(refresh,120);
+  window.__GRA_D28_MT2_SKILLS_VISIBLE__={version:'v416',cause:'renderSomSkills nativo ocultava explicitamente 2º ano + MT e o layout v367 mantinha o cartão preso em display:none',render:renderSim2MTSkills,refresh,unlock:unlockSkillCard};
+})();
+</script>
 </body>
 </html>
