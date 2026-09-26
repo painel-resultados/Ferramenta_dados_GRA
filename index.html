@@ -20509,50 +20509,47 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 </script>
 
 <style id="v402-partner-master-style">
-html[data-gra-partner-master="1"] #regionalScopeControl .regional-scope-select-wrap{position:relative}
-html[data-gra-partner-master="1"] #regionalScopeSelect{font-weight:900;color:#17694e;background:#f3fbf7;border-color:#b8dccc}
-html[data-gra-partner-master="1"] #partnersEducationBtn .gra-partner-switch-status{white-space:nowrap}
+html[data-gra-partner-scope="1"] #regionalScopeControl .regional-scope-select-wrap{position:relative}
+html[data-gra-partner-scope="1"] #regionalScopeSelect{font-weight:900;border-color:#b8dccc;box-shadow:0 0 0 2px rgba(29,143,104,.06)}
+html[data-gra-partner-scope="1"] #partnersEducationBtn .gra-partner-switch-status{white-space:nowrap}
 </style>
 <script id="v402-partner-master-runtime">
 (function(){
 'use strict';
 const VERSION='v402',UI_VERSION='v412',PARTNER_COUNT=38;
 const $=id=>document.getElementById(id);
-const isAgent=()=>String(window.__GRA_ACCESS__?.role||'').toLowerCase()==='agent';
 const active=()=>!!window.__GRA_PARTNERS_EDUCATION_ACTIVE__;
 const partnerApi=()=>window.__GRA_V391_PARTNERS__;
 const isPartner=row=>{try{return !!partnerApi()?.isPartner?.(row)}catch(_){return false}};
-let applied=false,savedScope='',savedDisabled=false,savedSmeText='Toda a SME',savedNote='';
-let originalSomFiltered=null,originalSomRowsForSelector=null,originalAdrFiltered=null,originalSplit=null,originalScopeUnfiltered=null;
-function isPartnerMaster(){return active()&&!isAgent()}
+function isPartnerMaster(){return active()}
 function stamp(){document.documentElement.dataset.graVersion=UI_VERSION;const b=$('dashboardVersionBadge');if(b)b.textContent=UI_VERSION;document.querySelectorAll('.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{if(/^v?\d+/i.test(el.textContent||''))el.textContent=UI_VERSION});}
 function refreshCore(){try{window.somRefreshSelectors?.()}catch(_){}try{window.adrRefreshSelectors?.()}catch(_){}try{window.renderResultados?.()}catch(_){}try{window.renderADRs?.()}catch(_){}try{if(typeof window.geoScheduleFilters==='function')window.geoScheduleFilters(0);else window.renderGeo?.()}catch(_){} }
-function applyMaster(){
-  const sel=$('regionalScopeSelect');if(!sel||applied||!isPartnerMaster())return;
-  applied=true;savedScope=String(sel.value||'');savedDisabled=!!sel.disabled;
-  const sme=[...sel.options].find(o=>String(o.value)==='');if(sme){savedSmeText=sme.textContent||'Toda a SME';sme.textContent='Parceiros da Educação · Rede'}
-  const note=$('regionalScopeControl')?.querySelector('small');if(note){savedNote=note.textContent||'';note.textContent=`Recorte Master: ${PARTNER_COUNT} escolas Parceiras da Educação na Rede. Filtros inferiores continuam disponíveis.`}
-  if(sel.value!==''){sel.value='';try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}}
-  sel.disabled=true;document.documentElement.setAttribute('data-gra-partner-master','1');
-  const b=$('partnersEducationBtn'),status=b?.querySelector('.gra-partner-switch-status');if(status)status.textContent=`Ativado · Rede (${PARTNER_COUNT})`;if(b)b.title=`Recorte Master ativo: ${PARTNER_COUNT} escolas Parceiras da Educação na Rede`;
-  setTimeout(refreshCore,40);
-}
-function releaseMaster(){
-  if(!applied)return;const sel=$('regionalScopeSelect');
-  document.documentElement.removeAttribute('data-gra-partner-master');
-  if(sel){const sme=[...sel.options].find(o=>String(o.value)==='');if(sme)sme.textContent=savedSmeText||'Toda a SME';sel.disabled=savedDisabled;if([...sel.options].some(o=>String(o.value)===savedScope))sel.value=savedScope;try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}}
-  const note=$('regionalScopeControl')?.querySelector('small');if(note&&savedNote)note.textContent=savedNote;
-  const b=$('partnersEducationBtn'),status=b?.querySelector('.gra-partner-switch-status');if(status)status.textContent='Desativado';if(b)b.title='Ativar recorte Master das escolas Parceiras da Educação';
-  applied=false;savedScope='';setTimeout(refreshCore,40);
+function scopeLabel(){const sel=$('regionalScopeSelect');return sel?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME'}
+function partnerCountInScope(){
+  const sel=$('regionalScopeSelect'),sc=Number(sel?.value||0),rows=partnerApi()?.partners;
+  if(!Array.isArray(rows))return sc?0:PARTNER_COUNT;
+  return rows.filter(r=>!sc||Number(r?.cre)===sc).length;
 }
 function syncMaster(){
-  const b=$('partnersEducationBtn');if(b&&!isAgent())b.hidden=false;
-  if(isPartnerMaster())applyMaster();else releaseMaster();stamp();
+  /* Hotfix Dashboard Definitivo 28: Parceiros é um filtro subordinado ao Master.
+     Nunca altera, bloqueia ou restaura o valor do filtro Master. */
+  document.documentElement.removeAttribute('data-gra-partner-master');
+  document.documentElement.toggleAttribute('data-gra-partner-scope',isPartnerMaster());
+  const b=$('partnersEducationBtn'),status=b?.querySelector('.gra-partner-switch-status');
+  if(b){
+    if(isPartnerMaster()){
+      const label=scopeLabel(),count=partnerCountInScope();
+      if(status)status.textContent=`Ativado · ${label} (${count})`;
+      b.title=`Parceiros da Educação dentro do recorte Master: ${label} (${count} escola${count===1?'':'s'})`;
+    }else{
+      if(status)status.textContent='Desativado';
+      b.title='Ativar escolas Parceiras da Educação dentro do universo atual do filtro Master';
+    }
+  }
+  stamp();
 }
 function installWrappers(){
-  // v408: cada wrapper captura sua própria função-base. A versão antiga reutilizava
-  // variáveis mutáveis entre reinstalações; quando o v324 também envolvia a função,
-  // isso podia formar um ciclo v402→v324→v402 e estourar a pilha.
+  // O resultado-base já respeita Master/acesso/filtros. Parceiros apenas intersecta esse universo.
   if(typeof window.somFilteredRows==='function'&&!window.somFilteredRows.__v402PartnerMaster){
     const base=window.somFilteredRows;const f=function(){const out=base.apply(this,arguments);return isPartnerMaster()&&Array.isArray(out)?out.filter(isPartner):out};f.__v402PartnerMaster=true;f.__v402Base=base;window.somFilteredRows=f;
   }
@@ -20571,8 +20568,8 @@ function installWrappers(){
 }
 function boot(){
   installWrappers();syncMaster();
-  document.addEventListener('click',e=>{if(e.target?.closest?.('#partnersEducationBtn'))setTimeout(()=>{installWrappers();syncMaster()},0)},true);
-  document.addEventListener('change',e=>{if(e.target?.id==='regionalScopeSelect'&&isPartnerMaster())setTimeout(()=>{const sel=$('regionalScopeSelect');if(sel&&sel.value!==''){sel.value='';try{sel.dispatchEvent(new Event('change',{bubbles:true}))}catch(_){}}syncMaster()},0)},true);
+  document.addEventListener('click',e=>{if(e.target?.closest?.('#partnersEducationBtn'))setTimeout(()=>{installWrappers();syncMaster();refreshCore()},0)},true);
+  document.addEventListener('change',e=>{if(e.target?.id==='regionalScopeSelect')setTimeout(()=>{installWrappers();syncMaster();if(isPartnerMaster())refreshCore()},0)},true);
   [120,560].forEach(ms=>setTimeout(()=>{installWrappers();syncMaster()},ms));
   window.__GRA_V402_PARTNER_MASTER__={version:VERSION,count:PARTNER_COUNT,isPartnerMaster,sync:syncMaster};
 }
