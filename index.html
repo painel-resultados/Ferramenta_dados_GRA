@@ -8097,7 +8097,7 @@ function cleanText(value){
     if(entry.modalidade==='Avalia RJ'){
       const row=entry.row||{};
       card(.95,2.38,2.7,1.35,'LP',slidePct(row.lp),Number.isFinite(Number(row.proficienciaLP))?`Proficiência: ${slideScore(row.proficienciaLP,0)}`:'',BLUE);
-      card(3.83,2.38,2.7,1.35,'MT',slidePct(row.mt),Number.isFinite(Number(row.proficienciaMT))?`Proficiência: ${slideScore(row.proficienciaMT,0)}`:'',GREEN);
+      card(3.83,2.38,2.7,1.35,'MT',slidePct(row.mt),Number.isFinite(Number(row.proficienciaMT))?`Proficiência CAEd: ${slideScore(row.proficienciaMT,0)}`:'',GREEN);
       card(6.71,2.38,2.7,1.35,'Resultado geral',slidePct(Number(row.principal ?? row.media ?? row.adqAv)),`ADQ + AVA da unidade`,NAVY);
       const partLP=Number.isFinite(Number(row.participacaoLP))?slidePct(row.participacaoLP):'—';
       const partMT=Number.isFinite(Number(row.participacaoMT))?slidePct(row.participacaoMT):'—';
@@ -8125,7 +8125,7 @@ function cleanText(value){
       if(entry.anoEscolar==='2º ano'){
         card(.95,2.38,2.7,1.35,'LP · Alfabetizados',slidePct(lp.alfabetizados ?? lp.alfabetizacaoPct ?? lp.adqAv),`Proficiência: ${slideScore(lp.proficiencia,0)}`,BLUE);
         card(3.83,2.38,2.7,1.35,'LP · Participação',partPct(lp),partFrac(lp),BLUE);
-        card(6.71,2.38,2.7,1.35,'MT · Adequado + Avançado',slidePct(mt.adqAv),`Proficiência: ${slideScore(mt.proficiencia,0)}`,GREEN);
+        card(6.71,2.38,2.7,1.35,'MT · Adequado + Avançado',slidePct(mt.adqAv),`Proficiência CAEd: ${slideScore(mt.proficiencia,0)}`,GREEN);
         card(9.59,2.38,2.1,1.35,'MT · Participação',partPct(mt),partFrac(mt),GREEN);
       }else{
         card(.95,2.38,2.7,1.35,'Nota padronizada',slideScore(lp.notaPadronizada ?? mt.notaPadronizada ?? lp.principal ?? mt.principal,2),entry.anoEscolar,NAVY);
@@ -10736,7 +10736,7 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
   if(entry.modalidade==='Avalia RJ'){
     const row=entry.row||{};
     metricCard(topXs[0],y1,w4,h4,'LP',slidePct(row.lp),Number.isFinite(Number(row.proficienciaLP))?`Proficiência: ${slideScore(row.proficienciaLP,0)}`:'',BLUE);
-    metricCard(topXs[1],y1,w4,h4,'MT',slidePct(row.mt),Number.isFinite(Number(row.proficienciaMT))?`Proficiência: ${slideScore(row.proficienciaMT,0)}`:'',GREEN);
+    metricCard(topXs[1],y1,w4,h4,'MT',slidePct(row.mt),Number.isFinite(Number(row.proficienciaMT))?`Proficiência CAEd: ${slideScore(row.proficienciaMT,0)}`:'',GREEN);
     // v241: Resultado geral removido do Avalia RJ; LP e MT permanecem separados.
     const partLP=Number.isFinite(Number(row.participacaoLP))?slidePct(row.participacaoLP):'—';
     const partMT=Number.isFinite(Number(row.participacaoMT))?slidePct(row.participacaoMT):'—';
@@ -10753,7 +10753,7 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
     if(isSecond){
       metricCard(topXs[0],y1,w4,h4,'LP · Alfabetizados',slidePct(lp.alfabetizados ?? lp.alfabetizacaoPct ?? lp.adqAv),`Proficiência: ${slideScore(lp.proficiencia,0)}`,BLUE,18);
       metricCard(topXs[1],y1,w4,h4,'LP · Participação',partPct(lp),partFrac(lp),BLUE,18);
-      metricCard(topXs[2],y1,w4,h4,'MT · Adequado + Avançado',slidePct(mt.adqAv),`Proficiência: ${slideScore(mt.proficiencia,0)}`,GREEN,18);
+      metricCard(topXs[2],y1,w4,h4,'MT · Adequado + Avançado',slidePct(mt.adqAv),`Proficiência CAEd: ${slideScore(mt.proficiencia,0)}`,GREEN,18);
       metricCard(topXs[3],y1,w4,h4,'MT · Participação',partPct(mt),partFrac(mt),GREEN,18);
     }else{
       metricCard(topXs[0],y1,w4,h4,'Nota padronizada',slideScore(lp.notaPadronizada ?? mt.notaPadronizada ?? lp.principal ?? mt.principal,2),entry.anoEscolar,NAVY,20);
@@ -12957,30 +12957,30 @@ function levelsHtml(levels,note){
 function selectLevel(btn,root){root?.querySelectorAll('[data-sim307-level]').forEach(x=>x.classList.toggle('selected',x===btn));const n=root?.querySelector('[data-sim307-level-note]');if(n)n.textContent=(btn.getAttribute('aria-label')||'Nível selecionado')+'. A base agregada não contém os nomes dos estudantes deste nível.'}
 function schoolMetricCards(r,year,comp){
   const part=Number(r?.participacaoPct),prof=Number(r?.proficiencia),np=Number(r?.notaPadronizadaComponente),geral=Number(r?.notaMedia),alf=Number(r?.alfabetizacaoPct),adq=Number(r?.adqAv);let metric='—',ml='Resultado';
-  if(year==='2º ano'){metric=fmt(prof,0);ml='Proficiência';}else{metric=fmt(np,1);ml=comp==='LP'?'NP Língua Portuguesa':'NP Matemática';}
+  if(year==='2º ano'){metric=fmt(prof,0);ml=comp==='MT'?'Proficiência · CAEd':'Proficiência';}else{metric=fmt(np,1);ml=comp==='LP'?'NP Língua Portuguesa':'NP Matemática';}
   const secondary=year==='2º ano'?(comp==='LP'?pct(alf,1):pct(adq,1)):fmt(geral,1),sl=year==='2º ano'?(comp==='LP'?'Alfabetização':'Adequado + Avançado'):'Nota média LP + MT';
   return `<div class="sim307-kpis"><div class="sim307-kpi"><b>${metric}</b><span>${ml}</span></div><div class="sim307-kpi"><b>${secondary}</b><span>${sl}</span></div><div class="sim307-kpi"><b>${integer(r?.avaliados)}</b><span>Efetivos</span></div><div class="sim307-kpi"><b>${pct(part,1)}</b><span>Participação</span></div></div>`;
 }
 function turmaRows(r,year,comp){
   const ts=r?.turmas||[];if(!ts.length)return '<div class="sim307-note">Não há linhas de turma disponíveis para esta escola neste componente.</div>';
   const other=(year==='4º ano'||year==='8º ano')?findSchool(r.cre||'',r.escolaFonte||r.escola||'',year,comp==='LP'?'MT':'LP'):null,om=new Map((other?.turmas||[]).map(t=>[Number(t.ord),t]));
-  return `<div class="sim307-turmas">${ts.map(t=>{const o=om.get(Number(t.ord)),lp=comp==='LP'?t:o,mt=comp==='MT'?t:o;let primary='',secondary='';if(year==='2º ano'){primary=`Prof. ${fmt(t.proficiencia,0)}`;secondary=comp==='LP'?`Alfa ${pct(t.alfabetizacaoPct,1)}`:`ADQ+AVA ${pct(t.adqAv,1)}`;}else{primary=`LP ${fmt(lp?.notaPadronizadaComponente,1)} · MT ${fmt(mt?.notaPadronizadaComponente,1)}`;secondary=`Geral ${fmt(Number.isFinite(Number(lp?.notaMedia))?lp?.notaMedia:mt?.notaMedia,1)}`;}return `<button type="button" class="sim307-turma-row" data-sim307-turma="${Number(t.ord)}"><strong>Turma ${turmaCode(year,t.ord)}</strong><span>${integer(t.avaliados)} efetivos</span><b>${pct(t.participacaoPct,1)}</b><b class="sim307-hide-mobile">${esc(primary)} · ${esc(secondary)}</b></button>`}).join('')}</div><div class="sim307-note">Identificação das turmas pela ordem oficial das linhas na planilha: 2º ano = 1201, 1202…; 4º ano = 1401, 1402…; 8º ano = 1801, 1802…. Se houver uma única turma, ela é sempre a turma 01.</div>`;
+  return `<div class="sim307-turmas">${ts.map(t=>{const o=om.get(Number(t.ord)),lp=comp==='LP'?t:o,mt=comp==='MT'?t:o;let primary='',secondary='';if(year==='2º ano'){primary=comp==='MT'?`Prof. CAEd ${fmt(t.proficiencia,0)}`:`Prof. ${fmt(t.proficiencia,0)}`;secondary=comp==='LP'?`Alfa ${pct(t.alfabetizacaoPct,1)}`:`ADQ+AVA ${pct(t.adqAv,1)}`;}else{primary=`LP ${fmt(lp?.notaPadronizadaComponente,1)} · MT ${fmt(mt?.notaPadronizadaComponente,1)}`;secondary=`Geral ${fmt(Number.isFinite(Number(lp?.notaMedia))?lp?.notaMedia:mt?.notaMedia,1)}`;}return `<button type="button" class="sim307-turma-row" data-sim307-turma="${Number(t.ord)}"><strong>Turma ${turmaCode(year,t.ord)}</strong><span>${integer(t.avaliados)} efetivos</span><b>${pct(t.participacaoPct,1)}</b><b class="sim307-hide-mobile">${esc(primary)} · ${esc(secondary)}</b></button>`}).join('')}</div><div class="sim307-note">Identificação das turmas pela ordem oficial das linhas na planilha: 2º ano = 1201, 1202…; 4º ano = 1401, 1402…; 8º ano = 1801, 1802…. Se houver uma única turma, ela é sempre a turma 01.</div>`;
 }
 function moreSchool(r){
   const nivel=Number.isFinite(Number(r?.nivelDesempenho))?'Nível '+Number(r.nivelDesempenho):'—';return `<details class="sim307-more"><summary>Mais indicadores</summary><div class="sim307-more-body"><div><b>${integer(r?.presentes)}</b><span>Presentes · ${pct(r?.presencaPct,1)}</span></div><div><b>${pct(r?.acertoPct,1)}</b><span>Acerto médio no teste</span></div><div><b>${nivel}</b><span>Nível de desempenho</span></div><div><b>${esc(r?.padraoDesempenho||'—')}</b><span>Padrão · desvio padrão ${fmt(r?.desvioPadrao,1)}</span></div></div></details>`;
 }
 function openSchool(cre,school,category,focus){
   ensureSimDrawers();const {year,comp}=currentYearComp(),r=findSchool(cre,school,year,comp);if(!r)return;drillState={...drillState,school:r,year,comp,category:category||'',schoolFromList:$('#detailDrawer')?.classList.contains('open'),lastSchoolFocus:focus||document.activeElement};
-  $('#sim307SchoolKicker').textContent=`Simulado 2026 · ${category||'escola'}`;$('#sim307SchoolTitle').textContent=r.escola||school;$('#sim307SchoolMeta').textContent=`${r.cre||cre} · ${year} · ${comp==='LP'?'Língua Portuguesa':'Matemática'} · volte pela seta sem perder o recorte`;
+  $('#sim307SchoolKicker').textContent=`Simulado 2026 · ${category||'escola'}`;$('#sim307SchoolTitle').textContent=r.escola||school;$('#sim307SchoolMeta').textContent=`${r.cre||cre} · ${year} · ${comp==='LP'?'Língua Portuguesa':'Matemática'}${year==='2º ano'&&comp==='MT'?' · escala CAEd':''} · volte pela seta sem perder o recorte`;
   $('#sim307SchoolBody').innerHTML=schoolMetricCards(r,year,comp)+`<section class="sim307-section"><h4>Distribuição por níveis</h4><p>Somente níveis efetivamente ocupados neste ano/componente.</p>${levelsHtml(r.niveis,'Clique em um nível para destacar a distribuição da escola.')}</section><section class="sim307-section"><h4>Desempenho por turma</h4><p>Abra uma turma para aprofundar a leitura e use a seta para retornar à escola.</p>${turmaRows(r,year,comp)}</section>`+moreSchool(r);
   $('#sim307SchoolBackdrop').classList.add('open');$('#sim307SchoolDrawer').classList.add('open');$('#sim307SchoolDrawer').setAttribute('aria-hidden','false');document.body.classList.add('sim307-drawer-open');setTimeout(()=>$('#sim307SchoolBack')?.focus({preventScroll:true}),70);
 }
 function openTurma(ord,focus){
   ensureSimDrawers();const r=drillState.school||uniqueCurrentSchool();if(!r)return;const {year,comp}=drillState.year?drillState:currentYearComp(),t=(r.turmas||[]).find(x=>Number(x.ord)===Number(ord));if(!t)return;drillState.school=r;drillState.year=year;drillState.comp=comp;drillState.lastTurmaFocus=focus||document.activeElement;
   const other=(year==='4º ano'||year==='8º ano')?findSchool(r.cre||'',r.escolaFonte||r.escola||'',year,comp==='LP'?'MT':'LP'):null,o=(other?.turmas||[]).find(x=>Number(x.ord)===Number(ord)),lp=comp==='LP'?t:o,mt=comp==='MT'?t:o;let result='';
-  if(year==='2º ano')result=`<div class="sim307-kpis"><div class="sim307-kpi"><b>${fmt(t.proficiencia,0)}</b><span>Proficiência</span></div><div class="sim307-kpi"><b>${comp==='LP'?pct(t.alfabetizacaoPct,1):pct(t.adqAv,1)}</b><span>${comp==='LP'?'Alfabetização':'Adequado + Avançado'}</span></div><div class="sim307-kpi"><b>${integer(t.avaliados)}</b><span>Efetivos</span></div><div class="sim307-kpi"><b>${pct(t.participacaoPct,1)}</b><span>Participação</span></div></div>`;
+  if(year==='2º ano')result=`<div class="sim307-kpis"><div class="sim307-kpi"><b>${fmt(t.proficiencia,0)}</b><span>${comp==='MT'?'Proficiência · CAEd':'Proficiência'}</span></div><div class="sim307-kpi"><b>${comp==='LP'?pct(t.alfabetizacaoPct,1):pct(t.adqAv,1)}</b><span>${comp==='LP'?'Alfabetização':'Adequado + Avançado'}</span></div><div class="sim307-kpi"><b>${integer(t.avaliados)}</b><span>Efetivos</span></div><div class="sim307-kpi"><b>${pct(t.participacaoPct,1)}</b><span>Participação</span></div></div>`;
   else result=`<div class="sim307-kpis"><div class="sim307-kpi"><b>${fmt(lp?.notaPadronizadaComponente,1)}</b><span>NP Língua Portuguesa</span></div><div class="sim307-kpi"><b>${fmt(mt?.notaPadronizadaComponente,1)}</b><span>NP Matemática</span></div><div class="sim307-kpi"><b>${fmt(Number.isFinite(Number(lp?.notaMedia))?lp?.notaMedia:mt?.notaMedia,1)}</b><span>Nota média</span></div><div class="sim307-kpi"><b>${pct(t.participacaoPct,1)}</b><span>Participação</span></div></div>`;
-  $('#sim307TurmaTitle').textContent=`Turma ${turmaCode(year,ord)}`;$('#sim307TurmaMeta').textContent=`${r.escola} · ${year} · ${comp==='LP'?'Língua Portuguesa':'Matemática'}`;$('#sim307TurmaBody').innerHTML=result+`<section class="sim307-section"><h4>Distribuição por níveis</h4><p>Distribuição agregada da turma na planilha da CGRA.</p>${levelsHtml(t.niveis,'A base recebida não identifica nominalmente os alunos desta turma.')}</section><div class="sim307-note"><strong>Próxima camada: alunos.</strong> O Excel da CGRA não contém nomes nem códigos individuais. A seta retorna à escola sem fechar o restante do aprofundamento; a camada de alunos será conectada quando a base nominal estiver disponível.</div>`;
+  $('#sim307TurmaTitle').textContent=`Turma ${turmaCode(year,ord)}`;$('#sim307TurmaMeta').textContent=`${r.escola} · ${year} · ${comp==='LP'?'Língua Portuguesa':'Matemática'}${year==='2º ano'&&comp==='MT'?' · escala CAEd':''}`;$('#sim307TurmaBody').innerHTML=result+`<section class="sim307-section"><h4>Distribuição por níveis</h4><p>Distribuição agregada da turma na planilha da CGRA.</p>${levelsHtml(t.niveis,'A base recebida não identifica nominalmente os alunos desta turma.')}</section><div class="sim307-note"><strong>Próxima camada: alunos.</strong> O Excel da CGRA não contém nomes nem códigos individuais. A seta retorna à escola sem fechar o restante do aprofundamento; a camada de alunos será conectada quando a base nominal estiver disponível.</div>`;
   $('#sim307TurmaBackdrop').classList.add('open');$('#sim307TurmaDrawer').classList.add('open');$('#sim307TurmaDrawer').setAttribute('aria-hidden','false');document.body.classList.add('sim307-drawer-open');setTimeout(()=>$('#sim307TurmaBack')?.focus({preventScroll:true}),70);
 }
 function closeTurmaOnly(){const d=$('#sim307TurmaDrawer'),b=$('#sim307TurmaBackdrop');d?.classList.remove('open');d?.setAttribute('aria-hidden','true');b?.classList.remove('open');if(!$('#sim307SchoolDrawer')?.classList.contains('open'))document.body.classList.remove('sim307-drawer-open');setTimeout(()=>drillState.lastTurmaFocus?.focus?.({preventScroll:true}),70)}
@@ -13074,7 +13074,7 @@ function scaleHtml(name,a){
   return `<div class="sim306-scale"><h5>Escala ${name}</h5><div class="sim306-scale-grid"><span>Proficiência<b>${fmt(a[0],1)}</b></span><span>Desvio padrão<b>${fmt(a[1],1)}</b></span><span>Padrão<b>${txt(a[2])||'—'}</b></span><span>Abaixo do Básico<b>${pct(a[3],1)}</b></span><span>Básico<b>${pct(a[4],1)}</b></span><span>Adequado<b>${pct(a[5],1)}</b></span><span>Avançado<b>${pct(a[6],1)}</b></span></div></div>`;
 }
 function moreHtml(row,agg){
-  const single=!!row;const escala=single&&row?.escalas?scaleHtml('CAEd',row.escalas.CAED)+scaleHtml('SAEB',row.escalas.SAEB):'';
+  const single=!!row;const isSecondMath=(byId('somAnoEscolar')?.value==='2º ano'&&byId('somComponente')?.value==='MT');const escala=single&&row?.escalas?(isSecondMath?scaleHtml('CAEd',row.escalas.CAED):scaleHtml('CAEd',row.escalas.CAED)+scaleHtml('SAEB',row.escalas.SAEB)):'';
   const nivel=single&&Number.isFinite(Number(row?.nivelDesempenho))?'Nível '+Number(row.nivelDesempenho):'—';
   const pattern=single?txt(row?.padraoDesempenho)||'—':'—';
   const dp=single?fmt(row?.desvioPadrao,1):'—';
@@ -13088,7 +13088,7 @@ function turmaRowsHtml(row,year,comp){
     heads='<th>Turma</th><th>Prev.</th><th>Efet.</th><th>Part.</th><th>LP</th><th>MT</th><th>Geral</th>';
     body=turmas.map(t=>{const o=otherMap.get(Number(t.ord));const lp=comp==='LP'?t:o,mt=comp==='MT'?t:o;const geral=Number.isFinite(Number(lp?.notaMedia))?Number(lp.notaMedia):Number(mt?.notaMedia);const part=Number(t.participacaoPct);return `<tr data-sim306-turma="${Number(t.ord)}"><td><button type="button">Turma ${turmaCode(year,t.ord)}</button></td><td>${integer(t.previstos)}</td><td>${integer(t.avaliados)}</td><td>${pct(part,1)}</td><td>${fmt(lp?.notaPadronizadaComponente,1)}</td><td>${fmt(mt?.notaPadronizadaComponente,1)}</td><td><b>${fmt(geral,1)}</b></td></tr>`;}).join('');
   }else{
-    heads=`<th>Turma</th><th>Prev.</th><th>Efet.</th><th>Part.</th><th>Proficiência</th><th>Nível</th><th>${comp==='LP'?'Alfabetização':'ADQ + AVA'}</th>`;
+    heads=`<th>Turma</th><th>Prev.</th><th>Efet.</th><th>Part.</th><th>${year==='2º ano'&&comp==='MT'?'Proficiência (CAEd)':'Proficiência'}</th><th>Nível</th><th>${comp==='LP'?'Alfabetização':'ADQ + AVA'}</th>`;
     body=turmas.map(t=>`<tr data-sim306-turma="${Number(t.ord)}"><td><button type="button">Turma ${turmaCode(year,t.ord)}</button></td><td>${integer(t.previstos)}</td><td>${integer(t.avaliados)}</td><td>${pct(t.participacaoPct,1)}</td><td>${fmt(t.proficiencia,0)}</td><td>${Number.isFinite(Number(t.nivelDesempenho))?'N'+Number(t.nivelDesempenho):'—'}</td><td><b>${pct(comp==='LP'?t.alfabetizacaoPct:t.adqAv,1)}</b></td></tr>`).join('');
   }
   return `<div class="sim306-turma-wrap"><table class="sim306-turma-table"><thead><tr>${heads}</tr></thead><tbody>${body}</tbody></table></div><div class="sim306-level-note">Turmas identificadas pela ordem das linhas na planilha: 1201/1202… no 2º ano, 1401/1402… no 4º e 1801/1802… no 8º. Uma única turma corresponde sempre à turma 01.</div><div class="sim306-turma-detail" id="sim306TurmaDetail" hidden></div>`;
@@ -13115,13 +13115,13 @@ function render(){
   const intro=byId('sim306Intro'),scope=byId('sim306Scope'),body=byId('sim306Body');if(!body)return;
   const region=Number(byId('regionalScopeSelect')?.value||0);const agent=byId('somAgente')?.value||'';
   const scopeLabel=row?`Escola: ${row.escola}`:(region?`CRE ${String(region).padStart(2,'0')}`:(agent&&agent!=='__all_schools__'?`Abrangência: ${agent}`:'Toda a SME'));
-  if(scope)scope.textContent=`${scopeLabel} · ${year} · ${comp}`;
+  if(scope)scope.textContent=`${scopeLabel} · ${year} · ${comp}${year==='2º ano'&&comp==='MT'?' · escala CAEd':''}`;
   if(intro)intro.textContent=row?'Aprofundamento da escola selecionada, sem alterar os indicadores executivos acima.':'Distribuição complementar do recorte atual. Selecione uma escola para abrir as turmas.';
   const levelMap=agg.levels;
   const kpis=`<div class="sim306-kpis"><div class="sim306-kpi"><b>${integer(agg.prev)}</b><span>Previstos</span></div><div class="sim306-kpi"><b>${integer(agg.pres)}</b><span>Presentes · ${pct(agg.presPct,1)}</span></div><div class="sim306-kpi"><b>${integer(agg.eff)}</b><span>Efetivos</span></div><div class="sim306-kpi"><b>${pct(agg.partPct,1)}</b><span>Participação</span></div></div>`;
   const schoolLevels=!row&&agg.schoolCount?`<div class="sim310-school-levels"><div class="sim310-level-subhead"><b>Escolas por nível de desempenho</b><span>Nível médio atribuído a cada escola na planilha da CGRA.</span></div>${renderSchoolLevels(agg.schoolLevels,agg.schoolCount)}</div>`:'';
   const studentLabel=row?'Distribuição dos estudantes por nível':'Estudantes por nível';
-  const levels=`<section class="sim306-section"><div class="sim306-section-head"><div><h4>Distribuição por níveis</h4><p>Somente níveis efetivamente utilizados neste ano/componente são apresentados.</p></div></div><div class="sim310-level-subhead"><b>${studentLabel}</b><span>${row?'Estratificação dos estudantes desta escola.':'Quantidade de estudantes do recorte em cada nível.'}</span></div>${renderLevels(levelMap,row?'Clique em um nível para ver a quantidade da escola; a lista nominal ainda não existe nesta base.':'A distribuição agrega as contagens das escolas pertencentes ao recorte atual.')}${schoolLevels}</section>`;
+  const levels=`<section class="sim306-section"><div class="sim306-section-head"><div><h4>Distribuição por níveis</h4><p>${year==='2º ano'&&comp==='MT'?'Níveis de desempenho informados na base CAEd. As habilidades de Matemática não possuem associação a esses níveis.':'Somente níveis efetivamente utilizados neste ano/componente são apresentados.'}</p></div></div><div class="sim310-level-subhead"><b>${studentLabel}</b><span>${row?'Estratificação dos estudantes desta escola.':'Quantidade de estudantes do recorte em cada nível.'}</span></div>${renderLevels(levelMap,row?'Clique em um nível para ver a quantidade da escola; a lista nominal ainda não existe nesta base.':'A distribuição agrega as contagens das escolas pertencentes ao recorte atual.')}${schoolLevels}</section>`;
   const turmas=row?`<section class="sim306-section"><div class="sim306-section-head"><div><h4>Desempenho por turma</h4><p>Camada intermediária entre escola e aluno. Clique em uma turma para abrir seus níveis.</p></div><span class="sim306-scope">${(row.turmas||[]).length} turma${(row.turmas||[]).length===1?'':'s'} na base</span></div>${turmaRowsHtml(row,year,comp)}</section>`:`<section class="sim306-section"><div class="sim306-empty">Para abrir o desempenho por turma, selecione uma única escola pela busca ou pelo gráfico. O panorama regional continua disponível acima.</div></section>`;
   body.innerHTML=kpis+levels+turmas+moreHtml(row,agg);
   body.querySelectorAll('[data-sim306-level]').forEach(btn=>btn.addEventListener('click',()=>selectLevel(btn,body)));
@@ -18130,7 +18130,7 @@ body, .app, .main {
     const agent=document.getElementById('somAgente')?.value||'';
     const q=String(document.getElementById('somSearch')?.value||'').trim();
     const scopeLabel=q?`Busca: ${q}`:(typeof window.somIsSpecificAgent==='function'&&window.somIsSpecificAgent(agent))?`Agente: ${agent}`:scope?`CRE ${String(scope).padStart(2,'0')}`:'Toda a SME';
-    sub.textContent=`${scopeLabel}. Habilidades de ${c}; o ranking de Nota Padronizada acima permanece combinado entre LP e MT.`;
+    sub.textContent=(year()?.value==='2º ano'&&comp()?.value==='MT')?`${scopeLabel}. Habilidades de Matemática · escala CAEd. As habilidades não possuem associação a níveis de proficiência nesta base.`:`${scopeLabel}. Habilidades de ${c}; o ranking de Nota Padronizada acima permanece combinado entre LP e MT.`;
   }
 
   // A lógica-base da v299 já calcula Nota Padronizada com somFilteredRows({ignoreComp:true}).
@@ -20126,7 +20126,7 @@ function fallbackLevelShares(rows){const keys=[['Abaixo do Básico','abaixo'],['
 function levelsHtml(agg,rows){let entries=[...(agg?.levels||new Map()).entries()].filter(x=>Number(x[1])>0);if(entries.length){const total=entries.reduce((s,x)=>s+Number(x[1]),0);return `<div class="gra-partner-levels">${entries.map(([l,c])=>`<div class="gra-partner-level"><b>${esc(l)}</b><span>${Number(c).toLocaleString('pt-BR')} estudantes · ${fmtNum(Number(c)/total*100,1)}%</span></div>`).join('')}</div>`}entries=fallbackLevelShares(rows);return entries.length?`<div class="gra-partner-levels">${entries.map(([l,v])=>`<div class="gra-partner-level"><b>${esc(l)}</b><span>${fmtNum(v,1)}%</span></div>`).join('')}</div>`:`<div class="gra-partner-empty">A base não informa distribuição por níveis para este recorte.</div>`}
 function saebHtml(year,comp,richRows){
   if(!['LP','MT'].includes(comp))return '';
-  if(year==='2º ano'&&comp==='MT')return `<div class="gra-partner-empty">A referência SAEB detalhada por habilidades de nível não é exibida para 2º ano · Matemática nesta ferramenta.</div>`;
+  if(year==='2º ano'&&comp==='MT')return `<div class="gra-partner-empty"><b>Escala CAEd · 2º ano · Matemática.</b> As habilidades disponíveis não possuem associação a níveis de proficiência nesta base.</div>`;
   const api=window.__GRA_V352_SAEB__,scaleYear=year==='2º ano'?'2':year==='4º ano'?'5':year==='8º ano'?'9':'',scale=scaleYear?api?.data?.[scaleYear]?.[comp]:null;if(!scale)return '';
   const present=new Set((richRows||[]).map(r=>Number(r?.nivelDesempenho)).filter(Number.isFinite).map(String));let levels=(scale.levels||[]).filter(l=>!present.size||present.has(String(Number(l.k))));if(!levels.length)levels=(scale.levels||[]).slice(0,4);
   return `<div class="gra-partner-scale">${levels.map(l=>`<details><summary>${esc(l.name)}<em>${esc(l.range||'')}</em></summary><ul>${(l.skills||[]).slice(0,5).map(s=>`<li>${esc(s)}</li>`).join('')}</ul></details>`).join('')}</div>`;
@@ -21133,8 +21133,8 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
   }
   function skillGroup(all,component,singleSchool){
     const items=all.filter(x=>x.component===component).sort((a,b)=>a.value-b.value||String(a.code).localeCompare(String(b.code),'pt-BR')).slice(0,5);
-    const label=compLabel(component);
-    return `<section class="som-skill-component" data-component="${component}"><div class="som-skill-component-head"><strong>${safe(label)}</strong><span>5 menores percentuais</span></div>${items.length?items.map(x=>skillRow(x,singleSchool)).join(''):`<div class="som-skill-component-empty">Não há habilidades de ${safe(label)} disponíveis neste recorte.</div>`}</section>`;
+    const label=compLabel(component),scaleLabel=component==='MT'?' · escala CAEd':'';
+    return `<section class="som-skill-component" data-component="${component}"><div class="som-skill-component-head"><strong>${safe(label+scaleLabel)}</strong><span>${component==='MT'?'5 menores percentuais · sem associação a níveis':'5 menores percentuais'}</span></div>${items.length?items.map(x=>skillRow(x,singleSchool)).join(''):`<div class="som-skill-component-empty">Não há habilidades de ${safe(label)} disponíveis neste recorte.</div>`}</section>`;
   }
 
   function schoolResults(rows,component){
@@ -21173,11 +21173,11 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
       if(card){card.classList.remove('is-hidden');card.hidden=false}
       if(title)title.textContent='Habilidades mais desafiadoras — Avalia RJ';
       if(component==='LP+MT'){
-        if(subtitle)subtitle.textContent=`${scope.text}. Cinco menores percentuais médios de acerto de Língua Portuguesa e Matemática.`;
+        if(subtitle)subtitle.textContent=`${scope.text}. Cinco menores percentuais médios de acerto de Língua Portuguesa e Matemática. Em Matemática do 2º ano, a proficiência usa a escala CAEd e as habilidades não são associadas a níveis.`;
         target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> Os percentuais usam somente os registros pertencentes ao universo atual.</div><div class="v428-skill-pair">${skillGroup(all,'LP',singleSchool)}${skillGroup(all,'MT',singleSchool)}</div>`;
       }else{
-        if(subtitle)subtitle.textContent=`${scope.text}. Habilidades mais desafiadoras e resultados das unidades em ${compLabel(component)}.`;
-        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> O componente selecionado é ${safe(compLabel(component))}.</div><div class="v428-single-skill">${skillGroup(all,component,singleSchool)}</div>${rankHtml(source,component,scope)}`;
+        if(subtitle)subtitle.textContent=component==='MT'?`${scope.text}. Habilidades mais desafiadoras e resultados das unidades em Matemática · escala CAEd. As habilidades não possuem associação a níveis de proficiência.`:`${scope.text}. Habilidades mais desafiadoras e resultados das unidades em ${compLabel(component)}.`;
+        target.innerHTML=`<div class="som-skill-context-label"><b>${safe(scope.text)} · ${scope.schools.toLocaleString('pt-BR')} escola${scope.schools===1?'':'s'} com Avalia RJ.</b> O componente selecionado é ${safe(compLabel(component))}${component==='MT'?' · escala CAEd':''}.${component==='MT'?' As habilidades não possuem associação a níveis de proficiência.':''}</div><div class="v428-single-skill">${skillGroup(all,component,singleSchool)}</div>${rankHtml(source,component,scope)}`;
       }
       return true;
     };
@@ -21195,6 +21195,42 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
   },true);
   function boot(){if(isAvalia()){syncComponentControl(byId('somComponente')?.value||preferredAvaliaComp);syncContext();try{window.renderResultados?.()}catch(_){ }}window.__GRA_D28_AVALIA_COMPONENT__={version:'v416',refresh:refreshAvalia,component:()=>byId('somComponente')?.value||''};}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
+})();
+</script>
+
+<script id="d28-hotfix-caed-2mt">
+(function(){
+  'use strict';
+  function removeSaeb2MT(){
+    try{
+      const api=window.__GRA_V352_SAEB__;
+      if(api?.data?.['2']&&Object.prototype.hasOwnProperty.call(api.data['2'],'MT'))delete api.data['2'].MT;
+    }catch(_){}
+  }
+  function annotate(){
+    removeSaeb2MT();
+    const modal=document.getElementById('somModalidade')?.value||'';
+    const year=document.getElementById('somAnoEscolar')?.value||'';
+    const comp=document.getElementById('somComponente')?.value||'';
+    if(modal==='Simulado 2026'&&year==='2º ano'&&comp==='MT'){
+      document.querySelectorAll('.saeb-scale-trigger,.saeb-level-help').forEach(el=>el.remove());
+      document.querySelectorAll('#sim306DetailCard .sim306-scale').forEach(el=>{
+        const h=el.querySelector('h5')?.textContent||'';
+        if(/SAEB/i.test(h))el.remove();
+      });
+    }
+  }
+  const prev=window.renderResultados;
+  if(typeof prev==='function'&&!prev.__d28Caed2MT){
+    const wrapped=function(){const out=prev.apply(this,arguments);setTimeout(annotate,0);return out;};
+    wrapped.__d28Caed2MT=true;wrapped.__native=prev;window.renderResultados=wrapped;
+    try{renderResultados=wrapped}catch(_){}
+  }
+  document.addEventListener('change',e=>{
+    if(['somModalidade','somAnoEscolar','somComponente'].includes(e.target?.id))setTimeout(annotate,0);
+  },true);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(annotate,0),{once:true});else setTimeout(annotate,0);
+  window.__GRA_D28_CAED_2MT__={version:'v416',scale:'CAEd',scope:['Avalia RJ · 2º ano · Matemática','Simulado 2026 · 2º ano · Matemática'],skillLevelMapping:false};
 })();
 </script>
 
