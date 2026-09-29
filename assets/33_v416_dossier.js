@@ -1,12 +1,12 @@
 /* v416 — Dossiê dinâmico por escola + E.M. Teste (fictícia). */
 (function(){
 'use strict';
-const VERSION='v416';
+const VERSION='v417';
 const DEMO_NAME='E.M. Teste';
 const DEMO_ALIASES=['e.m. teste','em teste','escola municipal teste'];
 const state={context:null,lastTiming:null,lastSchool:null,generating:false};
 const $=id=>document.getElementById(id);
-const finite=v=>Number.isFinite(Number(v));
+const finite=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v));
 const num=v=>finite(v)?Number(v):NaN;
 const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,Number(v)||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -37,12 +37,19 @@ function officialRecordByName(name){
 }
 function allowedRecord(r){try{return !window.graMasterAllowsRow||window.graMasterAllowsRow(r)}catch(_){return false}}
 function activeSearchValues(){
-  const ids=['globalSearch','somSearch','adrSearch','bankSearch','creDetailSearch','exclusiveSearch','efpdSearch','territorySearch'];
-  const vals=[];
-  try{if(typeof GEO_STATE!=='undefined'&&GEO_STATE?.focusedSchool)vals.push(GEO_STATE.focusedSchool)}catch(_){ }
-  try{if(window.__GRA_SELECTED_SCHOOL__)vals.push(window.__GRA_SELECTED_SCHOOL__)}catch(_){ }
-  ids.forEach(id=>{const v=$(id)?.value?.trim();if(v)vals.push(v)});
-  return vals;
+  // Only the current view may supply a local search. Hidden views keep old values.
+  const active=document.querySelector('.section.active')?.id||'';
+  const localId={resultados:'somSearch',adrs:'adrSearch',georreferenciamento:'geoSearch',banco:'bankSearch',cre:'creDetailSearch',exclusivas:'exclusiveSearch',efpd:'efpdSearch'}[active];
+  const local=localId?$(localId)?.value?.trim():'';
+  if(local)return [local];
+  const selected=String(window.__GRA_SELECTED_SCHOOL__||'').trim();
+  if(selected)return [selected];
+  const global=$('globalSearch')?.value?.trim();
+  if(global)return [global];
+  if(active==='georreferenciamento'){
+    try{if(typeof GEO_STATE!=='undefined'&&GEO_STATE?.focusedSchool)return [GEO_STATE.focusedSchool]}catch(_){}
+  }
+  return [];
 }
 function resolveSelection(explicit){
   const vals=explicit?[explicit]:activeSearchValues();
@@ -91,7 +98,7 @@ function demoData(){
   {modalidade:'IDEB 2025',anoEscolar:'Anos Iniciais',ideb2023:5.4,ideb2025:5.1,lp:196.8,mt:205.4,principal:5.1,meta2025:5.3},
   {modalidade:'IDEB 2025',anoEscolar:'Anos Finais',ideb2023:4.6,ideb2025:5.0,lp:260.2,mt:254.7,principal:5.0,meta2025:4.8}
  ];
- const adr=[]; const addAdr=(ano,comp,a,b)=>{adr.push({adr:'ADR 1',ano,componente:comp,adequado:a,acerto:a+8,avaliados:30,escola:DEMO_NAME},{adr:'ADR 2',ano,componente:comp,adequado:b,acerto:b+7,avaliados:30,escola:DEMO_NAME});};
+ const adr=[]; const addAdr=(ano,comp,a,b)=>{adr.push({adr:'ADR 1',ano,componente:comp,adequado:['LP','MT'].includes(comp)?a:null,acerto:['LP','MT'].includes(comp)?a+8:a,avaliados:30,escola:DEMO_NAME},{adr:'ADR 2',ano,componente:comp,adequado:['LP','MT'].includes(comp)?b:null,acerto:['LP','MT'].includes(comp)?b+7:b,avaliados:30,escola:DEMO_NAME});};
  [[2,'LP',52,66],[2,'MT',58,72],[4,'LP',47,61],[4,'MT',51,64],[8,'LP',39,50],[8,'MT',42,55]].forEach(x=>addAdr(`${x[0]}º ano`,x[1],x[2],x[3]));
  [[4,'CN',55,67],[5,'CN',61,69],[8,'CN',48,56],[9,'CN',50,59],[5,'História',57,63],[9,'História',45,53],[5,'Geografia',60,68],[9,'Geografia',47,55]].forEach(x=>addAdr(`${x[0]}º ano`,x[1],x[2],x[3]));
  const levels=[['Abaixo N1',2,6.7],['N1',3,10],['N2',3,10],['N3',4,13.3],['N4',4,13.3],['N5',4,13.3],['N6',3,10],['N7',3,10],['N8',4,13.3]];
@@ -146,8 +153,8 @@ function contextIndicatorsPage(data,no){const r=data.record,c=data.context||{},h
 
 function idebPage(data,no){if(!data.ideb.length)return'';const r=data.record,rows=[...data.ideb].sort((a,b)=>String(a.anoEscolar).localeCompare(String(b.anoEscolar)));const meta=data.meta2026||{};const cards=rows.map(x=>`<article><small>${esc(x.anoEscolar)}</small><b>${fmt(x.ideb2025??x.principal,1)}</b><span>2025</span></article>`).join('');return `<section class="page">${pageTop('02 · RESULTADOS EXTERNOS','IDEB e referências de meta',r.unidade,no)}<div class="grid2 idebgrid"><div class="panel"><div class="ptitle">IDEB oficial · evolução 2023 → 2025</div><div class="ideblist">${rows.map(x=>`<div class="idebrow"><strong>${esc(x.anoEscolar)}</strong>${idebTrack(x,data.demo)}<em class="delta ${num(x.ideb2025)-num(x.ideb2023)>=0?'pos':'neg'}">${finite(x.ideb2023)&&finite(x.ideb2025)?(num(x.ideb2025)-num(x.ideb2023)>=0?'+':'')+fmt(num(x.ideb2025)-num(x.ideb2023),1):'—'}</em></div>`).join('')}</div></div><div class="panel"><div class="ptitle">Proficiências SAEB · 2025</div><div class="metriccards">${rows.flatMap(x=>[['Língua Portuguesa',x.lp],['Matemática',x.mt]].map(([c,v])=>`<article><small>${esc(x.anoEscolar)} · ${esc(c)}</small><b>${fmt(v,2)}</b></article>`)).join('')}</div></div></div>${meta?`<div class="panel targets"><div class="ptitle">Metas 2026 da unidade</div><div class="targetgrid">${[['2º · LP',meta.meta2LP,100,'#29a7d0'],['2º · MT',meta.meta2MT,100,'#238b70'],['4º · IDERio',meta.meta4IDERio,8,'#1680b7'],['5º · IDERio',meta.meta5IDERio,8,'#1680b7'],['8º · IDERio',meta.meta8IDERio,8,'#6d64d8'],['9º · IDERio',meta.meta9IDERio,8,'#6d64d8']].filter(x=>finite(x[1])).map(x=>hbar(x[0],x[1],x[2],x[3],x[2]===100?'%':'')).join('')}</div></div>`:''}${footer('IDEB 2025 oficial · INEP/MEC. Metas exibidas somente quando cadastradas na ferramenta.')}</section>`;}
 function adrPairs(rows,comps){const groups=new Map();rows.filter(x=>comps.includes(x.componente)).forEach(x=>{const k=`${x.ano}|${x.componente}`;if(!groups.has(k))groups.set(k,{ano:x.ano,comp:x.componente});groups.get(k)[x.adr==='ADR 1'?'a':'b']=x});return [...groups.values()].sort((a,b)=>gradeNum(a.ano)-gradeNum(b.ano)||a.comp.localeCompare(b.comp));}
-function adrCard(g){const a=num(g.a?.adequado),b=num(g.b?.adequado),d=b-a;return `<article class="adrcard"><div class="adrtop"><b>${esc(g.ano)} · ${esc(compLabel(g.comp))}</b><em class="${d>=0?'pos':'neg'}">${finite(d)?(d>=0?'+':'')+fmt(d,0)+' p.p.':'—'}</em></div><div class="pairbar"><span>ADR 1</span><div class="track"><i style="width:${clamp(a)}%;background:#aab8c4"></i></div><b>${pct(a,0)}</b></div><div class="pairbar"><span>ADR 2</span><div class="track"><i style="width:${clamp(b)}%;background:${g.comp==='MT'?'#238b70':'#1680b7'}"></i></div><b>${pct(b,0)}</b></div></article>`;}
-function adrPage(data,no,science=false){const comps=science?['CN','História','Geografia','CH']:['LP','MT'];const pairs=adrPairs(data.adr,comps);if(!pairs.length)return'';const title=science?'ADR - Ciências Humanas e da Natureza':'ADR - Língua Portuguesa e Matemática';return `<section class="page">${pageTop(science?'04 · ADRs · OUTROS COMPONENTES':'03 · ADRs · LP E MT',title,data.record.unidade,no)}<div class="adrgrid">${pairs.map(adrCard).join('')}</div>${footer('Percentual de estudantes no nível Adequado · ADR 1 → ADR 2.')}</section>`;}
+function adrCard(g){const metric=['LP','MT'].includes(g.comp)?'adequado':'acerto';const a=num(g.a?.[metric]),b=num(g.b?.[metric]),d=b-a;return `<article class="adrcard"><div class="adrtop"><b>${esc(g.ano)} · ${esc(compLabel(g.comp))}</b><em class="${d>=0?'pos':'neg'}">${finite(d)?(d>=0?'+':'')+fmt(d,0)+' p.p.':'—'}</em></div><div class="pairbar"><span>ADR 1</span><div class="track"><i style="width:${clamp(a)}%;background:#aab8c4"></i></div><b>${pct(a,0)}</b></div><div class="pairbar"><span>ADR 2</span><div class="track"><i style="width:${clamp(b)}%;background:${g.comp==='MT'?'#238b70':'#1680b7'}"></i></div><b>${pct(b,0)}</b></div></article>`;}
+function adrPage(data,no,science=false){const comps=science?['CN','História','Geografia','CH']:['LP','MT'];const pairs=adrPairs(data.adr,comps);if(!pairs.length)return'';const title=science?'ADR - Ciências Humanas e da Natureza':'ADR - Língua Portuguesa e Matemática';return `<section class="page">${pageTop(science?'04 · ADRs · OUTROS COMPONENTES':'03 · ADRs · LP E MT',title,data.record.unidade,no)}<div class="adrgrid">${pairs.map(adrCard).join('')}</div>${footer(science?'Percentual de acerto total · ADR 1 → ADR 2.':'Percentual de estudantes no nível Adequado · ADR 1 → ADR 2.')}</section>`;}
 function simPage(data,no){if(!data.sim.length)return'';const rows=[...data.sim].sort((a,b)=>gradeNum(a.anoEscolar)-gradeNum(b.anoEscolar)||String(a.componente).localeCompare(String(b.componente)));return `<section class="page">${pageTop('05 · AVALIAÇÃO SOMATIVA','Simulado 2026',data.record.unidade,no)}<div class="simgrid">${rows.map(x=>{const val=x.anoEscolar==='2º ano'?(x.componente==='LP'?(x.alfabetizacaoPct??x.adqAv):x.adqAv):(x.notaPadronizada??x.principal);const label=x.anoEscolar==='2º ano'?(x.componente==='LP'?'Alfabetizados':'Adequado + Avançado'):'Nota Padronizada';return `<article class="simcard ${x.componente==='MT'?'green':''}"><header><b>${esc(x.anoEscolar)} · ${esc(compLabel(x.componente))}</b><span>${esc(label)}</span></header><strong>${x.anoEscolar==='2º ano'?pct(val,1):fmt(val,1)}</strong><div class="micro">${finite(x.participacaoPct)?`Participação ${pct(x.participacaoPct,0)}`:''}${finite(x.avaliados)?` · ${fmt0(x.avaliados)} avaliados`:''}</div>${x.anoEscolar==='2º ano'&&x.componente==='MT'?'':stack(x)}</article>`}).join('')}</div>${footer('Simulado 2026 · resultados disponíveis para a unidade.')}</section>`;}
 function provaPage(data,no){if(!data.prova.length)return'';const rows=[...data.prova].sort((a,b)=>gradeNum(a.anoEscolar)-gradeNum(b.anoEscolar)||String(a.componente).localeCompare(String(b.componente)));return `<section class="page">${pageTop('06 · RESULTADOS POR ANO E COMPONENTE','Prova Rio 2025',data.record.unidade,no)}<div class="prgrid">${rows.map(x=>`<article class="prcard"><div class="prhead"><b>${esc(x.anoEscolar)} · ${esc(compLabel(x.componente))}</b><strong>${pct(x.adqAv??x.principal,0)}</strong></div>${stack(x)}<div class="micro">${finite(x.avaliados)&&finite(x.previstos)?`${fmt0(x.avaliados)}/${fmt0(x.previstos)} avaliados`:''}</div></article>`).join('')}</div>${footer('Prova Rio 2025 · distribuição por níveis de desempenho.')}</section>`;}
 function levelRange(label){return {'Abaixo N1':'<650','N1':'650–674','N2':'675–699','N3':'700–724','N4':'725–749','N5':'750–774','N6':'775–799','N7':'800–824','N8':'825+'}[label]||'';}
@@ -194,7 +201,7 @@ function installDemoSearch(){
 }
 function installButton(){const b=$('pdfExportBtn');if(!b)return;b.removeAttribute('onclick');b.setAttribute('aria-label','Gerar Dossiê da escola selecionada');b.title='Gerar Dossiê da escola selecionada';const icon=b.querySelector('.export-action-icon'),lab=b.querySelector('.export-action-label');if(icon)icon.textContent='DOS';if(lab)lab.textContent='Dossiê';b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();generate();},true);
  document.querySelectorAll('[data-action="pdf"]').forEach(x=>x.textContent='Gerar Dossiê da escola selecionada');
- const obs=new MutationObserver(()=>document.querySelectorAll('[data-action="pdf"]').forEach(x=>{if(!/dossi/i.test(x.textContent||''))x.textContent='Gerar Dossiê da escola selecionada';}));obs.observe(document.body,{childList:true,subtree:true});
+ // The mobile menu is authored with the Dossier label; no body-wide observer.
 }
 function boot(){stamp();installButton();installDemoSearch();setTimeout(stamp,100);setTimeout(stamp,1200);window.__GRA_DASHBOARD26__={version:VERSION,feature:'dynamic-school-dossier'};window.__GRA_V416_DOSSIER__={version:VERSION,generate,collect,buildReportHtml,demoData,resolveSelection,state};}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();

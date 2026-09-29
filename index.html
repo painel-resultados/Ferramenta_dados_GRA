@@ -11903,7 +11903,7 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
     setTimeout(()=>{if(document.getElementById(section)?.classList.contains('active'))activate(section);},0);
   },true);
   const observer=new MutationObserver(()=>{const active=document.querySelector('.section.active')?.id;if(active&&active!=='resultados'&&!state[active])setTimeout(()=>activate(active),0);});
-  const main=document.querySelector('.main');if(main)observer.observe(main,{subtree:true,attributes:true,attributeFilter:['class']});
+  document.querySelectorAll('.main .section').forEach(section=>observer.observe(section,{attributes:true,attributeFilter:['class']}));
 
   function installLazyGlobal(name,sourceId){
     if(Object.prototype.hasOwnProperty.call(window,name)&&window[name]!==undefined)return;
@@ -12683,7 +12683,9 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
     try{somRefreshSelectors=window.somRefreshSelectors;}catch(_){ }
   }
 
+  let yearLoadEpoch=0;
   async function loadSelectedYearAndRender(){
+    const ticket=++yearLoadEpoch;
     if(!isSim()) { syncEditionVisibility(); return; }
     const year=YEARS.includes(yearEl()?.value)?yearEl().value:'2º ano';
     ensureYearOptions(year); syncEditionVisibility();
@@ -12694,11 +12696,13 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
         const comp=['LP','MT'].includes(compEl()?.value)?compEl().value:'LP';
         await window.sim2026EnsureYearForIndicator(year,comp);
       }
+      if(ticket!==yearLoadEpoch||!isSim()||yearEl()?.value!==year)return;
       ensureYearOptions(year);
       if(typeof window.somAdjustMetricOptions==='function') window.somAdjustMetricOptions();
       syncMetricForYear(); syncEditionVisibility();
       if(typeof window.renderResultados==='function') window.renderResultados();
     }catch(err){
+      if(ticket!==yearLoadEpoch||!isSim()||yearEl()?.value!==year)return;
       console.error('Falha ao carregar o ano selecionado do Simulado 2026',err);
       if(host) host.innerHTML=`<div class="sim2026-loading">Não foi possível abrir ${year}.<br>${String(err?.message||err)}</div>`;
     }
@@ -12706,7 +12710,9 @@ function addSomUnitAssessmentSlide(pptx,ctx,meta,entry,slideNumber){
 
   function install(){
     ensureYearOptions(); syncEditionVisibility(); syncMetricForYear();
-    modalEl()?.addEventListener('change',()=>setTimeout(()=>{ensureYearOptions();syncEditionVisibility();syncMetricForYear();},0));
+    modalEl()?.addEventListener('change',()=>{yearLoadEpoch++;setTimeout(()=>{ensureYearOptions();syncEditionVisibility();syncMetricForYear();},0)});
+    compEl()?.addEventListener('change',()=>{yearLoadEpoch++});
+    document.querySelectorAll('.nav button[data-section]').forEach(b=>b.addEventListener('click',()=>{yearLoadEpoch++}));
     yearEl()?.addEventListener('change',()=>{const chosen=yearEl().value;setTimeout(()=>{ensureYearOptions(chosen);loadSelectedYearAndRender();},0);});
     // Also repair the selector after delayed/async legacy refreshes.
     const observer=new MutationObserver(()=>{if(isSim()) ensureYearOptions(yearEl()?.value||'');syncEditionVisibility();});
@@ -14784,7 +14790,7 @@ body.exp-ui .meter span{
     actionMenu=document.createElement('section');
     actionMenu.className='v222-mobile-actions';
     actionMenu.setAttribute('aria-label','Ações da dashboard');
-    actionMenu.innerHTML='<div class="v222-mobile-actions-head"><span>Ações</span><button type="button" class="v222-mobile-actions-close" aria-label="Fechar ações">×</button></div><button type="button" data-action="pdf">Gerar PDF da seção atual</button><button type="button" data-action="slides">Gerar apresentação em Slides</button>';
+    actionMenu.innerHTML='<div class="v222-mobile-actions-head"><span>Ações</span><button type="button" class="v222-mobile-actions-close" aria-label="Fechar ações">×</button></div><button type="button" data-action="pdf">Gerar Dossiê da escola selecionada</button><button type="button" data-action="slides">Gerar apresentação em Slides</button>';
     document.body.appendChild(actionMenu);
 
     const topActions=qs('.topbar .actions');
@@ -19103,8 +19109,9 @@ body, .app, .main {
       return;
     }
     const region=regionLabel(item.row);
-    if(name) name.textContent=item.name;
-    if(meta) meta.textContent=(region?region+' · ':'')+'Todos os indicadores e gráficos abaixo respeitam o recorte desta escola.';
+    if(name&&name.textContent!==item.name) name.textContent=item.name;
+    const metaText=(region?region+' · ':'')+'Todos os indicadores e gráficos abaixo respeitam o recorte desta escola.';
+    if(meta&&meta.textContent!==metaText) meta.textContent=metaText;
     if(priorityBadge){
       let prioritized=false;
       if(banner.id==='somSelectedSchoolBanner'&&(document.getElementById('somModalidade')?.value||'')==='Simulado 2026'){
@@ -19378,7 +19385,7 @@ if(typeof previous==='function'){
   window.renderResultados=wrapped;try{renderResultados=wrapped}catch(_){}
 }
 // Mutation observer catches asynchronous Simulado payload rendering without re-running calculations.
-const somObserver=new MutationObserver(()=>{if(isSim())queueMicrotask(decorateSim)});
+let metaFrame=0;const somObserver=new MutationObserver(()=>{if(!isSim()||metaFrame||!byId('resultados')?.classList.contains('active'))return;metaFrame=requestAnimationFrame(()=>{metaFrame=0;somObserver.disconnect();try{decorateSim()}finally{installObserver()}})});
 function installObserver(){['somKpis','somTable','somSkillBars'].forEach(id=>{const el=byId(id);if(el)somObserver.observe(el,{childList:true,subtree:true})})}
 function stamp(){const badge=byId('dashboardVersionBadge');if(badge&&badge.textContent!==V)badge.textContent=V;document.querySelectorAll('.gra-start-version,.exp-badge,.gra-access-version').forEach(el=>{const t=(el.textContent||'').trim();if(/^v?\d+/i.test(t)&&t!==V)el.textContent=V});window.__GRA_V356_METAS__={version:V,records:META_ROWS.length,source:'CGRA · metas escolares 2026',findMeta,targetFor}}
 function boot(){stamp();watchBanco();installObserver();decorateSim();setTimeout(stamp,0);document.addEventListener('change',e=>{const id=e.target?.id||'';if(id==='regionalScopeSelect'){if(metasReady){updateMetaAgents(false);renderMetaTable()}setTimeout(decorateSim,0)}else if(id.startsWith('som'))setTimeout(decorateSim,0)},true);document.addEventListener('input',e=>{if(e.target?.id==='somSearch')setTimeout(decorateSim,0)},true)}
@@ -20288,15 +20295,22 @@ function sumYear(rows,year){return (rows||[]).reduce((a,r)=>{const [al,t]=yearPa
 function allContextRows(){parseData();return Array.isArray(DATASET?.rows)?DATASET.rows:[]}
 function masterMode(){const sel=$('regionalScopeSelect'),opt=sel?.selectedOptions?.[0];return opt?.dataset?.graMasterMode||window.__GRA_MASTER_SCOPE__||''}
 function mineRows(rows){if(String(window.__GRA_ACCESS__?.role||'').toLowerCase()!=='agent'||masterMode()!=='mine')return null;const who=norm(window.__GRA_ACCESS__?.name||'');if(!who)return null;const codes=new Set();try{for(const pt of ((typeof GEO_POINTS!=='undefined'&&Array.isArray(GEO_POINTS))?GEO_POINTS:[])){if(norm(pt?.agent||pt?.agente||'')!==who)continue;const code=String(pt?.codeSME??pt?.designacao??'').replace(/\D/g,'');if(code)codes.add(code)}}catch(_){}if(!codes.size)return null;return (rows||[]).filter(r=>codes.has(String(r?.sme||'').replace(/\D/g,'')))}
-function aggregateRows(){const all=allContextRows(),cre=creNum($('regionalScopeSelect')?.value);const mine=mineRows(all);if(mine)return {type:'agent',rows:mine,cre:Number(window.__GRA_ACCESS__?.cre||cre)||0,title:`Somente minhas escolas`,sub:`${window.__GRA_ACCESS__?.name||'Agente'} · ${Number(window.__GRA_ACCESS__?.cre||cre)||''}ª CRE`};if(cre)return {type:'cre',rows:all.filter(r=>Number(r.cre)===cre),cre,title:`${cre}ª CRE`,sub:'Contexto agregado da Coordenadoria Regional'};return {type:'sme',rows:all,cre:0,title:'Toda a SME',sub:'Contexto agregado da Rede Municipal'}}
+function contextPartnerRows(rows){return window.__GRA_PARTNERS_EDUCATION_ACTIVE__?(rows||[]).filter(r=>window.__GRA_V391_PARTNERS__?.isPartner?.(r)):rows}
+function aggregateRows(){
+ const all=allContextRows(),cre=creNum($('regionalScopeSelect')?.value),mine=mineRows(all);
+ let info=mine?{type:'agent',rows:mine,cre:Number(window.__GRA_ACCESS__?.cre||cre)||0,title:'Somente minhas escolas',sub:`${window.__GRA_ACCESS__?.name||'Agente'} · ${Number(window.__GRA_ACCESS__?.cre||cre)||''}ª CRE`}:cre?{type:'cre',rows:all.filter(r=>Number(r.cre)===cre),cre,title:`${cre}ª CRE`,sub:'Contexto agregado da Coordenadoria Regional'}:{type:'sme',rows:all,cre:0,title:'Toda a SME',sub:'Contexto agregado da Rede Municipal'};
+ info.rows=contextPartnerRows(info.rows);
+ if(window.__GRA_PARTNERS_EDUCATION_ACTIVE__){info.title+=' · Parceiros da Educação';info.sub+=' · Escolas parceiras';}
+ return info;
+}
 function shareKpi(label,num,den,detail){const valid=Number.isFinite(num)&&Number.isFinite(den)&&den>0;const pct=valid?num/den*100:null;const pctText=valid?pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—';return `<div class="v392-kpi"><small>${esc(label)}</small><b>${pctText}</b><span>${valid?`${fmtInt(num)} de ${fmtInt(den)} alunos · ${esc(detail)}`:'Sem base comparável disponível'}</span></div>`}
-function schoolShareSection(r){const all=allContextRows(),creRows=all.filter(x=>Number(x.cre)===Number(r.cre));const s4=yearPair(r,'4º')[0],s8=yearPair(r,'8º')[0],c4=sumYear(creRows,'4º').alunos,c8=sumYear(creRows,'8º').alunos;return `<section class="v392-context-card"><h3>Participação no universo da CRE</h3><p class="v392-desc">Percentual de matrículas da escola em relação ao total do mesmo ano escolar na ${r.cre}ª CRE.</p><div class="v392-kpis v414-share-kpis">${s4?shareKpi('4º ano da escola na CRE',s4,c4,`${r.cre}ª CRE`):`<div class="v392-kpi"><small>4º ano da escola na CRE</small><b>—</b><span>A escola não oferta 4º ano na base</span></div>`}${s8?shareKpi('8º ano da escola na CRE',s8,c8,`${r.cre}ª CRE`):`<div class="v392-kpi"><small>8º ano da escola na CRE</small><b>—</b><span>A escola não oferta 8º ano na base</span></div>`}</div><div class="v392-note">Base estrutural de matrículas: 27/08/2026.</div></section>`}
+function schoolShareSection(r){const all=contextPartnerRows(allContextRows()),creRows=all.filter(x=>Number(x.cre)===Number(r.cre));const s4=yearPair(r,'4º')[0],s8=yearPair(r,'8º')[0],c4=sumYear(creRows,'4º').alunos,c8=sumYear(creRows,'8º').alunos;return `<section class="v392-context-card"><h3>Participação no universo da CRE</h3><p class="v392-desc">Percentual de matrículas da escola em relação ao total do mesmo ano escolar na ${r.cre}ª CRE.</p><div class="v392-kpis v414-share-kpis">${s4?shareKpi('4º ano da escola na CRE',s4,c4,`${r.cre}ª CRE`):`<div class="v392-kpi"><small>4º ano da escola na CRE</small><b>—</b><span>A escola não oferta 4º ano na base</span></div>`}${s8?shareKpi('8º ano da escola na CRE',s8,c8,`${r.cre}ª CRE`):`<div class="v392-kpi"><small>8º ano da escola na CRE</small><b>—</b><span>A escola não oferta 8º ano na base</span></div>`}</div><div class="v392-note">Base estrutural de matrículas: 27/08/2026.</div></section>`}
 function aggregateComposition(rows){const totalAlunos=(rows||[]).reduce((a,r)=>a+(Number(r.totalAlunos)||0),0),totalTurmas=(rows||[]).reduce((a,r)=>a+(Number(r.totalTurmas)||0),0),ai=(rows||[]).reduce((a,r)=>a+(Number(r.alunosAI)||0),0),af=(rows||[]).reduce((a,r)=>a+(Number(r.alunosAF)||0),0),years=['1º','2º','3º','4º','5º','6º','7º','8º','9º'].map(y=>[y,sumYear(rows,y)]).filter(([,v])=>v.alunos||v.turmas),avg=totalTurmas?totalAlunos/totalTurmas:null;return `<div class="v392-kpis"><div class="v392-kpi"><small>Unidades</small><b>${fmtInt(rows.length)}</b><span>Unidades na base do recorte</span></div><div class="v392-kpi"><small>Estudantes</small><b>${fmtInt(totalAlunos)}</b><span>Matrículas informadas</span></div><div class="v392-kpi"><small>Turmas</small><b>${fmtInt(totalTurmas)}</b><span>Turmas informadas</span></div><div class="v392-kpi"><small>Média por turma</small><b>${avg==null?'—':avg.toLocaleString('pt-BR',{maximumFractionDigits:1})}</b><span>Alunos ÷ turmas</span></div></div><div class="v392-kpis v414-segment-kpis"><div class="v392-kpi"><small>Anos Iniciais</small><b>${fmtInt(ai)}</b><span>alunos</span></div><div class="v392-kpi"><small>Anos Finais</small><b>${fmtInt(af)}</b><span>alunos</span></div></div>${years.length?`<div class="v392-year-grid">${years.map(([y,v])=>`<div class="v392-year"><b>${esc(y)}</b><span>${fmtInt(v.alunos)} alunos · ${fmtInt(v.turmas)} turma${v.turmas===1?'':'s'}</span></div>`).join('')}</div>`:''}`}
-function aggregateShareSection(info){const all=allContextRows(),rows=info.rows||[];let parent=all,parentLabel='SME';if(info.type==='agent'){parent=all.filter(r=>Number(r.cre)===Number(info.cre));parentLabel=`${info.cre}ª CRE`}const a4=sumYear(rows,'4º').alunos,a8=sumYear(rows,'8º').alunos,p4=sumYear(parent,'4º').alunos,p8=sumYear(parent,'8º').alunos;const self=info.type==='sme';return `<section class="v392-context-card"><h3>Participação no universo maior</h3><p class="v392-desc">${self?'A SME representa a totalidade da base municipal.':`Percentual de matrículas do recorte em relação ao total do mesmo ano escolar na ${parentLabel}.`}</p><div class="v392-kpis v414-share-kpis">${shareKpi(info.type==='cre'?'4º ano da CRE na SME':info.type==='agent'?'4º ano do recorte na CRE':'4º ano da SME',a4,p4,self?'total da SME':parentLabel)}${shareKpi(info.type==='cre'?'8º ano da CRE na SME':info.type==='agent'?'8º ano do recorte na CRE':'8º ano da SME',a8,p8,self?'total da SME':parentLabel)}</div><div class="v392-note">Base estrutural de matrículas: 27/08/2026.</div></section>`}
+function aggregateShareSection(info){const all=contextPartnerRows(allContextRows()),rows=info.rows||[];let parent=all,parentLabel='SME';if(info.type==='agent'){parent=all.filter(r=>Number(r.cre)===Number(info.cre));parentLabel=`${info.cre}ª CRE`}const a4=sumYear(rows,'4º').alunos,a8=sumYear(rows,'8º').alunos,p4=sumYear(parent,'4º').alunos,p8=sumYear(parent,'8º').alunos;const self=info.type==='sme';return `<section class="v392-context-card"><h3>Participação no universo maior</h3><p class="v392-desc">${self?'A SME representa a totalidade da base municipal.':`Percentual de matrículas do recorte em relação ao total do mesmo ano escolar na ${parentLabel}.`}</p><div class="v392-kpis v414-share-kpis">${shareKpi(info.type==='cre'?'4º ano da CRE na SME':info.type==='agent'?'4º ano do recorte na CRE':'4º ano da SME',a4,p4,self?'total da SME':parentLabel)}${shareKpi(info.type==='cre'?'8º ano da CRE na SME':info.type==='agent'?'8º ano do recorte na CRE':'8º ano da SME',a8,p8,self?'total da SME':parentLabel)}</div><div class="v392-note">Base estrutural de matrículas: 27/08/2026.</div></section>`}
 function aggregatePrograms(rows){const map=new Map();for(const r of rows||[]){for(const x of [...new Set([...(r.apoiosAI||[]),...(r.apoiosAF||[])])])map.set(x,(map.get(x)||0)+1)}const items=[...map.entries()].sort((a,b)=>b[1]-a[1]||String(a[0]).localeCompare(String(b[0]),'pt-BR'));return items.length?`<div class="v392-chips">${items.map(([x,n])=>`<span class="v392-chip">${esc(x)} · ${fmtInt(n)} unidade${n===1?'':'s'}</span>`).join('')}</div>`:'<div class="v392-empty">Nenhum apoio ou programa registrado nesses campos para o recorte.</div>'}
 function aggregateConditions(rows){const cp=(rows||[]).filter(r=>r.semCP).length,dir=(rows||[]).filter(r=>r.semDiretor).length,adj=(rows||[]).filter(r=>r.semAdjunto).length,viol=(rows||[]).filter(r=>Number(r.violenciaDias)>0).length;return `<div class="v392-kpis"><div class="v392-kpi"><small>Sem CP</small><b>${fmtInt(cp)}</b><span>unidades sinalizadas</span></div><div class="v392-kpi"><small>Sem diretor</small><b>${fmtInt(dir)}</b><span>unidades sinalizadas</span></div><div class="v392-kpi"><small>Sem adjunto</small><b>${fmtInt(adj)}</b><span>unidades sinalizadas</span></div><div class="v392-kpi"><small>Impacto por violência</small><b>${fmtInt(viol)}</b><span>unidades com ao menos 1 dia registrado</span></div></div><div class="v392-note">Impacto por violência: referência 04/02 a 22/05/2026. Campos de CP/direção: referência 17/08/2026.</div>`}
 function openAggregate(info){const o=ensureDrawer();o.querySelector('.v392-context-eyebrow').textContent='Contexto';$('v392ContextTitle').textContent=info.title;$('v392ContextSub').textContent=`${info.sub} · ${fmtInt(info.rows.length)} unidades na base`;$('v392ContextBody').innerHTML=`<section class="v392-context-card"><h3>Porte e composição</h3><p class="v392-desc">Matrículas e turmas agregadas do universo selecionado. Base de referência: 27/08/2026.</p>${aggregateComposition(info.rows)}</section>${aggregateShareSection(info)}<section class="v392-context-card"><h3>Apoios e programas</h3><p class="v392-desc">Quantidade de unidades do recorte com cada apoio/parceria registrado.</p>${aggregatePrograms(info.rows)}</section><section class="v392-context-card"><h3>Condições de funcionamento</h3><p class="v392-desc">Contagem objetiva das sinalizações disponíveis na base.</p>${aggregateConditions(info.rows)}</section><div class="v392-source">Fonte: “MINHA ESCOLA - 2026.xlsx”. Base principal indicada como 27/08/2026. Os totais são somas dos registros estruturais do universo selecionado.</div>`;o.classList.add('open');o.setAttribute('aria-hidden','false');setTimeout(()=>o.querySelector('.v392-context-close')?.focus(),50)}
-function openContext(){parseData();let r=currentContext();const masterCre=creNum($('regionalScopeSelect')?.value);if(r&&masterCre&&Number(r.cre)!==masterCre)r=null;if(r){openDrawer(r);const body=$('v392ContextBody');if(body&&!body.querySelector('.v414-school-share')){const wrap=document.createElement('div');wrap.className='v414-school-share';wrap.innerHTML=schoolShareSection(r);body.insertBefore(wrap,body.firstChild)}const eye=$(OVERLAY_ID)?.querySelector('.v392-context-eyebrow');if(eye)eye.textContent='Contexto';return}openAggregate(aggregateRows())}
+function openContext(){parseData();let r=currentContext();const masterCre=creNum($('regionalScopeSelect')?.value);if(r&&masterCre&&Number(r.cre)!==masterCre)r=null;if(r&&window.__GRA_PARTNERS_EDUCATION_ACTIVE__&&!window.__GRA_V391_PARTNERS__?.isPartner?.(r))r=null;if(r){openDrawer(r);const body=$('v392ContextBody');if(body&&!body.querySelector('.v414-school-share')){const wrap=document.createElement('div');wrap.className='v414-school-share';wrap.innerHTML=schoolShareSection(r);body.insertBefore(wrap,body.firstChild)}const eye=$(OVERLAY_ID)?.querySelector('.v392-context-eyebrow');if(eye)eye.textContent='Contexto';return}openAggregate(aggregateRows())}
 function installButton(){if($(BTN_ID))return;const actions=document.querySelector('.topbar .actions');if(!actions)return;const b=document.createElement('button');b.type='button';b.id=BTN_ID;b.className='btn is-visible';b.innerHTML='<span class="v392-dot"></span><span>Contexto</span>';b.title='Abrir contexto do universo selecionado';b.addEventListener('click',openContext);const before=$('pdfExportBtn');actions.insertBefore(b,before||null)}
 function syncButton(){installButton();const b=$(BTN_ID);if(!b)return;b.classList.add('is-visible');b.disabled=false;b.title='Abrir contexto do universo selecionado';const label=b.querySelector('span:last-child');if(label)label.textContent='Contexto'}
 function ensureDrawer(){let o=$(OVERLAY_ID);if(o)return o;o=document.createElement('div');o.id=OVERLAY_ID;o.className='v392-context-overlay';o.setAttribute('aria-hidden','true');o.innerHTML='<aside class="v392-context-drawer" role="dialog" aria-modal="true" aria-labelledby="v392ContextTitle"><div class="v392-context-head"><div><div class="v392-context-eyebrow">Contexto</div><h2 id="v392ContextTitle"></h2><div id="v392ContextSub" class="v392-context-sub"></div></div><button type="button" class="v392-context-close" aria-label="Fechar">×</button></div><div id="v392ContextBody" class="v392-context-body"></div></aside>';document.body.appendChild(o);const close=()=>closeDrawer();o.querySelector('.v392-context-close').addEventListener('click',close);o.addEventListener('click',e=>{if(e.target===o)close()});return o}
@@ -20318,7 +20332,7 @@ function prepareBankSort(){const table=$('bankTable');if(!table?.tHead?.rows?.[0
 function queueBankSort(){if(sortQueued)return;sortQueued=true;requestAnimationFrame(()=>{sortQueued=false;prepareBankSort()})}
 function observeBank(){const table=$('bankTable');if(table){new MutationObserver(()=>{if(!sortGuard&&table.dataset.graChunking!=='1')queueBankSort()}).observe(table,{childList:true,subtree:true});table.addEventListener('gra-table-rendered',queueBankSort);queueBankSort()}const banco=$('banco');if(banco&&!banco.dataset.v400BankWatch){banco.dataset.v400BankWatch='1';new MutationObserver(()=>queueBankSort()).observe(banco,{childList:true,subtree:true});}}
 function stamp(){if(document.documentElement.dataset.graVersion!==VERSION)document.documentElement.dataset.graVersion=VERSION;const b=$('dashboardVersionBadge');if(b&&b.textContent!==VERSION)b.textContent=VERSION;document.querySelectorAll('.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{const t=(el.textContent||'').trim();if(/^v?\d+/i.test(t)&&t!==VERSION)el.textContent=VERSION});const title='Ferramenta GRA de análise de dados — '+VERSION;if(document.title!==title)document.title=title}
-function boot(){parseData();installStyle();installButton();ensureDrawer();observeBank();stamp();document.addEventListener('click',()=>setTimeout(()=>{syncButton();if($('banco')?.classList.contains('active'))queueBankSort()},30),true);document.addEventListener('change',()=>setTimeout(()=>{syncButton();if($('banco')?.classList.contains('active'))queueBankSort()},30),true);document.addEventListener('input',()=>setTimeout(syncButton,80),true);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});/* v400: sem observer global do body; eventos e sincronizações finitas cobrem a seleção da unidade sem vigiar cada mutação da página. */[0,420].forEach(ms=>setTimeout(()=>{syncButton();stamp();queueBankSort()},ms));window.__GRA_V392_CONTEXT__={version:VERSION,open:openContext,resolve:contextForSchool,getCurrent:currentContext,sync:syncButton,sortState};}
+function boot(){parseData();installStyle();installButton();ensureDrawer();observeBank();stamp();document.addEventListener('click',()=>setTimeout(()=>{syncButton();if($('banco')?.classList.contains('active'))queueBankSort()},30),true);document.addEventListener('change',()=>setTimeout(()=>{syncButton();if($('banco')?.classList.contains('active'))queueBankSort()},30),true);document.addEventListener('input',()=>setTimeout(syncButton,80),true);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});/* v400: sem observer global do body; eventos e sincronizações finitas cobrem a seleção da unidade sem vigiar cada mutação da página. */[0,420].forEach(ms=>setTimeout(()=>{syncButton();stamp();queueBankSort()},ms));document.addEventListener('click',e=>{if(e.target?.closest?.('#partnersEducationBtn')&&$(OVERLAY_ID)?.classList.contains('open'))setTimeout(openContext,0)},true);document.addEventListener('change',e=>{if(e.target?.id==='regionalScopeSelect'&&$(OVERLAY_ID)?.classList.contains('open'))setTimeout(openContext,0)},true);window.__GRA_V392_CONTEXT__={version:VERSION,open:openContext,resolve:contextForSchool,getCurrent:currentContext,sync:syncButton,sortState};}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 </script>
@@ -20907,7 +20921,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 <script id="v408-final-version-lock">
 (function(){'use strict';
-const V='v415';let queued=false,observer=null;
+const V='v417';let queued=false,observer=null;
 function stamp(){
   if(document.documentElement.dataset.graVersion!==V)document.documentElement.dataset.graVersion=V;
   const b=document.getElementById('dashboardVersionBadge');if(b&&b.textContent!==V)b.textContent=V;
@@ -21005,12 +21019,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 (function(){'use strict';
 const structuralIds=new Set(['somMode','somModalidade','adrMode']);
 function clearSchoolUniverse(){
+  try{if(typeof GEO_STATE!=='undefined'){GEO_STATE.focusedSchool='';GEO_STATE.selected=null;}if(typeof window.geoCloseDetail==='function')window.geoCloseDetail(false)}catch(_){}
   if(!String(window.__GRA_SELECTED_SCHOOL__||'').trim())return;
   try{window.__GRA_V323_SCHOOL_UNIVERSE__?.clear?.()}catch(error){console.warn('Limpeza de escola selecionada',error);window.__GRA_SELECTED_SCHOOL__=''}
 }
 // Structural changes should never carry a stale school into an incompatible visualization.
-document.addEventListener('change',event=>{if(structuralIds.has(event.target?.id))setTimeout(clearSchoolUniverse,0)},true);
-document.addEventListener('click',event=>{if(event.target?.closest?.('.geo-eval-picker button'))setTimeout(clearSchoolUniverse,0)},true);
+document.addEventListener('change',event=>{if(structuralIds.has(event.target?.id))clearSchoolUniverse()},true);
+document.addEventListener('click',event=>{if(event.target?.closest?.('.geo-eval-picker button'))clearSchoolUniverse()},true);
 // Context is protected by the topbar exclusion above; this is a harmless fallback if a legacy listener is lost.
 document.addEventListener('click',event=>{
   if(!event.target?.closest?.('#v392SchoolContextBtn'))return;
@@ -21276,8 +21291,8 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
   const prev=window.renderResultados;
   if(typeof prev==='function'&&!prev.__d28NoCaedLevelsSkills){const wrapped=function(){const out=prev.apply(this,arguments);setTimeout(scrub,0);return out;};wrapped.__d28NoCaedLevelsSkills=true;wrapped.__native=prev;window.renderResultados=wrapped;try{renderResultados=wrapped}catch(_){}}
   document.addEventListener('change',e=>{if(['somModalidade','somAnoEscolar','somComponente','somAgente','regionalScopeSelect'].includes(e.target?.id))setTimeout(scrub,0);},true);
-  const mo=new MutationObserver(()=>{clearTimeout(window.__d28CaedScrubTimer);window.__d28CaedScrubTimer=setTimeout(scrub,20);});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{mo.observe(document.body,{childList:true,subtree:true});scrub();},{once:true});else{mo.observe(document.body,{childList:true,subtree:true});scrub();}
+  const mo=new MutationObserver(()=>{if(!isSecondMath())return;clearTimeout(window.__d28CaedScrubTimer);window.__d28CaedScrubTimer=setTimeout(scrub,20);});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{['resultados','sim307SchoolBody','sim307TurmaBody'].forEach(id=>{const node=byId(id);if(node)mo.observe(node,{childList:true,subtree:true})});scrub();},{once:true});else{['resultados','sim307SchoolBody','sim307TurmaBody'].forEach(id=>{const node=byId(id);if(node)mo.observe(node,{childList:true,subtree:true})});scrub();}
   window.__GRA_D28_CAED_2MT_NO_LEVEL_SKILLS__={version:'v416',year:'2º ano',component:'MT',levels:false,skills:true,skillLevelMapping:false,proficiencyScale:'CAEd'};
 })();
 </script>

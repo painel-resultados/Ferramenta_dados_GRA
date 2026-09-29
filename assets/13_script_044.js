@@ -4419,9 +4419,6 @@ function geoRenderMarkers(){
     if(selected){
       ctx2.beginPath();ctx2.arc(x,y,radius+5,0,Math.PI*2);ctx2.fillStyle='rgba(18,56,93,.20)';ctx2.fill();
     }
-    if(p.isGET){
-      ctx2.beginPath();ctx2.arc(x,y,radius+3,0,Math.PI*2);ctx2.strokeStyle='#f0a63a';ctx2.lineWidth=3;ctx2.stroke();
-    }
     ctx2.beginPath();ctx2.arc(x,y,radius,0,Math.PI*2);
     ctx2.fillStyle=selected?'#12385d':geoCanvasStatusColor(result?.status);
     ctx2.fill();ctx2.strokeStyle='#ffffff';ctx2.lineWidth=2;ctx2.stroke();

@@ -50,7 +50,7 @@
       !!opts.ignoreEdicao,!!opts.ignoreCre,!!opts.ignoreSearch,!!opts.ignoreComp,
       ...FILTER_CONTROLS.map(id=>{const el=$(id);return `${el?.value||''}\u0002${el?.selectedIndex??''}`;}),
       rowsReference()?.length||0,window.__GRA_MASTER_SCOPE__||'',access.role||'',access.cre||'',access.name||'',
-      document.documentElement.getAttribute('data-gra-partner-master')||''
+      !!window.__GRA_PARTNERS_EDUCATION_ACTIVE__,document.documentElement.getAttribute('data-gra-partner-master')||''
     ].join('\u0001');
   }
 
@@ -161,6 +161,7 @@
   }
 
   document.addEventListener('change',onChange,true);
+  document.addEventListener('click',event=>{if(event.target?.closest?.('.nav button[data-section]'))cancelTransition()},true);
   install();
 
   window.__GRA_V414_TRANSITION_STABILITY__={
