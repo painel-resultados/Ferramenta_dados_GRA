@@ -138,6 +138,30 @@
     return [];
   }
 
+  function wrapFilteredRows(){
+    const current=window.somFilteredRows;
+    if(typeof current!=='function'||current.__v412ScatterComponent)return;
+    const base=current;
+    const wrapped=function(options){
+      if(!isScatter())return base.apply(this,arguments);
+
+      const opts=options||{};
+      // GRAFICO_DISPERSAO é uma visualização, não um componente existente na base.
+      // O gráfico solicita explicitamente ignoreComp e precisa conservar LP + MT.
+      // Os KPIs, a distribuição, a tabela e os demais renderizadores nativos usam
+      // o componente de referência (LP), sem depender de alterar temporariamente o
+      // valor visível do seletor durante a mesma cadeia de renderização.
+      if(opts.ignoreComp)return base.apply(this,arguments);
+      const rows=base.call(this,{...opts,ignoreComp:true});
+      const component=normalComponent();
+      return Array.isArray(rows)?rows.filter(row=>row?.componente===component):rows;
+    };
+    wrapped.__v412ScatterComponent=true;
+    wrapped.__native=base;
+    window.somFilteredRows=wrapped;
+    try{somFilteredRows=wrapped;}catch(_){ }
+  }
+
   function searchMatches(row,query){
     try{if(typeof window.somSearchMatches==='function'&&window.somSearchMatches(row,query))return true;}catch(_){ }
     const q=schoolKey(query);if(!q)return true;
@@ -523,16 +547,18 @@
         const out=base.apply(this,arguments);ensureOption();queueSkills(25);return out;
       }
       const compEl=$('somComponente');
-      const saved=SCATTER_VALUE;
       const underlying=normalComponent();
       renderBusy=true;
       let out;
       try{
         markScatterSentinel();
+        // Alguns renderizadores históricos consultam diretamente o seletor em vez
+        // de usar apenas as linhas recebidas. Eles enxergam LP durante esta chamada;
+        // o filtro acima garante o mesmo recorte também fora desta cadeia síncrona.
         if(compEl)compEl.value=underlying;
         out=base.apply(this,arguments);
       }finally{
-        if(compEl){ensureOption();compEl.value=saved;}
+        if(compEl){ensureOption();compEl.value=SCATTER_VALUE;}
         renderBusy=false;
       }
       updateScopeChip();
@@ -665,7 +691,7 @@
   }
 
   function install(){
-    installStyle();wrapRefresh();wrapRender('renderResultados');wrapRender('renderResultadosSearchOnly');ensureOption();installObserver();
+    installStyle();wrapRefresh();wrapFilteredRows();wrapRender('renderResultados');wrapRender('renderResultadosSearchOnly');ensureOption();installObserver();
     document.documentElement.dataset.graV410Scatter='installed';
     document.documentElement.dataset.graV411Scatter='installed';
     document.documentElement.dataset.graV412Scatter='installed';
@@ -700,4 +726,3 @@
   window.__GRA_V411_SCATTER__=scatterApi;
   window.__GRA_V412_SCATTER__=scatterApi;
 })();
-
