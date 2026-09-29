@@ -2351,7 +2351,7 @@ function somBuildInitialRows() {
   return SOM_PRELOADED_REAL.filter(r=>r.modalidade!=='IDEB 2025'&&r.modalidade!=='IDEB').concat(SOM_IDEB_2025).map(somRepairProvaRioLevelRow);
 }
 function somUnique(arr) { return [...new Set(arr.filter(v=>v!==null && v!==undefined && String(v).trim()!==''))]; }
-function somModalityDisplayLabel(value){ return value==='IDEB 2025' ? 'IDEB' : value; }
+function somModalityDisplayLabel(value){ return value==='IDEB 2025' ? 'IDEB' : value==='Avalia RJ' ? 'Avalia RJ 2025' : value==='Prova Rio' ? 'Prova Rio 2025' : value; }
 function somOptionHtml(values, selected, allLabel='') {
   const opts = (allLabel ? [`<option value="">${esc(allLabel)}</option>`] : []).concat(values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`));
   const html=opts.join('');
