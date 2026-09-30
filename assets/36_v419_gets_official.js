@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='v427';
+const VERSION='v428';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
 const officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
@@ -123,6 +123,41 @@ function axisTicks(min,max,steps=4){
 function orderAdrEdition(value){return Number(String(value??'').match(/\d+/)?.[0]||0)}
 function orderSomEdition(a,b){try{return typeof somOrderEdicao==='function'?somOrderEdicao(a)-somOrderEdicao(b):String(a).localeCompare(String(b), 'pt-BR', {numeric:true})}catch(_){return String(a).localeCompare(String(b), 'pt-BR', {numeric:true})}}
 
+function isSimStandardizedContext(){
+  const modality=document.getElementById('somModalidade')?.value||'';
+  const year=document.getElementById('somAnoEscolar')?.value||'';
+  const metric=document.getElementById('somMetric')?.value||'';
+  return modality==='Simulado 2026'&&metric==='notaPadronizada'&&(year==='4º ano'||year==='8º ano');
+}
+function simStandardizedSchoolRowsForGets(){
+  if(!isSimStandardizedContext()||typeof somFilteredRows!=='function')return [];
+  const year=document.getElementById('somAnoEscolar')?.value||'';
+  const rows=somFilteredRows({ignoreComp:true,ignoreSearch:true});
+  const grouped=new Map();
+  for(const r of rows||[]){
+    if(r?.modalidade!=='Simulado 2026'||r.anoEscolar!==year||!r.escola||!['LP','MT'].includes(r.componente))continue;
+    const key=schoolKey(r);if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(r);
+  }
+  const out=[];
+  for(const rs of grouped.values()){
+    const lp=rs.find(r=>r.componente==='LP'),mt=rs.find(r=>r.componente==='MT');
+    const a=Number(lp?.notaPadronizadaComponente??lp?.notaPadronizada);
+    const b=Number(mt?.notaPadronizadaComponente??mt?.notaPadronizada);
+    if(!Number.isFinite(a)||!Number.isFinite(b))continue;
+    const direct=Number(lp?.notaMedia??mt?.notaMedia??lp?.notaPadronizada??mt?.notaPadronizada);
+    const value=Number.isFinite(direct)?direct:(a+b)/2;
+    const base=lp||mt;
+    out.push({...base,componente:'LP+MT',notaPadronizada:value,notaPadronizadaLP:a,notaPadronizadaMT:b,avaliados:Math.max(Number(lp?.avaliados)||0,Number(mt?.avaliados)||0)});
+  }
+  return out;
+}
+async function ensureComparisonData(kind){
+  if(kind!=='som'||!isSimStandardizedContext()||typeof sim2026EnsureCombo!=='function')return;
+  const year=document.getElementById('somAnoEscolar')?.value||'';
+  try{await Promise.all([sim2026EnsureCombo(year,'LP'),sim2026EnsureCombo(year,'MT')]);}
+  catch(error){console.warn('GETs: não foi possível pré-carregar LP + MT do Simulado 2026.',error)}
+}
+
 function computeSeries(kind){
   if(kind==='adr'){
     if(typeof adrFilteredRows!=='function')return null;
@@ -156,15 +191,18 @@ function computeSeries(kind){
 
   if(kind==='som'){
     if(typeof somFilteredRows!=='function'||typeof somMetricValue!=='function')return null;
-    const rows=somFilteredRows({ignoreSearch:true});
     const metric=document.getElementById('somMetric')?.value||'principal';
     const progress=document.getElementById('somMode')?.value==='progressao';
+    const modality=document.getElementById('somModalidade')?.value||'';
+    const year=document.getElementById('somAnoEscolar')?.value||'';
+    const standardized=isSimStandardizedContext();
+    const rows=standardized?simStandardizedSchoolRowsForGets():somFilteredRows({ignoreSearch:true});
     const groups=groupRowsBySchool(rows);
     const score=['ideb2023','ideb2025','notaPadronizada','crescimento'].includes(metric);
     const mode=progress?'delta':score?'score':'pct';
     const label=typeof somMetricLabel==='function'?somMetricLabel(metric):metric;
-    const titleLabel=metric==='crescimento'?'crescimento médio em pontos':label;
-    const subtitle=`${masterLabel()} · ${document.getElementById('somModalidade')?.selectedOptions?.[0]?.textContent||''} · ${document.getElementById('somAnoEscolar')?.value||''} · ${document.getElementById('somComponente')?.selectedOptions?.[0]?.textContent||''}`;
+    const titleLabel=metric==='crescimento'?'crescimento médio em pontos':standardized?'Nota Padronizada (LP + MT)':label;
+    const subtitle=`${masterLabel()} · ${document.getElementById('somModalidade')?.selectedOptions?.[0]?.textContent||''} · ${year} · ${standardized?'LP + MT combinados':(document.getElementById('somComponente')?.selectedOptions?.[0]?.textContent||'')}`;
     if(progress){
       const editions=[...new Set(rows.map(r=>String(r.edicao||'')).filter(Boolean))].sort(orderSomEdition);
       const points=editions.map(ed=>{
@@ -180,7 +218,7 @@ function computeSeries(kind){
     }
     const getVals=[],nonVals=[];
     for(const schoolRows of groups){
-      const value=weighted(schoolRows,r=>somMetricValue(r,metric));if(!Number.isFinite(value))continue;
+      const value=standardized?weighted(schoolRows,r=>r.notaPadronizada):weighted(schoolRows,r=>somMetricValue(r,metric));if(!Number.isFinite(value))continue;
       (isGet(schoolRows[0])?getVals:nonVals).push(value);
     }
     return {kind:'bar',mode,title:`GETs × não GETs — média de ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}]};
@@ -265,6 +303,12 @@ function renderComparison(kind){
   const panel=ensurePanel(kind);if(!panel)return;
   panel.hidden=!compareState.active;
   if(!compareState.active)return;
+  const token=String(Date.now())+Math.random();panel.dataset.graGetRenderToken=token;
+  const needsLoad=kind==='som'&&isSimStandardizedContext();
+  if(needsLoad){panel.innerHTML='<div class="get-official-empty">Preparando a comparação GETs × não GETs do Simulado 2026…</div>';ensureComparisonData(kind).then(()=>{if(compareState.active&&panel.dataset.graGetRenderToken===token)renderComparisonReady(kind,panel)});return;}
+  renderComparisonReady(kind,panel);
+}
+function renderComparisonReady(kind,panel){
   const result=computeSeries(kind);
   if(!result){panel.innerHTML='<div class="get-official-empty">A comparação dos GETs não está disponível neste recorte.</div>';return}
   if(result.kind==='line'&&!result.points?.length){panel.innerHTML='<div class="get-official-empty">Não há resultados numéricos suficientes para comparar GETs e não GETs neste recorte.</div>';return}
