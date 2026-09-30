@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='v426';
+const VERSION='v427';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
 const officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
@@ -193,23 +193,29 @@ function barChartSvg(data,mode){
   if(!values.length)return '';
   const width=760,height=320,margin={top:38,right:20,bottom:64,left:72};
   const plotW=width-margin.left-margin.right,plotH=height-margin.top-margin.bottom;
-  const max=Math.max(...values,1)*1.14;
-  const ticks=axisTicks(0,max,4);
+  let min=Math.min(...values,0),max=Math.max(...values,0);
+  if(min===max){min=min-1;max=max+1}
+  const span=max-min||1,pad=span*0.14;
+  min-=pad;max+=pad;
+  const ticks=axisTicks(min,max,4);
   const usableW=plotW/data.length;
   const barW=Math.min(128,usableW*0.48);
-  const zeroY=margin.top+plotH;
-  const y=v=>margin.top+plotH-(v/max)*plotH;
+  const y=v=>margin.top+plotH-(((v-min)/(max-min))*plotH);
+  const zeroY=y(0);
   let svg=`<svg class="get-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Comparação média entre GETs e não GETs">`;
   svg+=`<rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="#fff"/>`;
   ticks.forEach(t=>{const yy=y(t);svg+=`<line x1="${margin.left}" y1="${yy}" x2="${width-margin.right}" y2="${yy}" stroke="#dbe6ef" stroke-width="1"/>`;svg+=`<text x="${margin.left-12}" y="${yy+4}" text-anchor="end" class="get-chart-axis">${esc(metricFormat(t,mode))}</text>`});
   data.forEach((item,index)=>{
-    const center=margin.left+(usableW*index)+(usableW/2),barX=center-(barW/2),barY=y(item.value),barH=Math.max(0,zeroY-barY);
+    const center=margin.left+(usableW*index)+(usableW/2),barX=center-(barW/2),valueY=y(item.value);
+    const barY=item.value>=0?valueY:zeroY;
+    const barH=Math.max(3,Math.abs(valueY-zeroY));
+    const labelY=item.value>=0?Math.max(22,barY-10):Math.min(height-margin.bottom-8,barY+barH+20);
     svg+=`<rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="12" fill="${item.color}" opacity="0.95"/>`;
-    svg+=`<text x="${center}" y="${Math.max(22,barY-10)}" text-anchor="middle" class="get-chart-value">${esc(metricFormat(item.value,mode))}</text>`;
-    svg+=`<text x="${center}" y="${zeroY+26}" text-anchor="middle" class="get-chart-label">${esc(item.label)}</text>`;
-    svg+=`<text x="${center}" y="${zeroY+42}" text-anchor="middle" class="get-chart-sub">${esc(item.count+' escola'+(item.count===1?'':'s'))}</text>`;
+    svg+=`<text x="${center}" y="${labelY}" text-anchor="middle" class="get-chart-value">${esc(metricFormat(item.value,mode))}</text>`;
+    svg+=`<text x="${center}" y="${height-margin.bottom+26}" text-anchor="middle" class="get-chart-label">${esc(item.label)}</text>`;
+    svg+=`<text x="${center}" y="${height-margin.bottom+42}" text-anchor="middle" class="get-chart-sub">${esc(item.count+' escola'+(item.count===1?'':'s'))}</text>`;
   });
-  svg+=`<line x1="${margin.left}" y1="${zeroY}" x2="${width-margin.right}" y2="${zeroY}" stroke="#9fb5c8" stroke-width="1.4"/>`;
+  svg+=`<line x1="${margin.left}" y1="${zeroY}" x2="${width-margin.right}" y2="${zeroY}" stroke="#9fb5c8" stroke-width="1.8"/>`;
   svg+='</svg>';
   return svg;
 }
