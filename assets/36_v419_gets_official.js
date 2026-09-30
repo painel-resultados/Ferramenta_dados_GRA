@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='v422';
+const VERSION='v423';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
 const codeSet=new Set(),creNameSet=new Set(),displayNameSet=new Set(),officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
@@ -47,7 +47,7 @@ function applyOfficialClassification(){
     });
   }catch(error){console.warn('GETs oficiais: mapa indisponível para classificação.',error)}
 }
-function badgeHtml(value,cre=''){return isGet(value,cre)?'<span class="gra-get-badge" aria-label="Ginásio Educacional Tecnológico">GET</span>':''}
+function badgeHtml(value,cre=''){return isGet(value,cre)?'<span class="gra-get-badge" style="color:#fff!important;-webkit-text-fill-color:#fff!important" aria-label="Ginásio Educacional Tecnológico">GET</span>':''}
 
 function elementSchoolName(el){
   const direct=el?.dataset?.graSchoolName||el?.dataset?.somSchool||el?.dataset?.school;if(direct)return direct;
@@ -62,7 +62,7 @@ function decorateElement(el){
   if(el.namespaceURI==='http://www.w3.org/2000/svg'&&el.tagName.toLowerCase()==='text'){
     const t=document.createElementNS('http://www.w3.org/2000/svg','tspan');t.setAttribute('dx','8');t.setAttribute('class','gra-get-svg-badge');t.textContent='GET';el.appendChild(t);return;
   }
-  const badge=document.createElement('span');badge.className='gra-get-badge';badge.setAttribute('aria-label','Ginásio Educacional Tecnológico');badge.textContent='GET';el.appendChild(badge);
+  const badge=document.createElement('span');badge.className='gra-get-badge';badge.style.setProperty('color','#fff','important');badge.style.setProperty('-webkit-text-fill-color','#fff','important');badge.setAttribute('aria-label','Ginásio Educacional Tecnológico');badge.textContent='GET';el.appendChild(badge);
 }
 const DECORATE_SELECTOR='[data-gra-school-name],[data-som-school],[data-school],.bar-name>strong,.adr-school-context strong,.geo-detail h3,.dossier-school-name,.dossier-title h2,.unit,h1,h2,h3,h4,strong,table td,svg text';
 function decorate(root=document){
