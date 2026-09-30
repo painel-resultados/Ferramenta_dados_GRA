@@ -17,8 +17,8 @@
   const VERSION='v412';
   const SCATTER_VALUE='GRAFICO_DISPERSAO';
   const SCATTER_LABEL='Gráfico de Dispersão';
-  const X_MIN=696, X_MAX=840, X_CUT=743;
-  const Y_MIN=470, Y_MAX=670, Y_CUT=500;
+  const X_MIN=675, X_MAX=855, X_CUT=743;
+  const Y_MIN=425, Y_MAX=700, Y_CUT=500;
   const COLORS={blue:'#2f86bd',yellow:'#e3a52b',red:'#cf4f55'};
   const $=id=>document.getElementById(id);
   const safe=value=>typeof window.esc==='function'
@@ -263,8 +263,8 @@
     const pw=W-L-R,ph=H-T-B;
     const x=v=>L+(v-X_MIN)/(X_MAX-X_MIN)*pw;
     const y=v=>T+(Y_MAX-v)/(Y_MAX-Y_MIN)*ph;
-    const xTicks=[696,720,743,760,780,800,820,840];
-    const yTicks=[470,500,525,550,575,600,625,650,670];
+    const xTicks=[675,700,725,750,775,800,825,850];
+    const yTicks=[425,450,475,500,525,550,575,600,625,650,675,700];
     const gridX=xTicks.map(v=>`<g><line x1="${x(v).toFixed(2)}" y1="${T}" x2="${x(v).toFixed(2)}" y2="${H-B}" stroke="#e6edf2" stroke-width="1"/><text x="${x(v).toFixed(2)}" y="${H-B+24}" text-anchor="middle" font-size="12" fill="#68798b">${v}</text></g>`).join('');
     const gridY=yTicks.map(v=>`<g><line x1="${L}" y1="${y(v).toFixed(2)}" x2="${W-R}" y2="${y(v).toFixed(2)}" stroke="#e6edf2" stroke-width="1"/><text x="${L-12}" y="${(y(v)+4).toFixed(2)}" text-anchor="end" font-size="12" fill="#68798b">${v}</text></g>`).join('');
     const query=selectedQuery();
