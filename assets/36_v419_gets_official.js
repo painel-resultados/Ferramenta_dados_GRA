@@ -1,9 +1,9 @@
 (function(){
 'use strict';
-const VERSION='v420';
+const VERSION='v421';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
-const codeSet=new Set(),creNameSet=new Set(),displayNameSet=new Set();
+const codeSet=new Set(),creNameSet=new Set(),displayNameSet=new Set(),officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
 const compareState={som:false,adr:false};
 
 function norm(value){return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim()}
@@ -23,17 +23,21 @@ function namesFrom(value){
   return [value.name,value.escola,value.unidade,value.dataRioName,...(value.aliases||[]),...(value.somAliases||[]),...(value.adrAliases||[])].filter(Boolean);
 }
 function addDisplayName(value){const key=canonicalName(value);if(key)displayNameSet.add(key)}
-OFFICIAL.forEach(row=>{codeSet.add(code(row.code));const key=canonicalName(row.name);creNameSet.add(`${Number(row.cre)}|${key}`);addDisplayName(row.name)});
+OFFICIAL.forEach(row=>{const c=code(row.code),key=canonicalName(row.name),creKey=`${Number(row.cre)}|${key}`;codeSet.add(c);creNameSet.add(creKey);officialByCode.set(c,row);officialByCreName.set(creKey,row);if(!officialByName.has(key))officialByName.set(key,row);addDisplayName(row.name)});
 
-function isGet(value,creHint=''){
-  const directCode=code(value);if(directCode&&codeSet.has(directCode))return true;
+function officialRow(value,creHint=''){
+  const directCode=code(value);if(directCode&&officialByCode.has(directCode))return officialByCode.get(directCode);
   const cre=creNumber(creHint||(typeof value==='object'&&value?(value.cre??value.regional??value.creLabel):''));
   for(const name of namesFrom(value)){
     const key=canonicalName(name);if(!key)continue;
-    if(cre&&creNameSet.has(`${cre}|${key}`))return true;
-    if(!cre&&displayNameSet.has(key))return true;
+    if(cre&&officialByCreName.has(`${cre}|${key}`))return officialByCreName.get(`${cre}|${key}`);
+    if(!cre&&officialByName.has(key))return officialByName.get(key);
   }
-  return false;
+  return null;
+}
+
+function isGet(value,creHint=''){
+  return Boolean(officialRow(value,creHint));
 }
 function applyOfficialClassification(){
   try{
@@ -46,12 +50,15 @@ function applyOfficialClassification(){
 function badgeHtml(value,cre=''){return isGet(value,cre)?'<span class="gra-get-badge" aria-label="Ginásio Educacional Tecnológico">GET</span>':''}
 
 function elementSchoolName(el){
-  return el?.dataset?.graSchoolName||el?.dataset?.somSchool||el?.dataset?.school||String(el?.textContent||'').replace(/\s+GET\s*$/i,'').trim();
+  const direct=el?.dataset?.graSchoolName||el?.dataset?.somSchool||el?.dataset?.school;if(direct)return direct;
+  const clone=el?.cloneNode?.(true);clone?.querySelectorAll?.('.gra-get-badge').forEach(x=>x.remove());
+  return String(clone?.textContent||el?.textContent||'').replace(/\s+GET\s*$/i,'').trim();
 }
 function decorateElement(el){
-  if(!(el instanceof Element)||el.dataset.graGetChecked==='1'||el.closest('.gra-get-badge'))return;
-  const name=elementSchoolName(el);el.dataset.graGetChecked='1';
-  if(!name||!isGet(name))return;
+  if(!(el instanceof Element)||el.closest('.gra-get-badge'))return;
+  const name=elementSchoolName(el),key=canonicalName(name);if(el.dataset.graGetChecked===key)return;
+  el.dataset.graGetChecked=key;el.querySelectorAll(':scope > .gra-get-badge').forEach(x=>x.remove());
+  if(!name||!isGet(name,el.dataset.cre||el.closest('[data-cre]')?.dataset?.cre||''))return;
   if(el.namespaceURI==='http://www.w3.org/2000/svg'&&el.tagName.toLowerCase()==='text'){
     const t=document.createElementNS('http://www.w3.org/2000/svg','tspan');t.setAttribute('dx','8');t.setAttribute('class','gra-get-svg-badge');t.textContent='GET';el.appendChild(t);return;
   }
@@ -62,7 +69,40 @@ function decorate(root=document){
   if(root instanceof Element&&root.matches(DECORATE_SELECTOR))decorateElement(root);
   root.querySelectorAll?.(DECORATE_SELECTOR).forEach(decorateElement);
 }
-let decorateFrame=0;function scheduleDecorate(root=document){if(decorateFrame)return;decorateFrame=requestAnimationFrame(()=>{decorateFrame=0;decorate(root)})}
+let decorateFrame=0;const decorateRoots=new Set();
+function scheduleDecorate(root=document){
+  decorateRoots.add(root||document);if(decorateFrame)return;
+  decorateFrame=requestAnimationFrame(()=>{decorateFrame=0;const roots=[...decorateRoots];decorateRoots.clear();for(const item of roots)decorate(item)});
+}
+
+function formatInauguration(value){
+  const text=String(value??'').trim();if(!text)return'—';
+  const m=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:text;
+}
+function masterOfficialRows(){
+  const select=document.getElementById('regionalScopeSelect'),mode=select?.selectedOptions?.[0]?.dataset?.graMasterMode||window.__GRA_MASTER_SCOPE__||'',cre=creNumber(select?.value)||creNumber(window.__GRA_ACCESS__?.cre);
+  if(String(window.__GRA_ACCESS__?.role||'').toLowerCase()==='agent'&&mode==='mine'){
+    const who=norm(window.__GRA_ACCESS__?.name||''),found=new Map();
+    try{for(const point of (Array.isArray(window.GEO_POINTS)?window.GEO_POINTS:(typeof GEO_POINTS!=='undefined'&&Array.isArray(GEO_POINTS)?GEO_POINTS:[]))){if(norm(point?.agent||point?.agente||'')!==who)continue;const row=officialRow(point);if(row)found.set(row.code,row)}}catch(_){}
+    if(found.size)return[...found.values()];
+  }
+  return cre?OFFICIAL.filter(row=>Number(row.cre)===cre):OFFICIAL.slice();
+}
+function contextCard(html){const section=document.createElement('section');section.className='v392-context-card gra-get-context-card';section.dataset.graGetContext='1';section.innerHTML=html;return section}
+function enhanceContextDrawer(){
+  const overlay=document.getElementById('v392SchoolContextOverlay'),body=document.getElementById('v392ContextBody'),title=document.getElementById('v392ContextTitle');
+  if(!overlay?.classList.contains('open')||!body)return;
+  body.querySelectorAll('[data-gra-get-context]').forEach(x=>x.remove());
+  let current=null;try{current=window.__GRA_V392_CONTEXT__?.getCurrent?.()||null}catch(_){}
+  const schoolView=Boolean(current&&canonicalName(title?.textContent||'')===canonicalName(current.escola||current.unidade||''));
+  if(schoolView){
+    const row=officialRow({codeSME:current.sme,name:current.escola,cre:current.cre},current.cre);if(!row)return;
+    const card=contextCard(`<h3>Ginásio Educacional Tecnológico</h3><p class="v392-desc">Classificação oficial da unidade na base de GETs da SME-Rio.</p><div class="v392-kpis gra-get-context-kpis"><div class="v392-kpi"><small>Inauguração como GET</small><b>${formatInauguration(row.inauguration)}</b><span>Registro informado na planilha oficial</span></div></div>`);
+    body.insertBefore(card,body.firstChild);return;
+  }
+  const rows=masterOfficialRows(),card=contextCard(`<h3>Ginásios Educacionais Tecnológicos</h3><p class="v392-desc">Quantidade de GETs no universo definido pelo filtro Master.</p><div class="v392-kpis gra-get-context-kpis"><div class="v392-kpi"><small>GETs no universo</small><b>${rows.length.toLocaleString('pt-BR')}</b><span>Base oficial da SME-Rio</span></div></div>`);
+  body.insertBefore(card,body.firstChild);
+}
 
 function weighted(rows,valueFn){let sum=0,weight=0;for(const row of rows){const value=Number(valueFn(row));if(!Number.isFinite(value))continue;const w=Math.max(1,Number(row.avaliados)||1);sum+=value*w;weight+=w}return weight?sum/weight:null}
 function mean(values){const valid=values.map(Number).filter(Number.isFinite);return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:null}
@@ -128,12 +168,15 @@ function refreshOpenComparisons(){for(const kind of ['som','adr'])if(compareStat
 function stamp(){document.documentElement.dataset.graVersion=VERSION;document.querySelectorAll('#dashboardVersionBadge,.gra-start-version,.gra-access-version,.exp-badge').forEach(el=>{if(/^v?\d+/i.test((el.textContent||'').trim()))el.textContent=VERSION});document.title=`Ferramenta GRA de análise de dados — ${VERSION}`}
 function boot(){
   applyOfficialClassification();installComparison('som');installComparison('adr');decorate();stamp();
-  new MutationObserver(mutations=>{for(const mutation of mutations)for(const node of mutation.addedNodes)if(node.nodeType===1)scheduleDecorate(node)}).observe(document.body,{childList:true,subtree:true});
+  new MutationObserver(mutations=>{for(const mutation of mutations){let elementAdded=false;for(const node of mutation.addedNodes)if(node.nodeType===1){elementAdded=true;scheduleDecorate(node)}if(!elementAdded&&mutation.target instanceof Element)scheduleDecorate(mutation.target)}}).observe(document.body,{childList:true,subtree:true});
   document.addEventListener('change',event=>{if(event.target?.closest('#somFiltersCard,#adrFiltersCard')||event.target?.id==='regionalScopeSelect')setTimeout(refreshOpenComparisons,0)},true);
   document.addEventListener('input',event=>{if(['somSearch','adrSearch'].includes(event.target?.id))setTimeout(refreshOpenComparisons,80)},true);
   document.addEventListener('click',event=>{if(event.target?.closest('.nav button[data-section]'))setTimeout(()=>{decorate();refreshOpenComparisons();stamp()},80)},true);
+  document.addEventListener('click',event=>{if(event.target?.closest('#v392SchoolContextBtn'))setTimeout(enhanceContextDrawer,30)},true);
+  document.addEventListener('click',event=>{if(event.target?.closest('#partnersEducationBtn')&&document.getElementById('v392SchoolContextOverlay')?.classList.contains('open'))setTimeout(enhanceContextDrawer,60)},true);
+  document.addEventListener('change',event=>{if(event.target?.id==='regionalScopeSelect'&&document.getElementById('v392SchoolContextOverlay')?.classList.contains('open'))setTimeout(enhanceContextDrawer,30)},true);
   [250,900,1800].forEach(ms=>setTimeout(()=>{applyOfficialClassification();decorate();stamp()},ms));
 }
-window.GRA_GETS={version:VERSION,source:'20260930_GETs_SMERio.xlsx',rows:OFFICIAL,isGet,badgeHtml,decorate,applyOfficialClassification};
+window.GRA_GETS={version:VERSION,source:'20260930_GETs_SMERio.xlsx',rows:OFFICIAL,isGet,officialRow,badgeHtml,decorate,applyOfficialClassification,enhanceContextDrawer};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

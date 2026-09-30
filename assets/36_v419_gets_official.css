@@ -26,6 +26,9 @@
 .get-official-track{height:20px;border-radius:999px;background:#e4edf4;overflow:hidden}.get-official-track b{display:block;height:100%;min-width:3px;border-radius:999px;transition:width .25s ease}
 .get-official-value{text-align:right;color:#12385d;font-size:13px;font-weight:950}.get-official-value small{display:block;margin-top:2px;color:#728597;font-size:9.5px;font-weight:750}
 .get-official-empty{padding:16px;border:1px dashed #bfd5e5;border-radius:12px;color:#607487;text-align:center;font-size:12px}
+.gra-get-context-card{border-color:#c9deef!important;background:linear-gradient(135deg,#fff,#f4faff)!important}
+.gra-get-context-kpis{grid-template-columns:minmax(180px,1fr)!important;max-width:310px}
+.gra-get-context-kpis .v392-kpi b{font-size:20px!important;color:#0a66d9!important}
 
 #georreferenciamento .geo-legend [data-geo-get-toggle]{order:20!important;border-color:#e1c15c!important;background:rgba(255,250,225,.96)!important;color:#725b0c!important}
 #georreferenciamento .geo-legend [data-geo-get-toggle] i{background:#d4af37!important;box-shadow:0 0 0 3px rgba(212,175,55,.23)}

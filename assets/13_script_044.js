@@ -4441,9 +4441,9 @@ function geoRenderMarkers(){
     ctx2.save();
     const officialGet=window.GRA_GETS?.isGet?window.GRA_GETS.isGet(p):Boolean(p.isGET);
     if(officialGet){
-      ctx2.beginPath();ctx2.arc(x,y,radius+5,0,Math.PI*2);
-      ctx2.fillStyle='rgba(255,245,188,.38)';ctx2.fill();
-      ctx2.strokeStyle='#d4af37';ctx2.lineWidth=3;ctx2.shadowColor='rgba(212,175,55,.72)';ctx2.shadowBlur=8;ctx2.stroke();
+      ctx2.beginPath();ctx2.arc(x,y,radius+3.5,0,Math.PI*2);
+      ctx2.fillStyle='rgba(255,245,188,.14)';ctx2.fill();
+      ctx2.strokeStyle='rgba(196,153,24,.72)';ctx2.lineWidth=1.5;ctx2.shadowColor='rgba(212,175,55,.28)';ctx2.shadowBlur=4;ctx2.stroke();
       ctx2.shadowBlur=0;
     }
     if(selected){
