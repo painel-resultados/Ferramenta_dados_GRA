@@ -1,7 +1,7 @@
 /* v416 — Dossiê dinâmico por escola + E.M. Teste (fictícia). */
 (function(){
 'use strict';
-const VERSION='v421';
+const VERSION='v422';
 const DEMO_NAME='E.M. Teste';
 const DEMO_ALIASES=['e.m. teste','em teste','escola municipal teste'];
 const state={context:null,lastTiming:null,lastSchool:null,generating:false};

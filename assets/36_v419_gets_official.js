@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='v421';
+const VERSION='v422';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
 const codeSet=new Set(),creNameSet=new Set(),displayNameSet=new Set(),officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
@@ -90,16 +90,15 @@ function masterOfficialRows(){
 }
 function contextCard(html){const section=document.createElement('section');section.className='v392-context-card gra-get-context-card';section.dataset.graGetContext='1';section.innerHTML=html;return section}
 function enhanceContextDrawer(){
-  const overlay=document.getElementById('v392SchoolContextOverlay'),body=document.getElementById('v392ContextBody'),title=document.getElementById('v392ContextTitle');
+  const overlay=document.getElementById('v392SchoolContextOverlay'),body=document.getElementById('v392ContextBody');
   if(!overlay?.classList.contains('open')||!body)return;
   body.querySelectorAll('[data-gra-get-context]').forEach(x=>x.remove());
-  let current=null;try{current=window.__GRA_V392_CONTEXT__?.getCurrent?.()||null}catch(_){}
-  const schoolView=Boolean(current&&canonicalName(title?.textContent||'')===canonicalName(current.escola||current.unidade||''));
-  if(schoolView){
-    const row=officialRow({codeSME:current.sme,name:current.escola,cre:current.cre},current.cre);if(!row)return;
+  if(overlay.dataset.graContextType==='school'){
+    const cre=overlay.dataset.graContextSchoolCre||'',row=officialRow({codeSME:overlay.dataset.graContextSchoolCode,name:overlay.dataset.graContextSchoolName,cre},cre);if(!row)return;
     const card=contextCard(`<h3>Ginásio Educacional Tecnológico</h3><p class="v392-desc">Classificação oficial da unidade na base de GETs da SME-Rio.</p><div class="v392-kpis gra-get-context-kpis"><div class="v392-kpi"><small>Inauguração como GET</small><b>${formatInauguration(row.inauguration)}</b><span>Registro informado na planilha oficial</span></div></div>`);
     body.insertBefore(card,body.firstChild);return;
   }
+  if(overlay.dataset.graContextType!=='aggregate')return;
   const rows=masterOfficialRows(),card=contextCard(`<h3>Ginásios Educacionais Tecnológicos</h3><p class="v392-desc">Quantidade de GETs no universo definido pelo filtro Master.</p><div class="v392-kpis gra-get-context-kpis"><div class="v392-kpi"><small>GETs no universo</small><b>${rows.length.toLocaleString('pt-BR')}</b><span>Base oficial da SME-Rio</span></div></div>`);
   body.insertBefore(card,body.firstChild);
 }

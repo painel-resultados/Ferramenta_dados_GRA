@@ -4439,15 +4439,14 @@ function geoRenderMarkers(){
     const {p,result,x,y,selected}=item;
     const radius=selected?10:7;
     ctx2.save();
-    const officialGet=window.GRA_GETS?.isGet?window.GRA_GETS.isGet(p):Boolean(p.isGET);
-    if(officialGet){
-      ctx2.beginPath();ctx2.arc(x,y,radius+3.5,0,Math.PI*2);
-      ctx2.fillStyle='rgba(255,245,188,.14)';ctx2.fill();
-      ctx2.strokeStyle='rgba(196,153,24,.72)';ctx2.lineWidth=1.5;ctx2.shadowColor='rgba(212,175,55,.28)';ctx2.shadowBlur=4;ctx2.stroke();
-      ctx2.shadowBlur=0;
-    }
     if(selected){
       ctx2.beginPath();ctx2.arc(x,y,radius+5,0,Math.PI*2);ctx2.fillStyle='rgba(18,56,93,.20)';ctx2.fill();
+    }
+    const officialGet=window.GRA_GETS?.isGet?window.GRA_GETS.isGet(p):Boolean(p.isGET);
+    if(officialGet){
+      ctx2.beginPath();ctx2.arc(x,y,radius+1.7,0,Math.PI*2);
+      ctx2.strokeStyle='rgba(200,148,7,.96)';ctx2.lineWidth=2.4;ctx2.shadowColor='rgba(227,168,16,.72)';ctx2.shadowBlur=6;ctx2.stroke();
+      ctx2.shadowBlur=0;
     }
     ctx2.beginPath();ctx2.arc(x,y,radius,0,Math.PI*2);
     ctx2.fillStyle=selected?'#12385d':geoCanvasStatusColor(result?.status);
