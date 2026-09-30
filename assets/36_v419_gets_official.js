@@ -161,12 +161,11 @@ function simStandardizedSchoolRowsForGets(){
   }
   return out;
 }
-function isSimAlphaTotalContext(){
+function isSimAlphaUniverseContext(){
   const modality=document.getElementById('somModalidade')?.value||'';
   const year=document.getElementById('somAnoEscolar')?.value||'';
   const component=document.getElementById('somComponente')?.value||'';
-  const mode=document.getElementById('somMode')?.value||'individual';
-  return modality==='Simulado 2026'&&year==='2º ano'&&component==='LP'&&mode==='individual';
+  return modality==='Simulado 2026'&&year==='2º ano'&&component==='LP';
 }
 function alphaPct(row){
   const direct=Number(row?.alfabetizacaoPct);
@@ -178,6 +177,18 @@ function alphaCountFromRow(row){
   const pct=alphaPct(row),evaluated=Number(row?.avaliados);
   if(!Number.isFinite(pct)||!Number.isFinite(evaluated))return null;
   return evaluated*(pct/100);
+}
+function alphaUniverseStats(rows){
+  let alfabetizados=0,avaliados=0;
+  for(const row of rows||[]){
+    const count=alphaCountFromRow(row);
+    const evals=Number(row?.avaliados);
+    if(Number.isFinite(count)&&Number.isFinite(evals)){
+      alfabetizados+=count;
+      avaliados+=evals;
+    }
+  }
+  return {alfabetizados,avaliados,pct:avaliados?alfabetizados*100/avaliados:null};
 }
 
 async function ensureComparisonData(kind){
@@ -224,45 +235,52 @@ function computeSeries(kind){
     const progress=document.getElementById('somMode')?.value==='progressao';
     const year=document.getElementById('somAnoEscolar')?.value||'';
     const standardized=isSimStandardizedContext();
-    const alphaTotal=isSimAlphaTotalContext();
+    const alphaUniverse=isSimAlphaUniverseContext();
     const rows=standardized?simStandardizedSchoolRowsForGets():somFilteredRows({ignoreSearch:true});
     const groups=groupRowsBySchool(rows);
     const score=['ideb2023','ideb2025','notaPadronizada','crescimento'].includes(metric);
-    const mode=alphaTotal?'count':(progress?'delta':score?'score':'pct');
+    const mode=progress?'delta':score?'score':'pct';
     const label=typeof somMetricLabel==='function'?somMetricLabel(metric):metric;
-    const titleLabel=alphaTotal?'total de alunos alfabetizados':(metric==='crescimento'?'crescimento médio em pontos':standardized?'Nota Padronizada (LP + MT)':label);
-    const subtitle=alphaTotal
-      ? `${masterLabel()} · Simulado 2026 · ${year} · Língua Portuguesa · estudantes com proficiência ≥ 743 no universo selecionado`
+    const titleLabel=alphaUniverse?'% de alunos alfabetizados':(metric==='crescimento'?'crescimento médio em pontos':standardized?'Nota Padronizada (LP + MT)':label);
+    const subtitle=alphaUniverse
+      ? `${masterLabel()} · Simulado 2026 · ${year} · Língua Portuguesa · percentual de alunos com proficiência ≥ 743 no universo selecionado`
       : `${masterLabel()} · ${document.getElementById('somModalidade')?.selectedOptions?.[0]?.textContent||''} · ${year} · ${standardized?'LP + MT combinados':(document.getElementById('somComponente')?.selectedOptions?.[0]?.textContent||'')}`;
     if(progress){
       const editions=[...new Set(rows.map(r=>String(r.edicao||'')).filter(Boolean))].sort(orderSomEdition);
       const points=editions.map(ed=>{
         const getVals=[],nonVals=[];
-        let getTotal=0,nonTotal=0,getCount=0,nonCount=0;
-        for(const schoolRows of groups){
-          const filtered=schoolRows.filter(r=>String(r.edicao||'')===ed);
-          const value=alphaTotal
-            ? filtered.reduce((sum,row)=>sum+(Number(alphaCountFromRow(row))||0),0)
-            : weighted(filtered,r=>somMetricValue(r,metric));
-          if(!Number.isFinite(value))continue;
-          if(isGet(schoolRows[0])){ alphaTotal?(getTotal+=value,getCount++):getVals.push(value); }
-          else { alphaTotal?(nonTotal+=value,nonCount++):nonVals.push(value); }
+        let getCount=0,nonCount=0;
+        let getPct=null,nonPct=null;
+        if(alphaUniverse){
+          const getRows=[],nonRows=[];
+          for(const schoolRows of groups){
+            const filtered=schoolRows.filter(r=>String(r.edicao||'')===ed);
+            if(!filtered.length)continue;
+            if(isGet(schoolRows[0])){getRows.push(...filtered);getCount++;}
+            else{nonRows.push(...filtered);nonCount++;}
+          }
+          getPct=alphaUniverseStats(getRows).pct;
+          nonPct=alphaUniverseStats(nonRows).pct;
+          return {label:ed,get:getPct,non:nonPct,getCount,nonCount};
         }
-        return alphaTotal
-          ? {label:ed,get:getTotal,non:nonTotal,getCount,nonCount}
-          : {label:ed,get:mean(getVals),non:mean(nonVals),getCount:getVals.length,nonCount:nonVals.length};
+        for(const schoolRows of groups){
+          const value=weighted(schoolRows.filter(r=>String(r.edicao||'')===ed),r=>somMetricValue(r,metric));
+          if(!Number.isFinite(value))continue;
+          (isGet(schoolRows[0])?getVals:nonVals).push(value);
+        }
+        return {label:ed,get:mean(getVals),non:mean(nonVals),getCount:getVals.length,nonCount:nonVals.length};
       }).filter(point=>Number.isFinite(point.get)||Number.isFinite(point.non));
-      return {kind:'line',mode:alphaTotal?'count':(score?'score':'pct'),title:`GETs × não GETs — progressão de ${titleLabel}`,subtitle,points,getSchoolCount:Math.max(0,...points.map(p=>p.getCount)),nonSchoolCount:Math.max(0,...points.map(p=>p.nonCount)),getCurrent:points.at(-1)?.get??null,nonCurrent:points.at(-1)?.non??null};
+      return {kind:'line',mode:alphaUniverse?'pct':(score?'score':'pct'),title:`GETs × não GETs — progressão de ${titleLabel}`,subtitle,points,getSchoolCount:Math.max(0,...points.map(p=>p.getCount)),nonSchoolCount:Math.max(0,...points.map(p=>p.nonCount)),getCurrent:points.at(-1)?.get??null,nonCurrent:points.at(-1)?.non??null,differenceHelp:alphaUniverse?'Diferença entre os percentuais agregados de alunos alfabetizados dos dois grupos.':'Diferença entre os dois grupos exibidos na comparação, na mesma unidade do indicador.'};
     }
-    if(alphaTotal){
-      let getTotal=0,nonTotal=0,getSchools=0,nonSchools=0;
+    if(alphaUniverse){
+      const getRows=[],nonRows=[];
+      let getSchools=0,nonSchools=0;
       for(const schoolRows of groups){
-        const value=schoolRows.reduce((sum,row)=>sum+(Number(alphaCountFromRow(row))||0),0);
-        if(!Number.isFinite(value))continue;
-        if(isGet(schoolRows[0])){getTotal+=value;getSchools++;}
-        else{nonTotal+=value;nonSchools++;}
+        if(isGet(schoolRows[0])){getRows.push(...schoolRows);getSchools++;}
+        else{nonRows.push(...schoolRows);nonSchools++;}
       }
-      return {kind:'bar',mode:'count',title:`GETs × não GETs — ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:getTotal,count:getSchools},{label:'Não GETs',color:GREEN,value:nonTotal,count:nonSchools}],differenceHelp:'Diferença entre os totais de alunos alfabetizados das duas barras.'};
+      const getStats=alphaUniverseStats(getRows),nonStats=alphaUniverseStats(nonRows);
+      return {kind:'bar',mode:'pct',title:`GETs × não GETs — ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:getStats.pct,count:getSchools},{label:'Não GETs',color:GREEN,value:nonStats.pct,count:nonSchools}],differenceHelp:'Diferença entre os percentuais agregados de alunos alfabetizados dos dois grupos.'};
     }
     const getVals=[],nonVals=[];
     for(const schoolRows of groups){
