@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='v424';
+const VERSION='v425';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
 const officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
@@ -114,6 +114,7 @@ function groupRowsBySchool(rows){const groups=new Map();for(const row of rows||[
 function withoutSearch(id,fn){const input=document.getElementById(id);if(!input)return fn();const old=input.value;input.value='';try{return fn()}finally{input.value=old}}
 function masterLabel(){return document.getElementById('regionalScopeSelect')?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME'}
 function metricFormat(value,mode){if(!Number.isFinite(value))return'—';const d=mode==='score'?2:1;return value.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+(mode==='pct'?'%':mode==='delta'?' p.p.':'')}
+function currentDifferenceFormat(value,mode){if(!Number.isFinite(value))return'—';const decimals=mode==='score'?2:2;return value.toLocaleString('pt-BR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})}
 function axisTicks(min,max,steps=4){
   if(!Number.isFinite(min)||!Number.isFinite(max))return[];
   if(min===max){const only=min||0;return [only];}
@@ -278,7 +279,7 @@ function renderComparison(kind){
     <div class="get-official-kpis">
       <div class="get-official-kpi"><small>GETs no recorte</small><b>${getCount.toLocaleString('pt-BR')}</b><span>escolas consideradas</span></div>
       <div class="get-official-kpi"><small>Não GETs no recorte</small><b>${nonCount.toLocaleString('pt-BR')}</b><span>escolas consideradas</span></div>
-      <div class="get-official-kpi ${delta>=0?'is-positive':'is-negative'}"><small>Diferença atual</small><b>${metricFormat(delta,result.mode)}</b><span>GETs − não GETs</span></div>
+      <div class="get-official-kpi ${delta>=0?'is-positive':'is-negative'}"><small>Diferença atual</small><b>${currentDifferenceFormat(delta,result.mode)}</b><span>GETs − não GETs · mesma unidade do indicador</span></div>
     </div>
     <div class="get-official-chart-wrap">${chart}</div>`;
   scheduleDecorate(panel);
