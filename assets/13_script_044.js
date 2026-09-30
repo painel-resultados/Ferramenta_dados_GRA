@@ -3565,7 +3565,7 @@ const GEO_STATE = {
   markerHits:[], suppressClickUntil:0,
   evaluation:'ADR', evalSelections:{}, evalCache:new Map(), somIndex:new Map(), somIndexSize:-1,
   adrIndex:new Map(), adrReady:false, adrBuilding:false, adrCallbacks:[], evolutionCache:new Map(),
-  legendStatus:'', legendEventsBound:false, tileErrors:0, legendTouchStamp:0,
+  legendStatus:'', getOnly:false, legendEventsBound:false, tileErrors:0, legendTouchStamp:0,
   focusedSchool:''
 };
 function geoNum(v) { const n=Number(v); return Number.isFinite(n)?n:null; }
@@ -4189,6 +4189,26 @@ function geoUpdateLegend(){
     el.setAttribute('aria-label',active===key?`Mostrar todos os estratos. ${label} está selecionado.`:`Mostrar somente ${label}`);
     geoBindLegendItem(el);
   });
+  const getToggle=document.querySelector('[data-geo-get-toggle]');
+  if(getToggle){
+    const active=Boolean(GEO_STATE.getOnly);
+    getToggle.classList.toggle('active',active);
+    getToggle.setAttribute('aria-pressed',String(active));
+    getToggle.setAttribute('role','button');
+    getToggle.setAttribute('tabindex','0');
+    getToggle.setAttribute('aria-label',active?'Mostrar GETs e não GETs':'Mostrar somente GETs');
+    if(getToggle.dataset.geoGetBound!=='1'){
+      getToggle.dataset.geoGetBound='1';
+      const toggle=event=>{
+        event?.preventDefault?.();event?.stopPropagation?.();
+        GEO_STATE.getOnly=!GEO_STATE.getOnly;
+        geoUpdateLegend();geoRenderMarkers();
+        const points=geoVisiblePoints();if(points.length)geoFitToPoints(points);
+      };
+      getToggle.addEventListener('click',toggle);
+      getToggle.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')toggle(event)});
+    }
+  }
 }
 function geoSetLegendStatus(status='',fit=true){
   const next=status&&GEO_STATE.legendStatus!==status?status:'';
@@ -4260,8 +4280,10 @@ function geoVisiblePoints(){
     if(!hasData)return false;
     // v378 — no Simulado só entram escolas com resultado resolvido em relação à meta.
     if(ctx.evaluation==='Simulado 2026'&&!['up','down'].includes(result.status))return false;
-    if(get==='sim'&&!p.isGET)return false;
-    if(get==='nao'&&p.isGET)return false;
+    const officialGet=window.GRA_GETS?.isGet?window.GRA_GETS.isGet(p):Boolean(p.isGET);
+    if(GEO_STATE.getOnly&&!officialGet)return false;
+    if(get==='sim'&&!officialGet)return false;
+    if(get==='nao'&&officialGet)return false;
     if(!allSchools&&agent&&p.agent!==agent)return false;
     if(!allSchools&&!agent&&!String(p.agent||'').trim())return false;
     if(priorityOnly&&!priorityMatchesContext(p.name,ctx.segment,ctx.evaluation))return false;
@@ -4286,6 +4308,7 @@ function geoReturnToTerritory(){
   const focused=GEO_STATE.focusedSchool;
   GEO_STATE.focusedSchool='';
   GEO_STATE.legendStatus='';
+  GEO_STATE.getOnly=false;
   const search=document.getElementById('geoSearch');
   if(search)search.value='';
   const globalSearch=document.getElementById('globalSearch');
@@ -4416,6 +4439,13 @@ function geoRenderMarkers(){
     const {p,result,x,y,selected}=item;
     const radius=selected?10:7;
     ctx2.save();
+    const officialGet=window.GRA_GETS?.isGet?window.GRA_GETS.isGet(p):Boolean(p.isGET);
+    if(officialGet){
+      ctx2.beginPath();ctx2.arc(x,y,radius+5,0,Math.PI*2);
+      ctx2.fillStyle='rgba(255,245,188,.38)';ctx2.fill();
+      ctx2.strokeStyle='#d4af37';ctx2.lineWidth=3;ctx2.shadowColor='rgba(212,175,55,.72)';ctx2.shadowBlur=8;ctx2.stroke();
+      ctx2.shadowBlur=0;
+    }
     if(selected){
       ctx2.beginPath();ctx2.arc(x,y,radius+5,0,Math.PI*2);ctx2.fillStyle='rgba(18,56,93,.20)';ctx2.fill();
     }
@@ -4439,7 +4469,7 @@ function geoHomeIcon(){
 }
 function geoInitStage(){
   const el=document.getElementById('geoMap'); if(!el||GEO_STATE.initialized)return;
-  el.innerHTML='<div class="geo-tile-layer"></div><canvas class="geo-marker-layer" aria-label="Pontos georreferenciados das escolas"></canvas><div class="geo-map-controls"><button class="geo-map-control" type="button" data-geo-zoom="in" aria-label="Aproximar">+</button><button class="geo-map-control" type="button" data-geo-zoom="out" aria-label="Afastar">−</button><button class="geo-map-control fit" type="button" data-geo-fit aria-label="Mostrar toda a 2ª CRE">⌂</button></div><div class="geo-legend" aria-label="Legenda dos resultados"><span data-geo-legend="up"><i class="up"></i><b>Subiu</b></span><span data-geo-legend="attention" hidden><i class="attention"></i><b>Atenção</b></span><span data-geo-legend="excellent" hidden><i class="excellent"></i><b>Excelente</b></span><span data-geo-legend="down"><i class="down"></i><b>Caiu</b></span><span data-geo-legend="flat"><i class="flat"></i><b>Estagnou</b></span><span data-geo-legend="nodata"><i class="nodata"></i><b>Sem dados</b></span></div><div class="geo-map-status">Preparando mapa…</div><div class="geo-attribution">© OpenStreetMap contributors</div>';
+  el.innerHTML='<div class="geo-tile-layer"></div><canvas class="geo-marker-layer" aria-label="Pontos georreferenciados das escolas"></canvas><div class="geo-map-controls"><button class="geo-map-control" type="button" data-geo-zoom="in" aria-label="Aproximar">+</button><button class="geo-map-control" type="button" data-geo-zoom="out" aria-label="Afastar">−</button><button class="geo-map-control fit" type="button" data-geo-fit aria-label="Mostrar toda a 2ª CRE">⌂</button></div><div class="geo-legend" aria-label="Legenda dos resultados"><span data-geo-legend="up"><i class="up"></i><b>Subiu</b></span><span data-geo-legend="attention" hidden><i class="attention"></i><b>Atenção</b></span><span data-geo-legend="excellent" hidden><i class="excellent"></i><b>Excelente</b></span><span data-geo-legend="down"><i class="down"></i><b>Caiu</b></span><span data-geo-legend="flat"><i class="flat"></i><b>Estagnou</b></span><span data-geo-legend="nodata"><i class="nodata"></i><b>Sem dados</b></span><span data-geo-get-toggle><i></i><b>Somente GETs</b></span></div><div class="geo-map-status">Preparando mapa…</div><div class="geo-attribution">© OpenStreetMap contributors</div>';
   el.querySelector('[data-geo-zoom="in"]').onclick=e=>{e.stopPropagation();geoSetZoom(GEO_STATE.zoom+1);}; el.querySelector('[data-geo-zoom="out"]').onclick=e=>{e.stopPropagation();geoSetZoom(GEO_STATE.zoom-1);};
   const markerCanvas=el.querySelector('canvas.geo-marker-layer');
   if(markerCanvas){
@@ -4875,4 +4905,3 @@ initNav(); initGlobalSearch();
    Assim a tela de login não paga o custo das bases e, para Agentes, o recorte da CRE
    já está aplicado antes da primeira materialização. */
 document.addEventListener('DOMContentLoaded',()=>initResultados(),{once:true});
-
