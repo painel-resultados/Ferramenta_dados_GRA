@@ -113,8 +113,18 @@ function schoolKey(row){return `${creNumber(row?.cre||row?.regional)}|${canonica
 function groupRowsBySchool(rows){const groups=new Map();for(const row of rows||[]){const key=schoolKey(row);if(!key.endsWith('|')){if(!groups.has(key))groups.set(key,[]);groups.get(key).push(row)}}return [...groups.values()]}
 function withoutSearch(id,fn){const input=document.getElementById(id);if(!input)return fn();const old=input.value;input.value='';try{return fn()}finally{input.value=old}}
 function masterLabel(){return document.getElementById('regionalScopeSelect')?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME'}
-function metricFormat(value,mode){if(!Number.isFinite(value))return'—';const d=mode==='score'?2:1;return value.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+(mode==='pct'?'%':mode==='delta'?' p.p.':'')}
-function currentDifferenceFormat(value,mode){if(!Number.isFinite(value))return'—';const decimals=mode==='score'?2:2;return value.toLocaleString('pt-BR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})}
+function metricFormat(value,mode){
+  if(!Number.isFinite(value))return'—';
+  if(mode==='count')return Math.round(value).toLocaleString('pt-BR');
+  const d=mode==='score'?2:1;
+  return value.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+(mode==='pct'?'%':mode==='delta'?' p.p.':'');
+}
+function currentDifferenceFormat(value,mode){
+  if(!Number.isFinite(value))return'—';
+  if(mode==='count')return Math.round(value).toLocaleString('pt-BR');
+  const decimals=mode==='score'?2:2;
+  return value.toLocaleString('pt-BR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+}
 function axisTicks(min,max,steps=4){
   if(!Number.isFinite(min)||!Number.isFinite(max))return[];
   if(min===max){const only=min||0;return [only];}
@@ -151,6 +161,25 @@ function simStandardizedSchoolRowsForGets(){
   }
   return out;
 }
+function isSimAlphaTotalContext(){
+  const modality=document.getElementById('somModalidade')?.value||'';
+  const year=document.getElementById('somAnoEscolar')?.value||'';
+  const component=document.getElementById('somComponente')?.value||'';
+  const mode=document.getElementById('somMode')?.value||'individual';
+  return modality==='Simulado 2026'&&year==='2º ano'&&component==='LP'&&mode==='individual';
+}
+function alphaPct(row){
+  const direct=Number(row?.alfabetizacaoPct);
+  if(Number.isFinite(direct))return direct;
+  const fallback=Number(row?.adqAv);
+  return Number.isFinite(fallback)?fallback:null;
+}
+function alphaCountFromRow(row){
+  const pct=alphaPct(row),evaluated=Number(row?.avaliados);
+  if(!Number.isFinite(pct)||!Number.isFinite(evaluated))return null;
+  return evaluated*(pct/100);
+}
+
 async function ensureComparisonData(kind){
   if(kind!=='som'||!isSimStandardizedContext()||typeof sim2026EnsureCombo!=='function')return;
   const year=document.getElementById('somAnoEscolar')?.value||'';
@@ -186,42 +215,61 @@ function computeSeries(kind){
       const value=weighted(schoolRows,r=>r[metric]);if(!Number.isFinite(value))continue;
       (isGet(schoolRows[0])?getVals:nonVals).push(value);
     }
-    return {kind:'bar',mode:'pct',title:`GETs × não GETs — média de ${label}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}]};
+    return {kind:'bar',mode:'pct',title:`GETs × não GETs — média de ${label}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}],differenceHelp:'Diferença entre as duas barras exibidas nesta comparação.'};
   }
 
   if(kind==='som'){
     if(typeof somFilteredRows!=='function'||typeof somMetricValue!=='function')return null;
     const metric=document.getElementById('somMetric')?.value||'principal';
     const progress=document.getElementById('somMode')?.value==='progressao';
-    const modality=document.getElementById('somModalidade')?.value||'';
     const year=document.getElementById('somAnoEscolar')?.value||'';
     const standardized=isSimStandardizedContext();
+    const alphaTotal=isSimAlphaTotalContext();
     const rows=standardized?simStandardizedSchoolRowsForGets():somFilteredRows({ignoreSearch:true});
     const groups=groupRowsBySchool(rows);
     const score=['ideb2023','ideb2025','notaPadronizada','crescimento'].includes(metric);
-    const mode=progress?'delta':score?'score':'pct';
+    const mode=alphaTotal?'count':(progress?'delta':score?'score':'pct');
     const label=typeof somMetricLabel==='function'?somMetricLabel(metric):metric;
-    const titleLabel=metric==='crescimento'?'crescimento médio em pontos':standardized?'Nota Padronizada (LP + MT)':label;
-    const subtitle=`${masterLabel()} · ${document.getElementById('somModalidade')?.selectedOptions?.[0]?.textContent||''} · ${year} · ${standardized?'LP + MT combinados':(document.getElementById('somComponente')?.selectedOptions?.[0]?.textContent||'')}`;
+    const titleLabel=alphaTotal?'total de alunos alfabetizados':(metric==='crescimento'?'crescimento médio em pontos':standardized?'Nota Padronizada (LP + MT)':label);
+    const subtitle=alphaTotal
+      ? `${masterLabel()} · Simulado 2026 · ${year} · Língua Portuguesa · estudantes com proficiência ≥ 743 no universo selecionado`
+      : `${masterLabel()} · ${document.getElementById('somModalidade')?.selectedOptions?.[0]?.textContent||''} · ${year} · ${standardized?'LP + MT combinados':(document.getElementById('somComponente')?.selectedOptions?.[0]?.textContent||'')}`;
     if(progress){
       const editions=[...new Set(rows.map(r=>String(r.edicao||'')).filter(Boolean))].sort(orderSomEdition);
       const points=editions.map(ed=>{
         const getVals=[],nonVals=[];
+        let getTotal=0,nonTotal=0,getCount=0,nonCount=0;
         for(const schoolRows of groups){
-          const value=weighted(schoolRows.filter(r=>String(r.edicao||'')===ed),r=>somMetricValue(r,metric));
+          const filtered=schoolRows.filter(r=>String(r.edicao||'')===ed);
+          const value=alphaTotal
+            ? filtered.reduce((sum,row)=>sum+(Number(alphaCountFromRow(row))||0),0)
+            : weighted(filtered,r=>somMetricValue(r,metric));
           if(!Number.isFinite(value))continue;
-          (isGet(schoolRows[0])?getVals:nonVals).push(value);
+          if(isGet(schoolRows[0])){ alphaTotal?(getTotal+=value,getCount++):getVals.push(value); }
+          else { alphaTotal?(nonTotal+=value,nonCount++):nonVals.push(value); }
         }
-        return {label:ed,get:mean(getVals),non:mean(nonVals),getCount:getVals.length,nonCount:nonVals.length};
+        return alphaTotal
+          ? {label:ed,get:getTotal,non:nonTotal,getCount,nonCount}
+          : {label:ed,get:mean(getVals),non:mean(nonVals),getCount:getVals.length,nonCount:nonVals.length};
       }).filter(point=>Number.isFinite(point.get)||Number.isFinite(point.non));
-      return {kind:'line',mode:score?'score':'pct',title:`GETs × não GETs — progressão média de ${titleLabel}`,subtitle,points,getSchoolCount:Math.max(0,...points.map(p=>p.getCount)),nonSchoolCount:Math.max(0,...points.map(p=>p.nonCount)),getCurrent:points.at(-1)?.get??null,nonCurrent:points.at(-1)?.non??null};
+      return {kind:'line',mode:alphaTotal?'count':(score?'score':'pct'),title:`GETs × não GETs — progressão de ${titleLabel}`,subtitle,points,getSchoolCount:Math.max(0,...points.map(p=>p.getCount)),nonSchoolCount:Math.max(0,...points.map(p=>p.nonCount)),getCurrent:points.at(-1)?.get??null,nonCurrent:points.at(-1)?.non??null};
+    }
+    if(alphaTotal){
+      let getTotal=0,nonTotal=0,getSchools=0,nonSchools=0;
+      for(const schoolRows of groups){
+        const value=schoolRows.reduce((sum,row)=>sum+(Number(alphaCountFromRow(row))||0),0);
+        if(!Number.isFinite(value))continue;
+        if(isGet(schoolRows[0])){getTotal+=value;getSchools++;}
+        else{nonTotal+=value;nonSchools++;}
+      }
+      return {kind:'bar',mode:'count',title:`GETs × não GETs — ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:getTotal,count:getSchools},{label:'Não GETs',color:GREEN,value:nonTotal,count:nonSchools}],differenceHelp:'Diferença entre os totais de alunos alfabetizados das duas barras.'};
     }
     const getVals=[],nonVals=[];
     for(const schoolRows of groups){
       const value=standardized?weighted(schoolRows,r=>r.notaPadronizada):weighted(schoolRows,r=>somMetricValue(r,metric));if(!Number.isFinite(value))continue;
       (isGet(schoolRows[0])?getVals:nonVals).push(value);
     }
-    return {kind:'bar',mode,title:`GETs × não GETs — média de ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}]};
+    return {kind:'bar',mode,title:`GETs × não GETs — média de ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}],differenceHelp:'Diferença entre as duas barras exibidas nesta comparação.'};
   }
   return null;
 }
@@ -330,7 +378,7 @@ function renderComparisonReady(kind,panel){
     <div class="get-official-kpis">
       <div class="get-official-kpi"><small>GETs no recorte</small><b>${getCount.toLocaleString('pt-BR')}</b><span>escolas consideradas</span></div>
       <div class="get-official-kpi"><small>Não GETs no recorte</small><b>${nonCount.toLocaleString('pt-BR')}</b><span>escolas consideradas</span></div>
-      <div class="get-official-kpi ${delta>=0?'is-positive':'is-negative'}"><small>Diferença atual</small><b>${currentDifferenceFormat(delta,result.mode)}</b><span>GETs − não GETs · mesma unidade do indicador</span></div>
+      <div class="get-official-kpi ${delta>=0?'is-positive':'is-negative'}"><small>Diferença atual</small><b>${currentDifferenceFormat(delta,result.mode)}</b><span>${esc(result.differenceHelp||'Diferença entre os dois grupos exibidos na comparação, na mesma unidade do indicador.')}</span></div>
     </div>
     <div class="get-official-chart-wrap">${chart}</div>`;
   scheduleDecorate(panel);
