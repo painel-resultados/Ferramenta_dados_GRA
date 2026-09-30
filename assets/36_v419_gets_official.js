@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='v425';
+const VERSION='v426';
 const OFFICIAL=Array.isArray(window.GRA_GETS_OFFICIAL_ROWS)?window.GRA_GETS_OFFICIAL_ROWS:[];
 const BLUE='#0a66d9',GREEN='#1d8f68';
 const officialByCode=new Map(),officialByCreName=new Map(),officialByName=new Map();
@@ -160,9 +160,10 @@ function computeSeries(kind){
     const metric=document.getElementById('somMetric')?.value||'principal';
     const progress=document.getElementById('somMode')?.value==='progressao';
     const groups=groupRowsBySchool(rows);
-    const score=['ideb2023','ideb2025','notaPadronizada'].includes(metric);
+    const score=['ideb2023','ideb2025','notaPadronizada','crescimento'].includes(metric);
     const mode=progress?'delta':score?'score':'pct';
     const label=typeof somMetricLabel==='function'?somMetricLabel(metric):metric;
+    const titleLabel=metric==='crescimento'?'crescimento médio em pontos':label;
     const subtitle=`${masterLabel()} · ${document.getElementById('somModalidade')?.selectedOptions?.[0]?.textContent||''} · ${document.getElementById('somAnoEscolar')?.value||''} · ${document.getElementById('somComponente')?.selectedOptions?.[0]?.textContent||''}`;
     if(progress){
       const editions=[...new Set(rows.map(r=>String(r.edicao||'')).filter(Boolean))].sort(orderSomEdition);
@@ -175,14 +176,14 @@ function computeSeries(kind){
         }
         return {label:ed,get:mean(getVals),non:mean(nonVals),getCount:getVals.length,nonCount:nonVals.length};
       }).filter(point=>Number.isFinite(point.get)||Number.isFinite(point.non));
-      return {kind:'line',mode:score?'score':'pct',title:`GETs × não GETs — progressão média de ${label}`,subtitle,points,getSchoolCount:Math.max(0,...points.map(p=>p.getCount)),nonSchoolCount:Math.max(0,...points.map(p=>p.nonCount)),getCurrent:points.at(-1)?.get??null,nonCurrent:points.at(-1)?.non??null};
+      return {kind:'line',mode:score?'score':'pct',title:`GETs × não GETs — progressão média de ${titleLabel}`,subtitle,points,getSchoolCount:Math.max(0,...points.map(p=>p.getCount)),nonSchoolCount:Math.max(0,...points.map(p=>p.nonCount)),getCurrent:points.at(-1)?.get??null,nonCurrent:points.at(-1)?.non??null};
     }
     const getVals=[],nonVals=[];
     for(const schoolRows of groups){
       const value=weighted(schoolRows,r=>somMetricValue(r,metric));if(!Number.isFinite(value))continue;
       (isGet(schoolRows[0])?getVals:nonVals).push(value);
     }
-    return {kind:'bar',mode,title:`GETs × não GETs — média de ${label}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}]};
+    return {kind:'bar',mode,title:`GETs × não GETs — média de ${titleLabel}`,subtitle,data:[{label:'GETs',color:BLUE,value:mean(getVals),count:getVals.length},{label:'Não GETs',color:GREEN,value:mean(nonVals),count:nonVals.length}]};
   }
   return null;
 }
