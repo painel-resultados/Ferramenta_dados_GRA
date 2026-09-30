@@ -620,6 +620,30 @@
     queueSkills(115);
   }
 
+  function openSchoolInPortuguese(cre,school){
+    const comp=$('somComponente');
+    scatterSticky=false;
+    if(comp){
+      comp.dataset.v410LastComponent='LP';
+      comp.value='LP';
+      comp.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+    cleanupScatterClasses();
+
+    // Depois de sair da dispersão, reutiliza a seleção canônica da escola. Assim,
+    // a busca, os KPIs, as habilidades, a tabela e o detalhamento por turma passam
+    // a trabalhar no recorte real de Língua Portuguesa.
+    try{
+      if(typeof window.__GRA_V311__?.selectSchool==='function'){
+        window.__GRA_V311__.selectSchool(cre,school);
+        return true;
+      }
+    }catch(_){ }
+    const input=$('somSearch');
+    if(input){input.value=school;input.dispatchEvent(new Event('input',{bubbles:true}));return true;}
+    return false;
+  }
+
   function installPointNavigation(){
     const chart=$('somMainChart');
     if(!chart||chart.dataset.v411SmeScatterNav==='1')return;
@@ -635,16 +659,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       event.stopPropagation();
-      // Reusa a navegação canônica das listas por nível: primeiro seleciona pelo nome
-      // e só acrescenta a CRE à busca se houver homônimos na Rede.
-      try{
-        if(typeof window.__GRA_V311__?.selectSchool==='function'){
-          window.__GRA_V311__.selectSchool(cre,school);
-          return;
-        }
-      }catch(_){ }
-      const input=$('somSearch');
-      if(input){input.value=school;input.dispatchEvent(new Event('input',{bubbles:true}));}
+      openSchoolInPortuguese(cre,school);
     };
     chart.addEventListener('click',activate,true);
     chart.addEventListener('keydown',activate,true);
