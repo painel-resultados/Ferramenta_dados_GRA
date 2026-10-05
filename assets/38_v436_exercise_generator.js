@@ -122,7 +122,7 @@ function drawSourceBox(x,item){
   const bx=830,by=36,bw=350,pad=24;const high=item.compatibility==='Alta';
   x.font='16px Arial';const srcLines=wrapText(x,`Fonte: ${item.material}`,bw-pad*2);const bh=96+Math.max(1,srcLines.length)*22;
   x.fillStyle=high?'#eaf7ef':'#fff4d8';roundRect(x,bx,by,bw,bh,18);x.fill();x.strokeStyle=high?'#a7d8b9':'#e4ca7d';x.lineWidth=2;x.stroke();
-  x.fillStyle=high?'#1f7042':'#7d5c00';x.font='700 22px Arial';x.fillText(`Compatibilidade: ${item.compatibility==='Alta'?'Alta Compatibilidade':'Compatibilidade Parcial'}`,bx+pad,by+34);
+  x.fillStyle=high?'#1f7042':'#7d5c00';x.font='700 22px Arial';x.fillText(`Compatibilidade: ${item.compatibility==='Alta'?'Alta':'Parcial'}`,bx+pad,by+34);
   x.fillStyle='#506a7b';x.font='16px Arial';srcLines.forEach((l,i)=>x.fillText(l,bx+pad,by+66+i*22));
   x.font='15px Arial';x.fillText(`Página: ${item.source_page}${item.question?` · Questão: ${item.question}`:''}`,bx+pad,by+bh-20);
   return {bottom:by+bh,left:bx};
