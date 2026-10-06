@@ -79,7 +79,7 @@ function selectOnePerSkill(items,skills,randomize=false){
     });
     if(!cands.length)continue;const pick=cands[0];if(!used.has(pick.id||pick.image)){chosen.push(pick);used.add(pick.id||pick.image);mat.set(pick.material,(mat.get(pick.material)||0)+1)}relatedSkills(pick).forEach(s=>covered.add(s));
   }
-  return chosen;
+  return chosen.sort(compatibilityOrder);
 }
 function toggleModePanels(){
   const mode=qs('input[name="graExGenMode"]:checked')?.value||'one';
@@ -207,6 +207,7 @@ function buildPdf(jpegs,w=1240,h=1754){
 async function generatePdf(items,y,c,level,onProgress,signal){
   const jpg=[];throwIfAborted(signal);
   if(!items.length||items.some(it=>it.review_status!=='checked'))throw new Error('Seleção vazia ou exercício bloqueado pela revisão de conteúdo.');
+  items=items.slice().sort(compatibilityOrder);
   const pages=items.flatMap((item,index)=>{
     const support=item.pages?.length?item.pages:[{image:item.image,source_page:item.source_page}];
     return support.map((page,part)=>({...item,...page,question:`${item.question||'—'} · Atividade ${index+1}, parte ${part+1}/${support.length}`}));
@@ -228,7 +229,7 @@ function forceDownload(blob,name){
 }
 async function generateFromModal(){
   if(!active.items?.length||generation)return;const body=qs('#graExGenBody');let chosen;
-  try{chosen=resolveSelection()}catch(err){const note=body.querySelector('.gra-exgen-note');if(note){note.innerHTML=`<b style="color:#a61f1f">${esc(err.message||err)}</b>`;note.scrollIntoView({block:'nearest'})}return}
+  try{chosen=resolveSelection().sort(compatibilityOrder)}catch(err){const note=body.querySelector('.gra-exgen-note');if(note){note.innerHTML=`<b style="color:#a61f1f">${esc(err.message||err)}</b>`;note.scrollIntoView({block:'nearest'})}return}
   if(!chosen.length)return;
   const snapshot={y:active.y,c:active.c,level:active.level},ticket=session,controller=new AbortController();generation=controller;jobStats.started++;
   const current=()=>ticket===session&&generation===controller&&!controller.signal.aborted;
