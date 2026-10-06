@@ -29,6 +29,7 @@
     }
     const state=states.get(target)||{timer:0,sameTask:false,taskTimer:0,lastPass:-Infinity};
     if(!state.sameTask){
+      clearTimeout(state.timer);state.timer=0;
       state.sameTask=true;
       clearTimeout(state.taskTimer);
       state.taskTimer=setTimeout(()=>{state.sameTask=false;state.taskTimer=0;},0);

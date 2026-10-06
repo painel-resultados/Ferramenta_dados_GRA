@@ -2,7 +2,11 @@
 'use strict';
 const BANK=window.GRA_EXERCISE_BANK||{};
 const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
-let blobUrl='', lastFocus=null, active={};
+let blobUrl='', lastFocus=null, active={}, session=0, generation=null;
+const jobStats={started:0,completed:0,cancelled:0,failed:0};
+function releasePreview(){if(blobUrl){URL.revokeObjectURL(blobUrl);blobUrl=''}active.lastBlob=null;active.lastName=''}
+function cancelGeneration(){session++;if(generation){generation.abort();generation=null}releasePreview()}
+function throwIfAborted(signal){if(signal?.aborted)throw new DOMException('Geração cancelada.','AbortError')}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function yearKey(){const v=qs('#somAnoEscolar')?.value||'';return v.startsWith('2')?'2':v.startsWith('4')?'4':v.startsWith('8')?'8':''}
 function compKey(){return qs('#somComponente')?.value==='MT'?'MT':'LP'}
@@ -29,9 +33,9 @@ function ensureModal(){
   qs('#graExGenBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
 }
 function closeModal(){
-  const b=qs('#graExGenBackdrop');if(!b)return;
+  cancelGeneration();const b=qs('#graExGenBackdrop');if(!b)return;
   b.classList.remove('open');b.setAttribute('aria-hidden','true');document.body.classList.remove('gra-exgen-open');
-  setTimeout(()=>lastFocus?.focus?.({preventScroll:true}),30);
+  const focus=lastFocus,ticket=session;setTimeout(()=>{if(ticket===session)focus?.focus?.({preventScroll:true})},30);
 }
 function skillInventory(items){
   const m=new Map();
@@ -80,7 +84,7 @@ function resolveSelection(){
   const inp=qs('#graExCustomQty'),raw=Number(inp?.value);if(!Number.isInteger(raw)||raw<1)throw new Error('Digite uma quantidade inteira válida de itens.');if(raw>items.length)throw new Error(`A quantidade máxima disponível neste nível é ${items.length}.`);return selectDiverse(items,raw);
 }
 function openModal(level){
-  ensureModal();lastFocus=document.activeElement;const items=itemsFor(level);const y=yearKey(),c=compKey();active={level,y,c,items};
+  cancelGeneration();ensureModal();lastFocus=document.activeElement;const items=itemsFor(level);const y=yearKey(),c=compKey();active={level,y,c,items};
   qs('#graExGenTitle').textContent=`Gerar exercícios - ${levelLabel(level)}`;qs('#graExGenMeta').textContent=`${y}º ano · ${compLabel(c)}`;
   const hi=items.filter(x=>x.compatibility==='Alta').length,pa=items.filter(x=>x.compatibility==='Parcial').length,total=items.length,inv=skillInventory(items),oneCount=selectOnePerSkill(items,inv.map(x=>x.skill)).length;
   const body=qs('#graExGenBody');
@@ -101,7 +105,7 @@ function openModal(level){
   }
   body.querySelectorAll('[data-exgen-cancel]').forEach(b=>b.addEventListener('click',closeModal));body.querySelector('[data-exgen-ok]')?.addEventListener('click',generateFromModal);
   body.querySelectorAll('input[name="graExGenMode"]').forEach(r=>r.addEventListener('change',toggleModePanels));body.querySelector('[data-exgen-all]')?.addEventListener('click',()=>qsa('#graExSkillChooser input[type="checkbox"]').forEach(x=>x.checked=true));body.querySelector('[data-exgen-none]')?.addEventListener('click',()=>qsa('#graExSkillChooser input[type="checkbox"]').forEach(x=>x.checked=false));toggleModePanels();
-  const bd=qs('#graExGenBackdrop');bd.classList.add('open');bd.setAttribute('aria-hidden','false');document.body.classList.add('gra-exgen-open');setTimeout(()=>qs('#graExGenClose')?.focus(),30);
+  const bd=qs('#graExGenBackdrop');bd.classList.add('open');bd.setAttribute('aria-hidden','false');document.body.classList.add('gra-exgen-open');const ticket=session;setTimeout(()=>{if(ticket===session)qs('#graExGenClose')?.focus()},30);
 }
 function decorateDrawer(){
   const drawer=qs('#saebScaleDrawer');if(!drawer)return;
@@ -112,7 +116,15 @@ function decorateDrawer(){
     const n=itemsFor(level).length;b.disabled=!n;b.title=n?`${n} exercício${n===1?'':'s'} ${n===1?'disponível':'disponíveis'}`:'Nenhum exercício Alta ou Parcial disponível neste nível.';
   });
 }
-function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Falha ao carregar imagem do exercício: '+src));im.src=src})}
+function loadImage(src,signal){return new Promise((resolve,reject)=>{
+  throwIfAborted(signal);const im=new Image();let settled=false;
+  const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);im.onload=im.onerror=null;signal?.removeEventListener('abort',abort);if(error){im.src='';reject(error)}else resolve(im)};
+  const abort=()=>finish(new DOMException('Geração cancelada.','AbortError'));
+  const timer=setTimeout(()=>finish(new Error('A imagem do exercício demorou a carregar. Tente gerar novamente.')),20000);
+  im.onload=()=>finish(im.naturalWidth?null:new Error('Imagem de exercício inválida.'));
+  im.onerror=()=>finish(new Error('Falha ao carregar imagem do exercício: '+src));
+  signal?.addEventListener('abort',abort,{once:true});im.src=src;
+})}
 function wrapText(ctx,text,maxWidth){
   const words=String(text||'').trim().split(/\s+/).filter(Boolean),lines=[];let cur='';
   for(const w of words){const t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxWidth&&cur){lines.push(cur);cur=w}else cur=t}if(cur)lines.push(cur);return lines;
@@ -175,27 +187,54 @@ function buildPdf(jpegs,w=1240,h=1754){
   for(let i=0;i<pageCount;i++){const p=3+i*3,c=p+1,im=p+2;obj(p,()=>pushTxt(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im${i+1} ${im} 0 R >> >> /Contents ${c} 0 R >>`));const cs=textBytes(`q\n595 0 0 842 0 0 cm\n/Im${i+1} Do\nQ\n`);obj(c,()=>{pushTxt(`<< /Length ${cs.length} >>\nstream\n`);push(cs);pushTxt('endstream')});const jb=jpegs[i];obj(im,()=>{pushTxt(`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jb.length} >>\nstream\n`);push(jb);pushTxt('\nendstream')})}
   const xref=pos;pushTxt(`xref\n0 ${objCount+1}\n0000000000 65535 f \n`);for(let i=1;i<=objCount;i++)pushTxt(String(offsets[i]||0).padStart(10,'0')+' 00000 n \n');pushTxt(`trailer\n<< /Size ${objCount+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);return new Blob(parts,{type:'application/pdf'});
 }
-async function generatePdf(items,y,c,level,onProgress){const jpg=[];for(let i=0;i<items.length;i++){const im=await loadImage(items[i].image);const cv=drawPage(im,items[i],i+1,items.length,y,c,level);jpg.push(dataUrlBytes(cv.toDataURL('image/jpeg',0.87)));onProgress?.(i+1,items.length);if((i+1)%4===0)await new Promise(r=>requestAnimationFrame(()=>r()))}return buildPdf(jpg)}
+async function generatePdf(items,y,c,level,onProgress,signal){
+  const jpg=[];throwIfAborted(signal);
+  for(let i=0;i<items.length;i++){
+    throwIfAborted(signal);const im=await loadImage(items[i].image,signal);throwIfAborted(signal);
+    const cv=drawPage(im,items[i],i+1,items.length,y,c,level);
+    try{jpg.push(dataUrlBytes(cv.toDataURL('image/jpeg',0.87)))}finally{cv.width=cv.height=1;im.src=''}
+    onProgress?.(i+1,items.length);
+    // Timers continue working when animation frames are suspended in a background tab.
+    await new Promise(r=>setTimeout(r,0));
+  }
+  throwIfAborted(signal);return buildPdf(jpg);
+}
 function filename(y,c,level,count){return `Atividades_SAEB_${y}ano_${c}_Nivel_${level}_${count}ex.pdf`}
 function forceDownload(blob,name){
   try{if(navigator.msSaveOrOpenBlob){navigator.msSaveOrOpenBlob(blob,name);return true}}catch(_){}
   try{const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2500);return true}catch(_){return false}
 }
 async function generateFromModal(){
-  if(!active.items?.length)return;const body=qs('#graExGenBody');let chosen;try{chosen=resolveSelection()}catch(err){const note=body.querySelector('.gra-exgen-note');if(note){note.innerHTML=`<b style="color:#a61f1f">${esc(err.message||err)}</b>`;note.scrollIntoView({block:'nearest'});}return}if(!chosen.length)return;body.innerHTML='<div class="gra-exgen-loading"><span class="gra-exgen-spinner"></span><span>Gerando o PDF com os exercícios selecionados...</span></div>';
+  if(!active.items?.length||generation)return;const body=qs('#graExGenBody');let chosen;
+  try{chosen=resolveSelection()}catch(err){const note=body.querySelector('.gra-exgen-note');if(note){note.innerHTML=`<b style="color:#a61f1f">${esc(err.message||err)}</b>`;note.scrollIntoView({block:'nearest'})}return}
+  if(!chosen.length)return;
+  const snapshot={y:active.y,c:active.c,level:active.level},ticket=session,controller=new AbortController();generation=controller;jobStats.started++;
+  const current=()=>ticket===session&&generation===controller&&!controller.signal.aborted;
+  body.innerHTML='<div class="gra-exgen-loading"><span class="gra-exgen-spinner"></span><span>Gerando o PDF com os exercícios selecionados...</span></div>';
   try{
-    const blob=await generatePdf(chosen,active.y,active.c,active.level,(done,total)=>{const t=body.querySelector('.gra-exgen-loading span:last-child');if(t)t.textContent=`Gerando PDF... ${done}/${total}`});if(blobUrl)URL.revokeObjectURL(blobUrl);blobUrl=URL.createObjectURL(blob);const name=filename(active.y,active.c,active.level,chosen.length);
+    const blob=await generatePdf(chosen,snapshot.y,snapshot.c,snapshot.level,(done,total)=>{if(!current())return;const t=body.querySelector('.gra-exgen-loading span:last-child');if(t)t.textContent=`Gerando PDF... ${done}/${total}`},controller.signal);
+    if(!current())return;releasePreview();blobUrl=URL.createObjectURL(blob);const name=filename(snapshot.y,snapshot.c,snapshot.level,chosen.length);
     body.innerHTML=`<div class="gra-exgen-ready"><b>PDF gerado com sucesso.</b>${chosen.length} exercício${chosen.length===1?'':'s'} · ${chosen.filter(x=>x.compatibility==='Alta').length} Alta Compatibilidade · ${chosen.filter(x=>x.compatibility==='Parcial').length} Compatibilidade Parcial.</div><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Fechar</button><a class="gra-exgen-open" href="${blobUrl}" target="_blank" rel="noopener">Abrir PDF</a><button class="gra-exgen-download" type="button" data-exgen-download>Baixar PDF</button></div>`;
-    body.querySelector('[data-exgen-cancel]')?.addEventListener('click',closeModal);body.querySelector('[data-exgen-download]')?.addEventListener('click',()=>forceDownload(blob,name));active.lastBlob=blob;active.lastName=name;
-  }catch(err){console.error('Gerador de exercícios:',err);body.innerHTML=`<div class="gra-exgen-empty"><b>Não foi possível gerar o PDF.</b><br>${esc(err?.message||err)}</div><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Fechar</button></div>`;body.querySelector('[data-exgen-cancel]')?.addEventListener('click',closeModal)}
+    body.querySelector('[data-exgen-cancel]')?.addEventListener('click',closeModal);body.querySelector('[data-exgen-download]')?.addEventListener('click',()=>forceDownload(blob,name));active.lastBlob=blob;active.lastName=name;jobStats.completed++;
+  }catch(err){
+    if(err?.name==='AbortError'){jobStats.cancelled++;return}jobStats.failed++;
+    if(!current())return;console.error('Gerador de exercícios:',err);
+    body.innerHTML=`<div class="gra-exgen-empty"><b>Não foi possível gerar o PDF.</b><br>${esc(err?.message||err)}</div><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Fechar</button></div>`;body.querySelector('[data-exgen-cancel]')?.addEventListener('click',closeModal);
+  }finally{if(generation===controller)generation=null}
 }
 function observe(){
-  decorateDrawer();const mo=new MutationObserver(()=>decorateDrawer());mo.observe(document.body,{childList:true,subtree:true});
+  let queued=0,watched=null;const drawerObserver=new MutationObserver(schedule);
+  function schedule(){if(queued)return;queued=setTimeout(()=>{queued=0;decorateDrawer()},0)}
+  function attach(){const drawer=qs('#saebScaleDrawer');if(drawer===watched)return;drawerObserver.disconnect();watched=drawer;if(drawer){drawerObserver.observe(drawer,{childList:true,subtree:true});schedule()}}
+  attach();decorateDrawer();
+  // Discover drawer replacement without rescanning it for unrelated changes elsewhere.
+  new MutationObserver(records=>{for(const rec of records)for(const node of [...rec.addedNodes,...rec.removedNodes])if(node.nodeType===1&&(node.id==='saebScaleDrawer'||node.contains?.(watched)||node.querySelector?.('#saebScaleDrawer'))){attach();return}}).observe(document.body,{childList:true,subtree:true});
   document.addEventListener('click',e=>{const b=e.target.closest?.('.gra-exgen-trigger');if(!b)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();if(!b.disabled)openModal(b.dataset.exgenLevel||'')},true);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&qs('#graExGenBackdrop')?.classList.contains('open')){e.preventDefault();e.stopPropagation();closeModal()}},true);
-  ['somAnoEscolar','somComponente','somModalidade'].forEach(id=>qs('#'+id)?.addEventListener('change',()=>setTimeout(decorateDrawer,80)));
+  ['somAnoEscolar','somComponente','somModalidade'].forEach(id=>qs('#'+id)?.addEventListener('change',schedule));
+  window.addEventListener('pagehide',cancelGeneration);
 }
 async function testPdf(y='2',c='LP',level='4',n=1){const items=(BANK[`${y}|${c}|${level}`]||[]).slice().sort((a,b)=>(a.compatibility==='Alta'?0:1)-(b.compatibility==='Alta'?0:1)).slice(0,n);return generatePdf(items,y,c,level)}
-function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v436',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection}}
+function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

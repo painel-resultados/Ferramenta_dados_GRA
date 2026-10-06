@@ -144,6 +144,7 @@ function adrSkillInfo(codigo, ano, componente, adr) {
   const normalizeSkillKey = v => String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   const h = normalizeSkillKey(codigo);
   const adrKey = adrNormAdrSkill(adr);
+  if(adrKey==='ADR 3'&&!ADR_SKILL_DESCRIPTIONS[adrKey])return null;
   const anoKey = adrNormAnoSkill(ano);
   const compKey = adrNormCompSkill(componente);
   const exactSet = ADR_SKILL_DESCRIPTIONS?.[adrKey]?.[anoKey]?.[compKey] || null;
@@ -153,6 +154,7 @@ function adrSkillInfo(codigo, ano, componente, adr) {
       if(normalizeSkillKey(info?.codigo)===h || normalizeSkillKey(key)===h) return info;
     }
   }
+  if(adrKey==='ADR 3')return null;
   // Fallback seguro: algumas bases importadas trazem o código curricular
   // (ex.: R4pLPle15) no lugar do código Hxx. Procuramos primeiro no mesmo
   // ano/componente e depois na matriz completa, sempre preservando o texto oficial.
@@ -422,6 +424,25 @@ DATA.records.forEach(r=>{
 });
 
 function recordText(r) { return norm([r.territorio,r.agente,r.unidade,r.planoAcao,r.planoDimensao,r.exclusiva,r.turnoEF,r.vocacionada,r.idebAI,r.idebAF,r.bairro,r.prioritaria,r.prioridadeTipo,r.prioridadeAnos,prioritySearchText(r.unidade)].join(' ')); }
+function graYieldToInterface(maxMs=80){
+  return new Promise(resolve=>{
+    let settled=false,frame=0;
+    const done=()=>{if(settled)return;settled=true;clearTimeout(timer);if(frame)cancelAnimationFrame(frame);resolve()};
+    const timer=setTimeout(done,maxMs);frame=requestAnimationFrame(done);
+  });
+}
+window.GRA_YIELD_TO_INTERFACE=graYieldToInterface;
+function graSyncNavigationTitle(){
+  const section=document.querySelector('.section.active');if(!section)return;
+  const master=document.getElementById('regionalScopeSelect'),scope=master?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME';
+  const labels={resultados:'Somativas',adrs:'ADRs',consistencia:'Trajetória e Consistência',georreferenciamento:'Georreferenciamento'};
+  const label=labels[section.id]||section.querySelector('h3')?.textContent?.trim()||document.querySelector(`.nav button[data-section="${section.id}"]`)?.textContent?.trim()||'Ferramenta GRA de análise de dados';
+  const h2=document.querySelector('.topbar .title h2'),subtitle=document.querySelector('.topbar .title p');
+  const descriptions={resultados:'Resultados das avaliações somativas',adrs:'Resultados das atividades diagnósticas em rede',consistencia:'ADR 1, ADR 2, ADR 3 e Simulado 2026',georreferenciamento:'Resultados educacionais no território'};
+  if(h2)h2.textContent=`${label} · ${scope}`;
+  if(subtitle)subtitle.textContent=`${descriptions[section.id]||'Dados estruturais'} no recorte ${scope}.`;
+}
+window.__graSyncNavigationTitle=graSyncNavigationTitle;
 function initNav() {
   document.querySelectorAll('.nav button').forEach(btn=>btn.onclick=()=>{
     document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
@@ -759,12 +780,14 @@ function renderResultados() {
 
 
 
+function adrHasValue(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));}
+window.adrHasValue=adrHasValue;
 function adrMetricLabel(key) {
   return key==='abaixo' ? '% Abaixo do Básico' : key==='acerto' ? '% Acerto Total' : '% Adequado';
 }
 function adrLowerIsBetter(metric) { return metric==='abaixo'; }
 function adrMetricSort(a,b,metric) {
-  const av=Number(a), bv=Number(b);
+  const av=adrHasValue(a)?Number(a):NaN, bv=adrHasValue(b)?Number(b):NaN;
   if(!Number.isFinite(av) && !Number.isFinite(bv)) return 0;
   if(!Number.isFinite(av)) return 1;
   if(!Number.isFinite(bv)) return -1;
@@ -774,7 +797,7 @@ function adrOrder(v) { const m=String(v||'').match(/\d+/); return m ? Number(m[0
 function adrYearOrder(v) { const m=String(v||'').match(/\d+/); return m ? Number(m[0]) : 99; }
 function adrWeightAvg(rows, key) {
   let sw=0, sv=0;
-  rows.forEach(r=>{ const v=Number(r[key]); const w=Number(r.avaliados)||1; if(!Number.isNaN(v)) { sv += v*w; sw += w; }});
+  rows.forEach(r=>{ const v=Number(r[key]); const w=Number(r.avaliados)||1; if(adrHasValue(r[key])) { sv += v*w; sw += w; }});
   return sw ? sv/sw : null;
 }
 function adrSum(rows, key) { return rows.reduce((a,r)=>a+(Number(r[key])||0),0); }
@@ -942,10 +965,10 @@ function adrEvolutionDeltaFor(row, metric=null) {
   if(!ano || !comp || !regional || !escola) return null;
   const same = r => r.ano===ano && r.componente===comp && norm(r.regional+'|'+r.escola)===norm(regional+'|'+escola);
   const r1 = ADR_ROWS.find(r=>same(r) && r.adr==='ADR 1');
-  const r2 = ADR_ROWS.find(r=>same(r) && r.adr==='ADR 2');
+  const r2 = ADR_ROWS.find(r=>same(r) && r.adr==='ADR 3');
   if(!r1 || !r2) return null;
   const v1=Number(r1[selectedMetric]), v2=Number(r2[selectedMetric]);
-  if(!Number.isFinite(v1) || !Number.isFinite(v2)) return null;
+  if(!adrHasValue(r1[selectedMetric]) || !adrHasValue(r2[selectedMetric])) return null;
   return v2-v1;
 }
 function adrEvolutionClass(delta) {
@@ -972,14 +995,14 @@ function renderADREvolutionStatus(rows) {
   if(mode!=='progressao' || !filtro) { el.style.display='none'; el.innerHTML=''; return; }
   if(!['adequado','abaixo'].includes(metric)) {
     el.style.display='block';
-    el.innerHTML='<b>Filtro de evolução:</b> selecione % Adequado ou % Abaixo do Básico para comparar ADR 1 → ADR 2.';
+    el.innerHTML='<b>Filtro de evolução:</b> selecione % Adequado ou % Abaixo do Básico para comparar ADR 1 → ADR 3.';
     return;
   }
   const ano=document.getElementById('adrAno')?.value || 'ano selecionado';
   const comp=document.getElementById('adrComp')?.value || 'componente selecionado';
   const label={cresceu:'cresceram',estagnou:'estagnaram',caiu:'tiveram queda'}[filtro] || filtro;
   el.style.display='block';
-  el.innerHTML=`<b>Filtro de evolução ativo:</b> exibindo unidades que ${label} em ${esc(adrMetricLabel(metric))}, de ADR 1 para ADR 2, no ${esc(ano)} · ${esc(comp)}. Para Abaixo do Básico, queda numérica é o comportamento desejável.`;
+  el.innerHTML=`<b>Filtro de evolução ativo:</b> exibindo unidades que ${label} em ${esc(adrMetricLabel(metric))}, de ADR 1 para ADR 3, no ${esc(ano)} · ${esc(comp)}. Para Abaixo do Básico, queda numérica é o comportamento desejável.`;
 }
 
 function adrSchoolSearchKey(value){
@@ -1058,7 +1081,8 @@ function renderADRCreChart() {
   }
   if(card) card.style.display='block';
   const rows=adrFilteredRows({ignoreCre:true});
-  const grouped=[...adrGroupBy(rows,'regional')].map(([regional,rs])=>({name:regional, value:adrWeightAvg(rs,metric), sub:`${rs.length} escolas`, note:fmtPctValue(adrWeightAvg(rs,metric),1)}));
+  const grouped=[...adrGroupBy(rows,'regional')].map(([regional,rs])=>({name:regional, value:adrWeightAvg(rs,metric), sub:`${rs.length} escolas`, note:fmtPctValue(adrWeightAvg(rs,metric),1)})).filter(item=>adrHasValue(item.value));
+  if(!grouped.length){chart.innerHTML='<div class="adr-empty">O indicador não está disponível nos arquivos deste recorte.</div>';return;}
   grouped.sort((a,b)=>adrMetricSort(a.value,b.value,metric));
   const max=Math.max(...grouped.map(x=>x.value||0),1);
   document.getElementById('adrCreTitle').textContent=`Comparativo entre CREs — ${adrMetricLabel(metric)}`;
@@ -1117,11 +1141,11 @@ function adrProgressRankingItems(rows, metric) {
   const lower=adrLowerIsBetter(metric);
   const items=[...map.values()].map(o=>{
     // v209 — CRE/agente só evolui com escolas presentes nos dois pontos comparados.
-    const firstKeys=new Set(o.firstRows.filter(r=>Number.isFinite(Number(r?.[metric]))).map(r=>norm(`${r.regional||''}|${r.escola||''}`)));
-    const lastKeys=new Set(o.lastRows.filter(r=>Number.isFinite(Number(r?.[metric]))).map(r=>norm(`${r.regional||''}|${r.escola||''}`)));
+    const firstKeys=new Set(o.firstRows.filter(r=>adrHasValue(r?.[metric])).map(r=>norm(`${r.regional||''}|${r.escola||''}`)));
+    const lastKeys=new Set(o.lastRows.filter(r=>adrHasValue(r?.[metric])).map(r=>norm(`${r.regional||''}|${r.escola||''}`)));
     const pairedKeys=new Set([...firstKeys].filter(k=>lastKeys.has(k)));
-    const firstRows=o.firstRows.filter(r=>pairedKeys.has(norm(`${r.regional||''}|${r.escola||''}`))&&Number.isFinite(Number(r?.[metric])));
-    const lastRows=o.lastRows.filter(r=>pairedKeys.has(norm(`${r.regional||''}|${r.escola||''}`))&&Number.isFinite(Number(r?.[metric])));
+    const firstRows=o.firstRows.filter(r=>pairedKeys.has(norm(`${r.regional||''}|${r.escola||''}`))&&adrHasValue(r?.[metric]));
+    const lastRows=o.lastRows.filter(r=>pairedKeys.has(norm(`${r.regional||''}|${r.escola||''}`))&&adrHasValue(r?.[metric]));
     if(!firstRows.length||!lastRows.length)return null;
     const inicial=adrWeightAvg(firstRows,metric),final=adrWeightAvg(lastRows,metric);
     if(!Number.isFinite(Number(inicial))||!Number.isFinite(Number(final)))return null;
@@ -1149,7 +1173,7 @@ function adrSchoolRankingItems(rows, metric) {
   const grouped=new Map();
   rows.forEach(r=>{
     const value=Number(r?.[metric]);
-    if(!r?.escola || !Number.isFinite(value)) return;
+    if(!r?.escola || !adrHasValue(r?.[metric])) return;
     const key=norm(`${r.regional||''}|${r.escola}`);
     if(!grouped.has(key)) grouped.set(key,[]);
     grouped.get(key).push(r);
@@ -1275,7 +1299,7 @@ function renderADRSkills(rows) {
     const info=adrSkillDisplay(o.codigo, ano, componente, adr, showAdrLabel);
     return {name:info.label,value,sub:info.desc,note:fmtPctValue(value,1),title:info.title};
   }).sort((a,b)=>a.value-b.value).slice(0,10);
-  if(!skills.length) { document.getElementById('adrSkillBars').innerHTML='<div class="adr-empty">Nenhuma coluna de habilidade H foi encontrada neste recorte.</div>'; return; }
+  if(!skills.length) { document.getElementById('adrSkillBars').innerHTML='<div class="adr-empty">Resultados por habilidade não disponíveis neste recorte. Para ADR 3, os arquivos enviados não contêm colunas de habilidades e a tradução ainda não foi fornecida.</div>'; return; }
   const max=Math.max(...skills.map(x=>x.value),1);
   renderBars('adrSkillBars', skills.map(x=>({name:x.name,value:Number(x.value).toFixed(1),sub:x.sub,note:x.note,title:x.title})), max, 'pd');
 }
@@ -1294,13 +1318,17 @@ function renderADRProgress() {
     document.getElementById('adrProgressChart').innerHTML='<div class="adr-empty">Envie pelo menos duas ADRs do mesmo ano/componente para visualizar progressão.</div>';
     document.getElementById('adrProgressTable').innerHTML=''; return;
   }
-  // v209 — toda curva de progressão usa somente escolas com valor válido em TODAS as ADRs exibidas.
+  // Parear todas as edições com o indicador fornecido; manter no eixo as edições sem esse campo.
+  const comparisonAdrs=adrs.filter(adr=>rows.some(r=>r.adr===adr&&adrHasValue(r[metric])));
+  const missingAdrs=adrs.filter(adr=>!comparisonAdrs.includes(adr));
+  const validProgressValues=values=>values.every((v,i)=>!comparisonAdrs.includes(adrs[i])||adrHasValue(v));
+  const missingNote=missingAdrs.length?`<div class="adr-status"><b>Indicador não fornecido:</b> ${esc(adrMetricLabel(metric))} em ${esc(missingAdrs.join(', '))}. Os pontos disponíveis foram preservados; a ausência não equivale a zero.</div>`:'';
   const progressSchoolKey=r=>norm(`${r.regional||''}|${r.escola||''}`);
   const pairedRowsFor=subset=>{
     const coverage=new Map();
-    subset.forEach(r=>{const key=progressSchoolKey(r);if(!key||!r.escola||!Number.isFinite(Number(r?.[metric])))return;if(!coverage.has(key))coverage.set(key,new Set());coverage.get(key).add(r.adr);});
-    const keys=new Set([...coverage.entries()].filter(([,seen])=>adrs.every(adr=>seen.has(adr))).map(([key])=>key));
-    return subset.filter(r=>keys.has(progressSchoolKey(r))&&Number.isFinite(Number(r?.[metric])));
+    subset.forEach(r=>{const key=progressSchoolKey(r);if(!key||!r.escola||!adrHasValue(r?.[metric]))return;if(!coverage.has(key))coverage.set(key,new Set());coverage.get(key).add(r.adr);});
+    const keys=new Set([...coverage.entries()].filter(([,seen])=>comparisonAdrs.every(adr=>seen.has(adr))).map(([key])=>key));
+    return subset.filter(r=>keys.has(progressSchoolKey(r))&&adrHasValue(r?.[metric]));
   };
   const pairedAll=pairedRowsFor(rows);
   const groups=adrs.map(adr=>{const rs=pairedAll.filter(r=>r.adr===adr);return {adr,value:rs.length?adrWeightAvg(rs,metric):null,count:new Set(rs.map(progressSchoolKey)).size};});
@@ -1313,7 +1341,7 @@ function renderADRProgress() {
     const series=regionals.map(regional=>{
       const paired=pairedRowsFor(rows.filter(r=>r.regional===regional));
       return {regional,values:adrs.map(adr=>{const rs=paired.filter(r=>r.adr===adr);return rs.length?adrWeightAvg(rs,metric):null;}),pairedCount:new Set(paired.map(progressSchoolKey)).size};
-    }).filter(s=>s.pairedCount>0&&s.values.length===adrs.length&&s.values.every(v=>Number.isFinite(Number(v))));
+    }).filter(s=>s.pairedCount>0&&s.values.length===adrs.length&&validProgressValues(s.values));
 
     if(!series.length) {
       document.getElementById('adrProgressChart').innerHTML='<div class="adr-empty">Não há CREs suficientes neste recorte para comparar a progressão.</div>';
@@ -1339,7 +1367,7 @@ function renderADRProgress() {
     }).join('');
     const legend=series.map((s,idx)=>`<button type="button" class="adr-progress-legend" data-progress-idx="${idx}" style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d8e6f1;border-radius:999px;padding:6px 10px;background:#fff;color:#52606d;font-size:12px;font-weight:800;cursor:pointer;transition:.18s"><i style="width:10px;height:10px;border-radius:50%;display:inline-block;background:${colors[idx%colors.length]}"></i>${esc(s.regional)}</button>`).join('');
     document.getElementById('adrProgressChart').innerHTML=`
-      <div class="adr-status" style="margin-bottom:10px"><b>Comparativo entre CREs:</b> cada linha usa apenas escolas pareadas em ${esc(adrs.join(' → '))}. Clique na legenda para destacar uma linha. Clique no gráfico para expandir.</div>
+      ${missingNote}<div class="adr-status" style="margin-bottom:10px"><b>Comparativo entre CREs:</b> cada linha usa apenas escolas pareadas em ${esc(comparisonAdrs.join(' → '))}. Clique na legenda para destacar uma linha. Clique no gráfico para expandir.</div>
       <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:280px">
         ${grid}
         <line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="#c8d9e7" stroke-width="1.2"/>
@@ -1394,7 +1422,7 @@ function renderADRProgress() {
     const series=agentNames.map(agente=>{
       const subset=rows.filter(r=>adrRowAgent(r)===agente),paired=pairedRowsFor(subset);
       return {agente,territorio:(adrRowTerritorio(subset[0]||{})||''),values:adrs.map(adr=>{const rs=paired.filter(r=>r.adr===adr);return rs.length?adrWeightAvg(rs,metric):null;}),pairedCount:new Set(paired.map(progressSchoolKey)).size};
-    }).filter(s=>s.pairedCount>0&&s.values.length===adrs.length&&s.values.every(v=>Number.isFinite(Number(v))));
+    }).filter(s=>s.pairedCount>0&&s.values.length===adrs.length&&validProgressValues(s.values));
 
     if(!series.length) {
       document.getElementById('adrProgressChart').innerHTML='<div class="adr-empty">Não há agentes suficientes neste recorte para comparar a progressão.</div>';
@@ -1421,7 +1449,7 @@ function renderADRProgress() {
     }).join('');
     const legend=series.map((s,idx)=>`<button type="button" class="adr-progress-legend" data-progress-idx="${idx}" title="${esc(s.agente)}" style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d8e6f1;border-radius:999px;padding:6px 10px;background:#fff;color:#52606d;font-size:12px;font-weight:800;cursor:pointer;transition:.18s"><i style="width:10px;height:10px;border-radius:50%;display:inline-block;background:${colors[idx%colors.length]}"></i>${esc(s.agente)}</button>`).join('');
     document.getElementById('adrProgressChart').innerHTML=`
-      <div class="adr-status" style="margin-bottom:10px"><b>Comparativo entre agentes:</b> cada linha usa apenas escolas pareadas do agente em ${esc(adrs.join(' → '))}, na ${esc(selectedCre)}. Clique na legenda para destacar uma linha. Clique no gráfico para expandir.</div>
+      ${missingNote}<div class="adr-status" style="margin-bottom:10px"><b>Comparativo entre agentes:</b> cada linha usa apenas escolas pareadas do agente em ${esc(comparisonAdrs.join(' → '))}, na ${esc(selectedCre)}. Clique na legenda para destacar uma linha. Clique no gráfico para expandir.</div>
       <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:280px">
         ${grid}
         <line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="#c8d9e7" stroke-width="1.2"/>
@@ -1486,7 +1514,7 @@ function renderADRProgress() {
         return rs.length?adrWeightAvg(rs,metric):null;
       });
       return s;
-    }).filter(s=>s.values.length===adrs.length&&s.values.every(v=>Number.isFinite(Number(v))));
+    }).filter(s=>s.values.length===adrs.length&&validProgressValues(s.values));
 
     if(!series.length) {
       const emptyText=allSchoolsScope
@@ -1525,7 +1553,7 @@ function renderADRProgress() {
       ? `cada linha representa uma escola ${selectedCre ? 'da '+esc(selectedCre) : 'das CREs selecionadas'}`
       : `cada linha representa uma unidade acompanhada por ${esc(selectedAgente)}`;
     document.getElementById('adrProgressChart').innerHTML=`
-      <div class="adr-status" style="margin-bottom:10px"><b>Progressão por escola:</b> ${schoolScopeText}, somente com dados em todas as ADRs exibidas${esc(filtroTxt)}. Clique no nome da escola para destacar a linha. Clique no gráfico para expandir.</div>
+      ${missingNote}<div class="adr-status" style="margin-bottom:10px"><b>Progressão por escola:</b> ${schoolScopeText}, somente com dados em todas as ADRs exibidas${esc(filtroTxt)}. Clique no nome da escola para destacar a linha. Clique no gráfico para expandir.</div>
       <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:300px">
         ${grid}
         <line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="#c8d9e7" stroke-width="1.2"/>
@@ -1783,7 +1811,7 @@ function adrUpdateFilterUX() {
     const cre=document.getElementById('adrCre')?.value || 'Todas as CREs';
     const agentScope=document.getElementById('adrAgente')?.value || '';
     const priorityActive=document.getElementById('adrPriority')?.value==='sim';
-    ctx.innerHTML=[`<span class="ctx-chip good">${mode==='progressao'?'Progressão ADR 1 → ADR 2':'ADR individual'}</span>`,`<span class="ctx-chip">${esc(ano)} · ${esc(comp)}</span>`,`<span class="ctx-chip">${esc(metric)}</span>`,...(priorityActive?[`<span class="ctx-chip">★ Somente prioritárias</span>`]:[]),`<span class="ctx-chip fixed">${esc(cre)}</span>`,`<span class="ctx-chip fixed">${esc(adrAgentScopeLabel(agentScope))}</span>`].join('');
+    ctx.innerHTML=[`<span class="ctx-chip good">${mode==='progressao'?'Progressão ADR 1 → ADR 3':'ADR individual'}</span>`,`<span class="ctx-chip">${esc(ano)} · ${esc(comp)}</span>`,`<span class="ctx-chip">${esc(metric)}</span>`,...(priorityActive?[`<span class="ctx-chip">★ Somente prioritárias</span>`]:[]),`<span class="ctx-chip fixed">${esc(cre)}</span>`,`<span class="ctx-chip fixed">${esc(adrAgentScopeLabel(agentScope))}</span>`].join('');
   }
 }
 
@@ -1936,7 +1964,7 @@ function geoReportRows(){
 function geoReportAdrSkills(rows){
   const ctx=geoEvalContext();if(ctx.evaluation!=='ADR'||!Array.isArray(ADR_ROWS))return [];
   const schools=new Set(rows.map(item=>norm(item.point.name)));
-  const adrName=ctx.adrView==='adr1'?'ADR 1':'ADR 2';
+  const adrName=geoAdrEdition(ctx);
   const years=geoAdrYearsForContext(ctx),components=ctx.component?[ctx.component]:['LP','MT'];
   const map=new Map();
   ADR_ROWS.forEach(row=>{
@@ -3568,7 +3596,7 @@ const GEO_STATE = {
   legendStatus:'', getOnly:false, legendEventsBound:false, tileErrors:0, legendTouchStamp:0,
   focusedSchool:''
 };
-function geoNum(v) { const n=Number(v); return Number.isFinite(n)?n:null; }
+function geoNum(v) { return adrHasValue(v)?Number(v):null; }
 function geoFmt(v,d=1) { const n=Number(v); return Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'; }
 function geoShowMessage(text, compact=false) {
   const msg=document.getElementById('geoMapMessage'); if(!msg) return;
@@ -3615,7 +3643,7 @@ function geoBuildAdrIndex(callback) {
   const step=()=>{
     const limit=Math.min(i+180,rows.length);
     for(;i<limit;i++){
-      const r=rows[i]; if(!r || (r.adr!=='ADR 1' && r.adr!=='ADR 2')) continue;
+      const r=rows[i]; if(!r || !['ADR 1','ADR 2','ADR 3'].includes(r.adr)) continue;
       const raw=String(r.escola||''); let school=schoolCache.get(raw);
       if(school===undefined){ school=resolveGeoSchool(raw); schoolCache.set(raw,school); }
       if(!school) continue;
@@ -3676,6 +3704,9 @@ function geoPointMatchesSegment(point,segment){
   if(segment==='AF')return point.segment==='AF'||point.segment==='AI & AF';
   return true;
 }
+function geoAdrPair(ctx={}){return (ctx.adrPair||document.getElementById('geoAdrPair')?.value)==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 2'];}
+function geoAdrEdition(ctx){return ctx.adrView==='progress'?geoAdrPair(ctx)[1]:({adr1:'ADR 1',adr2:'ADR 2',adr3:'ADR 3'}[ctx.adrView]||'ADR 3');}
+window.geoAdrPair=geoAdrPair;window.geoAdrEdition=geoAdrEdition;
 function geoEvalContext(){
   const evaluation=GEO_STATE.evaluation||'ADR';
   const isAvalia=evaluation==='Avalia RJ';
@@ -3684,8 +3715,9 @@ function geoEvalContext(){
   const component=(isAvalia||isIdeb)?'':(document.getElementById('geoEvalComponent')?.value||'');
   const adrView=evaluation==='ADR'?(document.getElementById('geoAdrView')?.value||'progress'):'';
   const indicator=isAvalia?'alfabetizacaoCombinada':(document.getElementById('geoEvalIndicator')?.value||(evaluation==='ADR'?(adrView==='progress'?'geral':'adequado'):isIdeb?'ideb2025':'principal'));
-  const edition=evaluation==='ADR'?(adrView==='adr1'?'ADR 1':adrView==='adr2'?'ADR 2':'ADR 1 → ADR 2'):geoLatestEdition(evaluation,segment,component);
-  return {evaluation,segment,component,indicator,edition,adrView};
+  const adrPair=document.getElementById('geoAdrPair')?.value||'12';
+  const edition=evaluation==='ADR'?(adrView==='progress'?geoAdrPair({adrPair}).join(' → '):geoAdrEdition({adrView,adrPair})):geoLatestEdition(evaluation,segment,component);
+  return {evaluation,segment,component,indicator,edition,adrView,adrPair};
 }
 function geoAdrContext(){
   const c=geoEvalContext();
@@ -3807,14 +3839,15 @@ function geoAdrSingleValueForPoint(point,ctx,adrName){
 }
 function geoAdrMetricForPoint(point,ctx){
   if(!GEO_STATE.adrReady)return {status:'loading',delta:null,value:null,count:0};
-  const cacheKey=['ADR_PROGRESS',point.name,ctx.segment,ctx.component,ctx.indicator].join('\u0002');
+  const pair=geoAdrPair(ctx);
+  const cacheKey=['ADR_PROGRESS',pair.join('|'),point.name,ctx.segment,ctx.component,ctx.indicator].join('\u0002');
   const cached=GEO_STATE.evolutionCache.get(cacheKey);if(cached)return cached;
   const years=geoAdrYearsForContext(ctx);
   const components=ctx.component?[ctx.component]:['LP','MT'];
   const deltas=[];
   for(const year of years)for(const comp of components){
-    const r1=geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,'ADR 1')));
-    const r2=geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,'ADR 2')));
+    const r1=geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,pair[0])));
+    const r2=geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,pair[1])));
     if(!r1||!r2)continue;
     if(ctx.indicator==='avaliadosPct'){
       const d=geoNum(r2.avaliadosPct)-geoNum(r1.avaliadosPct);if(Number.isFinite(d))deltas.push(d);
@@ -3833,7 +3866,7 @@ function geoAdrMetricForPoint(point,ctx){
   const result={status,delta,value:delta,count:deltas.length,suffix:'p.p.',bandLabel:status==='up'?'Avançou':status==='down'?'Caiu':'Estagnou'};GEO_STATE.evolutionCache.set(cacheKey,result);return result;
 }
 function geoAdrSnapshot(ctx){
-  const key=['ADR_SNAPSHOT',ctx.adrView,ctx.segment,ctx.component,ctx.indicator,GEO_STATE.adrReady].join('\u0002');
+  const key=['ADR_SNAPSHOT',ctx.adrPair,ctx.adrView,ctx.segment,ctx.component,ctx.indicator,GEO_STATE.adrReady].join('\u0002');
   const cached=GEO_STATE.evalCache.get(key);if(cached)return cached;
   const results=new Map();
   if(!GEO_STATE.adrReady){
@@ -3845,7 +3878,7 @@ function geoAdrSnapshot(ctx){
     const count=[...results.values()].filter(result=>Number.isFinite(Number(result.value))&&result.count>0).length;
     const snapshot={results,median:null,count};GEO_STATE.evalCache.set(key,snapshot);return snapshot;
   }
-  const adrName=ctx.adrView==='adr1'?'ADR 1':'ADR 2';
+  const adrName=geoAdrEdition(ctx);
   const values=new Map();
   GEO_POINTS.forEach(point=>{
     const value=geoAdrSingleValueForPoint(point,ctx,adrName);
@@ -4621,9 +4654,12 @@ function geoSomReference(r){
 function geoSomValue(r) { const metric=geoSomMetric(r); return Number.isFinite(metric.value)?`${geoFmt(metric.value,1)}${metric.suffix}`:'—'; }
 function geoAdrOverview(point){
   if(!GEO_STATE.adrReady)return '<div class="geo-adr-loading">Preparando a comparação das ADRs…</div>';
-  const rows=[]; for(const year of ['2º ano','4º ano','5º ano','8º ano','9º ano'])for(const comp of ['LP','MT']){const r1=geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,'ADR 1'))),r2=geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,'ADR 2')));if(r1&&r2)rows.push({year,comp,r1,r2});}
-  if(!rows.length)return '<div class="geo-empty">Não há comparação completa entre ADR 1 e ADR 2 para esta unidade.</div>';
-  return `<div class="geo-adr-overview">${rows.map(x=>`<div class="geo-adr-overview-row"><strong>${esc(x.year)} · ${esc(x.comp)}</strong><div class="geo-adr-metrics"><div class="geo-adr-metric"><small>Adequado</small><span>${geoFmt(x.r1.adequado,1)}% → ${geoFmt(x.r2.adequado,1)}%</span>${geoDeltaBadge(x.r2.adequado-x.r1.adequado)}</div><div class="geo-adr-metric"><small>Abaixo do Básico</small><span>${geoFmt(x.r1.abaixo,1)}% → ${geoFmt(x.r2.abaixo,1)}%</span>${geoDeltaBadge(x.r1.abaixo-x.r2.abaixo)}</div></div></div>`).join('')}</div>`;
+  const rows=[];for(const year of ['2º ano','4º ano','5º ano','8º ano','9º ano'])for(const comp of ['LP','MT']){
+    const stages=['ADR 1','ADR 2','ADR 3'].map(adr=>geoFinishAggregate(GEO_STATE.adrIndex.get(geoAdrIndexKey(point.name,year,comp,adr))));
+    if(stages.some(Boolean))rows.push({year,comp,stages});
+  }
+  if(!rows.length)return '<div class="geo-empty">Não há resultados ADR para esta unidade.</div>';
+  return `<div class="geo-adr-overview">${rows.map(x=>`<div class="geo-adr-overview-row"><strong>${esc(x.year)} · ${esc(x.comp)}</strong><div class="geo-adr-metrics">${[['adequado','Adequado'],['abaixo','Abaixo do Básico']].map(([key,label])=>`<div class="geo-adr-metric"><small>${label} · ADR 1 / ADR 2 / ADR 3</small><span>${x.stages.map(r=>r&&adrHasValue(r[key])?geoFmt(r[key],1)+'%':'—').join(' → ')}</span>${[[0,1],[1,2]].map(([a,b])=>x.stages[a]&&x.stages[b]&&adrHasValue(x.stages[a][key])&&adrHasValue(x.stages[b][key])?`<small>ADR ${a+1}→${b+1} ${geoDeltaBadge((x.stages[b][key]-x.stages[a][key])*(key==='abaixo'?-1:1))}</small>`:'').join('')}</div>`).join('')}</div></div>`).join('')}</div>`;
 }
 function geoOpenDetail(point){
   /* v404: evita corrida entre a abertura do mapa e o carregamento sob demanda
@@ -4634,7 +4670,7 @@ function geoOpenDetail(point){
   }
   GEO_STATE.selected=point.name;geoRenderMarkers();const detail=document.getElementById('geoDetail');if(!detail)return;
   const photo=GEO_AGENT_PHOTOS[point.agent]||'',pos=GEO_AGENT_PHOTO_POS[point.agent]||'50% 25%';const somRows=(SOM_ROWS||[]).filter(r=>geoIsCre2Row(r)&&somFindRecord(r.escola||'')?.unidade===point.name);const ideb=somRows.filter(r=>String(r.modalidade||'').includes('IDEB'));const pick=segment=>ideb.filter(r=>r.anoEscolar===segment).sort((a,b)=>Number(b.edicao||0)-Number(a.edicao||0))[0]||null;const nonIdeb=somRows.filter(r=>!String(r.modalidade||'').includes('IDEB')&&r.modalidade!=='Simulado 2026').sort((a,b)=>Number(b.edicao||0)-Number(a.edicao||0));const uniq=[],seen=new Set();nonIdeb.forEach(r=>{const k=[r.modalidade,r.edicao,r.anoEscolar,r.componente].join('|');if(!seen.has(k)){seen.add(k);uniq.push(r);}});
-  detail.innerHTML=`<div class="geo-detail-head"><div><h3>${esc(point.name)}</h3><div class="geo-detail-tags"><span class="chip">${esc(point.segment)}</span>${priorityMetaForSchool(point.name)?'<span class="priority-badge">Prioritária</span>':''}<span class="chip">T${esc(point.territory)}</span></div></div><button class="geo-detail-close" data-gra-no-school-nav="1" type="button" aria-label="Fechar">×</button></div><div class="geo-detail-body"><div class="geo-agent">${photo?`<img class="geo-agent-photo" src="${photo}" alt="Foto de ${esc(point.agent)}" style="object-position:${pos}">`:'<div class="geo-agent-photo"></div>'}<div><small>Agente GRA</small><strong>${esc(point.agent)}</strong></div></div><div class="geo-result-block"><div class="geo-result-title"><strong>IDEB — análise integrada</strong><span>2023 → 2025</span></div><div class="geo-ideb-grid">${geoIdebCard('Anos Iniciais',pick('Anos Iniciais'),point.idebAI)}${geoIdebCard('Anos Finais',pick('Anos Finais'),point.idebAF)}</div></div><div class="geo-result-block"><div class="geo-result-title"><strong>Demais avaliações somativas</strong><span>resultados mais recentes</span></div>${uniq.length?`<div class="geo-mini-list">${uniq.slice(0,8).map(r=>`<div class="geo-mini-row"><div><strong>${esc(r.modalidade||r.avaliacao||'Avaliação')}</strong><span>${esc([r.anoEscolar,r.componente,r.edicao].filter(Boolean).join(' · '))}</span></div>${geoSomReference(r)}</div>`).join('')}</div>`:'<div class="geo-empty">Não há outra avaliação somativa pré-carregada para esta unidade.</div>'}</div><div class="geo-result-block"><div class="geo-result-title"><strong>ADRs — visão consolidada</strong><span>ADR 1 → ADR 2</span></div>${geoAdrOverview(point)}</div></div>`;
+  detail.innerHTML=`<div class="geo-detail-head"><div><h3>${esc(point.name)}</h3><div class="geo-detail-tags"><span class="chip">${esc(point.segment)}</span>${priorityMetaForSchool(point.name)?'<span class="priority-badge">Prioritária</span>':''}<span class="chip">T${esc(point.territory)}</span></div></div><button class="geo-detail-close" data-gra-no-school-nav="1" type="button" aria-label="Fechar">×</button></div><div class="geo-detail-body"><div class="geo-agent">${photo?`<img class="geo-agent-photo" src="${photo}" alt="Foto de ${esc(point.agent)}" style="object-position:${pos}">`:'<div class="geo-agent-photo"></div>'}<div><small>Agente GRA</small><strong>${esc(point.agent)}</strong></div></div><div class="geo-result-block"><div class="geo-result-title"><strong>IDEB — análise integrada</strong><span>2023 → 2025</span></div><div class="geo-ideb-grid">${geoIdebCard('Anos Iniciais',pick('Anos Iniciais'),point.idebAI)}${geoIdebCard('Anos Finais',pick('Anos Finais'),point.idebAF)}</div></div><div class="geo-result-block"><div class="geo-result-title"><strong>Demais avaliações somativas</strong><span>resultados mais recentes</span></div>${uniq.length?`<div class="geo-mini-list">${uniq.slice(0,8).map(r=>`<div class="geo-mini-row"><div><strong>${esc(r.modalidade||r.avaliacao||'Avaliação')}</strong><span>${esc([r.anoEscolar,r.componente,r.edicao].filter(Boolean).join(' · '))}</span></div>${geoSomReference(r)}</div>`).join('')}</div>`:'<div class="geo-empty">Não há outra avaliação somativa pré-carregada para esta unidade.</div>'}</div><div class="geo-result-block"><div class="geo-result-title"><strong>ADRs — visão consolidada</strong><span>ADR 1 → ADR 2 → ADR 3</span></div>${geoAdrOverview(point)}</div></div>`;
   detail.querySelector('.geo-detail-close').onclick=(event)=>{event?.preventDefault?.();event?.stopPropagation?.();geoCloseDetail();};detail.classList.add('open');detail.setAttribute('aria-hidden','false');geoUpdateLegend();
   if(!GEO_STATE.adrReady)geoBuildAdrIndex(()=>{if(GEO_STATE.selected===point.name)geoOpenDetail(point);});
 }
@@ -4707,10 +4743,13 @@ function geoRefreshEvaluationFilters(keep=true){
   if(indicatorLabelEl)indicatorLabelEl.textContent=isIdeb?'Visualização':'Indicador';
   if(adrViewWrap)adrViewWrap.hidden=!isAdr;
   const saved=GEO_STATE.evalSelections[evaluation]||{};
+  const pairSelect=document.getElementById('geoAdrPair'),pairWrap=document.getElementById('geoAdrPairWrap');
+  if(isAdr)geoSetOptions(pairSelect,[{value:'12',label:'ADR 1 → ADR 2'},{value:'23',label:'ADR 2 → ADR 3'}],keep?(saved.adrPair||pairSelect?.value||'12'):'12');
   if(isAdr){
     geoSetOptions(adrView,[
       {value:'adr1',label:'ADR 1'},
       {value:'adr2',label:'ADR 2'},
+      {value:'adr3',label:'ADR 3'},
       {value:'progress',label:'Progresso'}
     ],keep?(saved.adrView||adrView?.value||'progress'):'progress');
   }
@@ -4737,6 +4776,7 @@ function geoRefreshEvaluationFilters(keep=true){
   }
   const segment=evaluation==='Avalia RJ'?'':(seg?.value||'');
   const currentAdrView=isAdr?(adrView?.value||'progress'):'';
+  if(pairWrap)pairWrap.hidden=!(isAdr&&currentAdrView==='progress');
   let componentItems=[];
   if(isAdr)componentItems=[{value:'LP',label:'Língua Portuguesa'},{value:'MT',label:'Matemática'}];
   else if(evaluation==='Avalia RJ')componentItems=[{value:'',label:'LP + MT combinados'}];
@@ -4797,7 +4837,7 @@ function geoRefreshEvaluationFilters(keep=true){
       ?(component==='MT'?'No 2º ano em Matemática, o mapa usa % Adequado + Avançado e compara com a meta da própria escola.':'No 2º ano em Língua Portuguesa, o mapa usa % de alunos alfabetizados (proficiência ≥ 743) e compara com a meta da própria escola.')
       :simStdLocked?'No 4º e no 8º ano, o indicador do mapa é a Nota Padronizada da escola.':'';
   }
-  GEO_STATE.evalSelections[evaluation]={segment:segment,adrView:currentAdrView,component:comp?.value||'',indicator:ind?.value||''};
+  GEO_STATE.evalSelections[evaluation]={segment:segment,adrView:currentAdrView,adrPair:pairSelect?.value||'12',component:comp?.value||'',indicator:ind?.value||''};
   GEO_STATE.evalCache.clear();GEO_STATE.evolutionCache.clear();geoUpdateContextUI();
 }
 function geoUpdateContextUI(){
@@ -4816,7 +4856,7 @@ function geoUpdateContextUI(){
   }
   if(note){
     if(ctx.evaluation==='ADR'){
-      if(ctx.adrView==='progress')note.textContent='As cores mostram o progresso da ADR 1 para a ADR 2: Avançou, Estagnou ou Caiu. Clique em uma categoria da legenda para exibir somente seus balões.';
+      if(ctx.adrView==='progress')note.textContent=`As cores mostram o progresso ${ctx.edition}: Avançou, Estagnou ou Caiu. Menor % Abaixo do Básico indica melhora. Clique em uma categoria da legenda para exibir somente seus balões.`;
       else{
         const snap=geoAdrSnapshot(ctx);
         const polarityNote=ctx.indicator==='abaixo'?' No indicador Abaixo do Básico, valores menores são melhores: abaixo da mediana aparece em azul e acima da mediana em vermelho.':'';
@@ -4860,6 +4900,7 @@ function initGeoref(){
   populateGeoAgentFilter();geoBindLegendEvents();
   document.querySelectorAll('[data-geo-eval]').forEach(btn=>btn.addEventListener('click',()=>geoSelectEvaluation(btn.dataset.geoEval)));
   document.getElementById('geoEvalSegment')?.addEventListener('change',async()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),segment:document.getElementById('geoEvalSegment').value};GEO_STATE.legendStatus='';if(e==='Simulado 2026'){const y=document.getElementById('geoEvalSegment').value,c=['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP';try{await sim2026EnsureYearForIndicator(y,c);}catch(err){console.error(err);}}geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
+  document.getElementById('geoAdrPair')?.addEventListener('change',()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),adrPair:document.getElementById('geoAdrPair').value};GEO_STATE.legendStatus='';geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
   document.getElementById('geoAdrView')?.addEventListener('change',()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),adrView:document.getElementById('geoAdrView').value,indicator:''};GEO_STATE.legendStatus='';geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
   document.getElementById('geoEvalComponent')?.addEventListener('change',async()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),component:document.getElementById('geoEvalComponent').value};GEO_STATE.legendStatus='';if(e==='Simulado 2026'){const y=['2º ano','4º ano','8º ano'].includes(document.getElementById('geoEvalSegment')?.value)?document.getElementById('geoEvalSegment').value:'2º ano',c=['LP','MT'].includes(document.getElementById('geoEvalComponent')?.value)?document.getElementById('geoEvalComponent').value:'LP';try{await sim2026EnsureYearForIndicator(y,c);}catch(err){console.error(err);}}geoRefreshEvaluationFilters(true);geoScheduleFilters(20);});
   document.getElementById('geoEvalIndicator')?.addEventListener('change',()=>{const e=GEO_STATE.evaluation;GEO_STATE.evalSelections[e]={...(GEO_STATE.evalSelections[e]||{}),indicator:document.getElementById('geoEvalIndicator').value};GEO_STATE.legendStatus='';geoScheduleFilters(20);});
@@ -4879,14 +4920,34 @@ function initGeoref(){
 
 // v66 — filtros AI/AF incluem unidades mistas e ocultam escolas sem dados em seleções de ADR
 // v64 — filtro por agente no mapa georreferenciado
+function graYieldToInterface(maxMs=80){
+  return new Promise(resolve=>{
+    let settled=false,frame=0;
+    const done=()=>{if(settled)return;settled=true;clearTimeout(timer);if(frame)cancelAnimationFrame(frame);resolve()};
+    const timer=setTimeout(done,maxMs);frame=requestAnimationFrame(done);
+  });
+}
+window.GRA_YIELD_TO_INTERFACE=graYieldToInterface;
+function graSyncNavigationTitle(){
+  const section=document.querySelector('.section.active');if(!section)return;
+  const master=document.getElementById('regionalScopeSelect'),scope=master?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME';
+  const labels={resultados:'Somativas',adrs:'ADRs',consistencia:'Trajetória e Consistência',georreferenciamento:'Georreferenciamento'};
+  const label=labels[section.id]||section.querySelector('h3')?.textContent?.trim()||document.querySelector(`.nav button[data-section="${section.id}"]`)?.textContent?.trim()||'Ferramenta GRA de análise de dados';
+  const h2=document.querySelector('.topbar .title h2'),subtitle=document.querySelector('.topbar .title p');
+  const descriptions={resultados:'Resultados das avaliações somativas',adrs:'Resultados das atividades diagnósticas em rede',consistencia:'ADR 1, ADR 2, ADR 3 e Simulado 2026',georreferenciamento:'Resultados educacionais no território'};
+  if(h2)h2.textContent=`${label} · ${scope}`;
+  if(subtitle)subtitle.textContent=`${descriptions[section.id]||'Dados estruturais'} no recorte ${scope}.`;
+}
+window.__graSyncNavigationTitle=graSyncNavigationTitle;
 function initNav() {
   const openSection=(btn)=>{
     const id=btn.dataset.section; if(!id) return;
     document.querySelectorAll('.nav button[data-section]').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     const section=document.getElementById(id); if(section) section.classList.add('active');
+    graSyncNavigationTitle();
     const group=btn.closest('.nav-group'); if(group) group.classList.add('open');
-    if(id==='georreferenciamento')setTimeout(()=>{try{window.__graActivateSection?.('georreferenciamento');}catch(error){console.warn('Abertura do georreferenciamento',error);}},20);
+    if(id==='georreferenciamento')setTimeout(()=>{if(!document.getElementById(id)?.classList.contains('active'))return;try{window.__graActivateSection?.('georreferenciamento');}catch(error){console.warn('Abertura do georreferenciamento',error);}},20);
     if(id==='banco')resumeLargeTableJobs();
     window.scrollTo({top:0,behavior:'smooth'});
   };

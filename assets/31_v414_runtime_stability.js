@@ -211,7 +211,7 @@
         request.button.disabled=false;
         request.button.removeAttribute('aria-busy');
         if(ticket!==navigationIntent)return;
-        requestAnimationFrame(()=>setTimeout(()=>request.button.click(),0));
+        setTimeout(()=>{if(ticket===navigationIntent&&request.button.isConnected)request.button.click()},0);
       }).catch(error=>{
         request.button.disabled=false;
         request.button.removeAttribute('aria-busy');
