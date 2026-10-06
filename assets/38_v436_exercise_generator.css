@@ -73,3 +73,5 @@ body.gra-exgen-open{overflow:hidden!important}
 .gra-exgen-row-quantity>small{font:500 10px/1.4 system-ui;color:#587587}
 .gra-exgen-unavailable-label{font:600 11px/1.5 system-ui;color:#738795}
 @media(max-width:480px){.gra-exgen-row-quantity{grid-template-columns:auto 100px}.gra-exgen-row-quantity>small{grid-column:2}.gra-exgen-unavailable-label{margin-left:27px}}
+
+/* Hotfix .438 20261006d: somente habilidades com itens Alta na lista de seleção. */

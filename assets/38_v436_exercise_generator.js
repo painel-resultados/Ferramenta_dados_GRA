@@ -126,14 +126,14 @@ function openModal(level){
   const items=(BANK[`${y}|${c}|${level}`]||[]).filter(it=>it.review_status==='checked'&&it.strict_review===true&&it.compatibility==='Alta');
   active={level,y,c,items};const cov=window.GRA_EXERCISE_COVERAGE?.[`${y}|${c}|${level}`];
   qs('#graExGenTitle').textContent=`Gerar exercícios - ${levelLabel(level)}`;qs('#graExGenMeta').textContent=`${y}º ano · ${compLabel(c)} · v438 · somente Alta`;
-  const skills=[...new Set([...items.flatMap(relatedSkills),...(cov?.missing||[])])];
+  const skills=[...new Set(items.flatMap(relatedSkills))].filter(skill=>skillCandidates(skill).length>0);
   const choices=skills.map((skill,i)=>{
     const count=skillCandidates(skill).length;
     return `<div class="gra-exgen-skill-row ${count?'':'is-unavailable'}"><label class="gra-exgen-skill-check" for="graExSkill${i}"><input id="graExSkill${i}" type="checkbox" data-ex-skill value="${esc(skill)}" ${count?'':'disabled'}><span class="gra-exgen-skill-copy">${esc(skill)}<small>${count?`${count} item(ns) disponível(is) · compatibilidade Alta`:'Não selecionável: esta habilidade não tem item de compatibilidade Alta neste nível.'}</small></span></label>${count?`<div class="gra-exgen-row-quantity"><label for="graExQty${i}">Quantidade</label><div class="gra-exgen-stepper"><input id="graExQty${i}" data-ex-qty type="number" min="1" step="1" max="${count}" value="1" disabled><div class="gra-exgen-stepper-buttons"><button type="button" data-ex-step="1" aria-label="Aumentar quantidade da habilidade ${i+1}" aria-controls="graExQty${i}" disabled>▲</button><button type="button" data-ex-step="-1" aria-label="Diminuir quantidade da habilidade ${i+1}" aria-controls="graExQty${i}" disabled>▼</button></div></div><small>De 1 a ${count}</small></div>`:'<span class="gra-exgen-unavailable-label">Indisponível<br>0 itens Alta</span>'}</div>`;
   }).join('');
   const body=qs('#graExGenBody');body.innerHTML=`<p class="gra-exgen-test-warning">Funcionalidade EM TESTE, NÃO UTILIZAR</p>
   ${cov?`<div class="gra-exgen-note"><b>${cov.covered} de ${cov.total} habilidades com item revisado.</b> Somente itens de compatibilidade Alta. ${cov.missing.length} sem item Alta.${cov.missing.length?`<details><summary>Ver habilidades sem item</summary><ul>${cov.missing.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}</div>`:''}
-  <fieldset class="gra-exgen-multi-field"><legend>Selecione uma ou mais habilidades</legend><div id="graExSkillChoices">${choices}</div></fieldset>
+  <fieldset class="gra-exgen-multi-field"><legend>Selecione uma ou mais habilidades</legend><div id="graExSkillChoices">${choices||'<p class="gra-exgen-empty">Nenhum item de compatibilidade Alta disponível neste nível.</p>'}</div></fieldset>
   <p id="graExSkillAvailability" aria-live="polite"></p>
   <label class="gra-exgen-option"><input id="graExRandomize" type="checkbox" checked><span><b>Variar as questões disponíveis</b><small>Sorteia entre os itens de compatibilidade Alta de cada habilidade selecionada.</small></span></label>
   <p class="gra-exgen-note">Esta versão gera exclusivamente itens de compatibilidade Alta: alinhamento do comando, resposta e condições da habilidade. O PDF identifica o comando alvo quando a página contém outras atividades.</p>
@@ -291,6 +291,6 @@ function observe(){
   window.addEventListener('pagehide',cancelGeneration);
 }
 async function testPdf(y='2',c='LP',level='4',n=1){const items=mergeItems(BANK[`${y}|${c}|${level}`]||[]).sort((a,b)=>(a.compatibility==='Alta'?0:1)-(b.compatibility==='Alta'?0:1)).slice(0,n);return generatePdf(items,y,c,level)}
-function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-somente-alta-setas-multihabilidades-20261006c',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
+function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-somente-alta-habilidades-disponiveis-20261006d',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
