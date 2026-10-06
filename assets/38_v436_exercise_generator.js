@@ -15,8 +15,8 @@ function levelLabel(k){return k==='0'?'Nível Abaixo de 1':'Nível '+k}
 function mergeItems(items){
   const m=new Map();
   (items||[]).forEach(it=>{
-    if(it.review_status!=='checked')return;
-    const key=[it.image,it.material,it.source_page,it.question||'',it.compatibility].join('|');
+    if(it.review_status!=='checked'||it.compatibility!=='Alta')return;
+    const key=[it.audit_uid||it.image,it.question||'',it.compatibility].join('|');
     if(!m.has(key))m.set(key,{...it,saeb_skills:relatedSkills(it).slice(),skills:relatedSkills(it).slice()});
     else{
       const cur=m.get(key),skills=[...new Set([...relatedSkills(cur),...relatedSkills(it)])];cur.saeb_skills=skills;cur.skills=skills;
@@ -81,46 +81,42 @@ function selectOnePerSkill(items,skills,randomize=false){
   }
   return chosen.sort(compatibilityOrder);
 }
-function toggleModePanels(){
-  const mode=qs('input[name="graExGenMode"]:checked')?.value||'one';
-  qs('#graExSkillChooser')?.classList.toggle('active',mode==='skills');qs('#graExCustomWrap')?.classList.toggle('active',mode==='custom');
+function skillCandidates(skill){
+  const raw=active.items.filter(it=>relatedSkills(it).includes(skill)).map(it=>({...it,skills:[skill],saeb_skills:[skill]}));
+  const unique=new Map();
+  raw.sort(compatibilityOrder).forEach(it=>{const key=it.audit_uid||[it.image,it.question].join('|');if(!unique.has(key))unique.set(key,it)});
+  return [...unique.values()];
+}
+function updateQuantity(){
+  const skill=qs('#graExSkillSelect')?.value||'',items=skillCandidates(skill),inp=qs('#graExSkillQty'),ok=qs('[data-exgen-ok]');
+  inp.value='1';inp.max=String(items.length||1);inp.disabled=!items.length;ok.disabled=!items.length;
+  qs('#graExSkillAvailability').textContent=skill?`${items.length} questão(ões) única(s), todas com compatibilidade Alta.`:'Selecione uma habilidade para definir a quantidade.';
 }
 function resolveSelection(){
-  const items=active.items||[],mode=qs('input[name="graExGenMode"]:checked')?.value||'one',inv=skillInventory(items),randomize=!!qs('#graExRandomize')?.checked;
-  if(mode==='max')return (randomize?shuffleItems(items):items.slice()).sort(compatibilityOrder);
-  if(mode==='one')return selectOnePerSkill(items,inv.map(x=>x.skill),randomize);
-  if(mode==='skills'){
-    const selected=[...qsa('#graExSkillChooser input[type="checkbox"]:checked')].map(x=>x.value);if(!selected.length)throw new Error('Selecione pelo menos uma habilidade.');return selectOnePerSkill(items,selected,randomize);
-  }
-  const inp=qs('#graExCustomQty'),raw=Number(inp?.value);if(!Number.isInteger(raw)||raw<1)throw new Error('Digite uma quantidade inteira válida de itens.');if(raw>items.length)throw new Error(`A quantidade máxima disponível neste nível é ${items.length}.`);return selectDiverse(items,raw,randomize);
+  const skill=qs('#graExSkillSelect')?.value||'';if(!skill)throw new Error('Selecione uma habilidade.');
+  const items=skillCandidates(skill),n=Number(qs('#graExSkillQty')?.value);
+  if(!Number.isInteger(n)||n<1||n>items.length)throw new Error(`Escolha uma quantidade inteira entre 1 e ${items.length}.`);
+  return selectDiverse(items,n,!!qs('#graExRandomize')?.checked).sort(compatibilityOrder);
 }
 function openModal(level){
-  cancelGeneration();ensureModal();lastFocus=document.activeElement;const items=itemsFor(level);const y=yearKey(),c=compKey();active={level,y,c,items};
-  qs('#graExGenTitle').textContent=`Gerar exercícios - ${levelLabel(level)}`;qs('#graExGenMeta').textContent=`${y}º ano · ${compLabel(c)}`;
-  const hi=items.filter(x=>x.compatibility==='Alta').length,pa=items.filter(x=>x.compatibility==='Parcial').length,total=items.length,inv=skillInventory(items),oneCount=selectOnePerSkill(items,inv.map(x=>x.skill)).length;
-  const body=qs('#graExGenBody');
-  const coverage=window.GRA_EXERCISE_COVERAGE?.[`${y}|${c}|${level}`];
-  const coverageNote=coverage?`<div class="gra-exgen-note"><b>${coverage.covered} de ${coverage.total} habilidades têm correspondência cadastrada.</b> ${coverage.high} com compatibilidade alta; ${coverage.partial} somente parcial. Parcial não significa atendimento integral.${coverage.missing.length?`<details><summary>${coverage.missing.length} habilidades ainda sem exercício</summary><ul>${coverage.missing.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></details>`:''}</div>`:'';
-  if(!total){
-    body.innerHTML=`<div class="gra-exgen-empty"><b>Nenhum exercício disponível.</b><br>Não há item cadastrado com compatibilidade Alta ou Parcial para este nível nos materiais já analisados.</div><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Fechar</button></div>`;
-  }else{
-    const skills=inv.map((x,i)=>`<label class="gra-exgen-skill-choice"><input type="checkbox" value="${esc(x.skill)}"><span class="gra-exgen-badge ${x.compatibility==='Alta'?'high':'partial'}">${esc(x.compatibility==='Alta'?'Alta Compatibilidade':'Compatibilidade Parcial')}</span><span class="gra-exgen-skill-text">${esc(x.skill)}<small>${x.count} item${x.count===1?'':'s'} ${x.count===1?'disponível':'disponíveis'}</small></span></label>`).join('');
-    body.innerHTML=`<div class="gra-exgen-stats"><div class="gra-exgen-stat high"><b>${hi}</b><span>Itens com Alta Compatibilidade</span></div><div class="gra-exgen-stat partial"><b>${pa}</b><span>Itens com Compatibilidade Parcial</span></div><div class="gra-exgen-stat"><b>${inv.length}</b><span>Habilidades cobertas</span></div></div>
-    <div class="gra-exgen-section-title">Como deseja montar a atividade?</div><div class="gra-exgen-options">
-      <label class="gra-exgen-option"><input type="radio" name="graExGenMode" value="skills"><span><b>Escolher habilidades</b><small>Selecione na lista as habilidades específicas deste nível.</small></span></label>
-      <label class="gra-exgen-option"><input type="radio" name="graExGenMode" value="one" checked><span><b>Um item por habilidade</b><small>Tenta usar um exercício distinto para cada uma das ${inv.length} habilidades (${oneCount} item${oneCount===1?'':'s'} neste nível); se uma mesma questão for a única opção para mais de uma habilidade, ela não é duplicada.</small></span></label>
-      <label class="gra-exgen-option"><input type="radio" name="graExGenMode" value="max"><span><b>Máximo de itens (${total})</b><small>Inclui todos os exercícios físicos únicos disponíveis neste nível.</small></span></label>
-      <label class="gra-exgen-option"><input type="radio" name="graExGenMode" value="custom"><span><b>Definir quantidade de itens</b><small>Você informa quantos itens deseja.</small></span></label>
-    </div>
-    <div class="gra-exgen-skill-chooser" id="graExSkillChooser"><div class="gra-exgen-chooser-head"><b>Habilidades do nível</b><button type="button" data-exgen-all>Marcar todas</button><button type="button" data-exgen-none>Limpar</button></div><div class="gra-exgen-skills">${skills}</div></div>
-    <div class="gra-exgen-custom" id="graExCustomWrap"><label>Quantidade de itens <input id="graExCustomQty" type="number" min="1" max="${total}" value="${Math.min(total,Math.max(1,inv.length))}"></label><small>Limite: 1 a ${total}. Prioriza compatibilidade Alta, depois habilidades ainda não representadas e variedade de fontes.</small></div>
-    <label class="gra-exgen-option"><input id="graExRandomize" type="checkbox" checked><span><b>Variar as questões equivalentes</b><small>Sorteia os empates entre opções da mesma compatibilidade e prioridade. Desmarque para uma seleção estável.</small></span></label>
-    <p class="gra-exgen-note">Por habilidade, a compatibilidade <b>Alta</b> tem preferência; a <b>Parcial</b> é usada quando não há alternativa Alta. Na quantidade personalizada, as questões Alta vêm primeiro. O modo Máximo inclui todo o acervo revisado deste nível, sem repetir o mesmo item.</p><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Cancelar</button><button class="gra-exgen-ok" type="button" data-exgen-ok>Ok</button></div>`;
-  }
-  body.insertAdjacentHTML('afterbegin',coverageNote);
-  body.querySelectorAll('[data-exgen-cancel]').forEach(b=>b.addEventListener('click',closeModal));body.querySelector('[data-exgen-ok]')?.addEventListener('click',generateFromModal);
-  body.querySelectorAll('input[name="graExGenMode"]').forEach(r=>r.addEventListener('change',toggleModePanels));body.querySelector('[data-exgen-all]')?.addEventListener('click',()=>qsa('#graExSkillChooser input[type="checkbox"]').forEach(x=>x.checked=true));body.querySelector('[data-exgen-none]')?.addEventListener('click',()=>qsa('#graExSkillChooser input[type="checkbox"]').forEach(x=>x.checked=false));toggleModePanels();
-  const bd=qs('#graExGenBackdrop');bd.classList.add('open');bd.setAttribute('aria-hidden','false');document.body.classList.add('gra-exgen-open');const ticket=session;setTimeout(()=>{if(ticket===session)qs('#graExGenClose')?.focus()},30);
+  cancelGeneration();ensureModal();lastFocus=document.activeElement;const y=yearKey(),c=compKey();
+  // Preserve separate compatibility for each skill; merging happens after the skill is selected.
+  const items=(BANK[`${y}|${c}|${level}`]||[]).filter(it=>it.review_status==='checked'&&it.strict_review===true&&it.compatibility==='Alta');
+  active={level,y,c,items};const cov=window.GRA_EXERCISE_COVERAGE?.[`${y}|${c}|${level}`];
+  qs('#graExGenTitle').textContent=`Gerar exercícios - ${levelLabel(level)}`;qs('#graExGenMeta').textContent=`${y}º ano · ${compLabel(c)} · v438 · somente Alta`;
+  const skills=[...new Set([...items.flatMap(relatedSkills),...(cov?.missing||[])])];
+  const options=skills.map(skill=>{const available=skillCandidates(skill);return `<option value="${esc(skill)}" ${available.length?'':'disabled'}>${esc(skill)} (${available.length} ${available.length?'disponíveis':'— sem item'})</option>`}).join('');
+  const body=qs('#graExGenBody');body.innerHTML=`<p class="gra-exgen-test-warning">Funcionalidade EM TESTE, NÃO UTILIZAR</p>
+  ${cov?`<div class="gra-exgen-note"><b>${cov.covered} de ${cov.total} habilidades com item revisado.</b> Somente itens de compatibilidade Alta. ${cov.missing.length} sem item Alta.${cov.missing.length?`<details><summary>Ver habilidades sem item</summary><ul>${cov.missing.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}</div>`:''}
+  <label class="gra-exgen-field">Habilidade<select id="graExSkillSelect"><option value="">Selecione uma habilidade</option>${options}</select></label>
+  <label class="gra-exgen-field">Quantidade de itens<input id="graExSkillQty" type="number" min="1" step="1" max="1" value="1" disabled></label>
+  <p id="graExSkillAvailability" aria-live="polite"></p>
+  <label class="gra-exgen-option"><input id="graExRandomize" type="checkbox" checked><span><b>Variar as questões disponíveis</b><small>Sorteia entre os itens de compatibilidade Alta da habilidade selecionada.</small></span></label>
+  <p class="gra-exgen-note">Esta versão gera exclusivamente itens de compatibilidade Alta: alinhamento do comando, resposta e condições da habilidade. O PDF identifica o comando alvo quando a página contém outras atividades.</p>
+  <p class="gra-exgen-error" id="graExGenError" role="alert"></p><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Cancelar</button><button class="gra-exgen-ok" type="button" data-exgen-ok disabled>Gerar PDF</button></div>`;
+  body.querySelector('[data-exgen-cancel]').addEventListener('click',closeModal);body.querySelector('[data-exgen-ok]').addEventListener('click',generateFromModal);qs('#graExSkillSelect').addEventListener('change',updateQuantity);updateQuantity();
+  const bd=qs('#graExGenBackdrop');bd.classList.add('open');bd.setAttribute('aria-hidden','false');document.body.classList.add('gra-exgen-open');
+  const ticket=session;setTimeout(()=>{if(ticket===session)qs('#graExSkillSelect')?.focus()},30);
 }
 function decorateDrawer(){
   const drawer=qs('#saebScaleDrawer');if(!drawer)return;
@@ -128,7 +124,8 @@ function decorateDrawer(){
     const sum=card.querySelector('summary');if(!sum)return;
     const level=card.dataset.saebCard||'';let b=sum.querySelector('.gra-exgen-trigger');
     if(!b){b=document.createElement('button');b.type='button';b.className='gra-exgen-trigger';b.dataset.exgenLevel=level;b.dataset.graNoSchoolNav='1';b.textContent='Gerar exercícios deste nível';const em=sum.querySelector('em');em?sum.insertBefore(b,em):sum.appendChild(b)}
-    const n=itemsFor(level).length;b.disabled=!n;b.title=n?`${n} exercício${n===1?'':'s'} ${n===1?'disponível':'disponíveis'}`:'Nenhum exercício Alta ou Parcial disponível neste nível.';
+    if(!sum.querySelector('.gra-exgen-test-warning')){const warn=document.createElement('span');warn.className='gra-exgen-test-warning';warn.textContent='Funcionalidade EM TESTE, NÃO UTILIZAR';b.insertAdjacentElement('afterend',warn)}
+    const n=itemsFor(level).length;b.disabled=level==='0';b.title=n?`${n} exercício${n===1?'':'s'} ${n===1?'disponível':'disponíveis'}`:'Nenhum exercício de compatibilidade Alta disponível neste nível.';
   });
 }
 function loadImage(src,signal){return new Promise((resolve,reject)=>{
@@ -191,8 +188,12 @@ function drawPage(img,item,pageNo,total,y,c,level){
   const skill=drawSkillBox(x,item,src.bottom,H);
   let contentTop=Math.max(leftBottom,src.bottom+18,skill.mode==='top'?skill.bottom+18:0);
   let contentBottom=skill.mode==='footer'?skill.top-20:H-42;
+  const target=item.page_role==='support'?'TEXTO DE APOIO — a resposta escrita está na próxima parte.':`COMANDO AVALIADO: ${item.question||'questão da página'}`;
+  x.font='700 18px Arial';const targetLines=wrapText(x,target,1080);
+  x.fillStyle='#fff4d8';x.fillRect(54,contentTop,1132,24+targetLines.length*23);x.fillStyle='#6f4c00';targetLines.forEach((line,i)=>x.fillText(line,70,contentTop+23+i*23));contentTop+=36+targetLines.length*23;
+
   if(contentBottom-contentTop<540){contentTop=Math.min(contentTop,260)}
-  const left=54,right=54,maxW=W-left-right,maxH=Math.max(360,contentBottom-contentTop);const sc=Math.min(maxW/img.width,maxH/img.height),dw=img.width*sc,dh=img.height*sc,dx=(W-dw)/2,dy=contentTop+(maxH-dh)/2;x.drawImage(img,dx,dy,dw,dh);
+  const left=54,right=54,maxW=W-left-right,maxH=Math.max(360,contentBottom-contentTop);const crop=item.crop||[0,0,1,1],sx=crop[0]*img.width,sy=crop[1]*img.height,sw=(crop[2]-crop[0])*img.width,sh=(crop[3]-crop[1])*img.height;const sc=Math.min(maxW/sw,maxH/sh),dw=sw*sc,dh=sh*sc,dx=(W-dw)/2,dy=contentTop+(maxH-dh)/2;x.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
   x.fillStyle='#6b808f';x.font='14px Arial';x.fillText(`${pageNo}/${total}`,W-92,H-14);return cv;
 }
 function dataUrlBytes(url){const b64=url.split(',')[1],bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
@@ -206,7 +207,7 @@ function buildPdf(jpegs,w=1240,h=1754){
 }
 async function generatePdf(items,y,c,level,onProgress,signal){
   const jpg=[];throwIfAborted(signal);
-  if(!items.length||items.some(it=>it.review_status!=='checked'))throw new Error('Seleção vazia ou exercício bloqueado pela revisão de conteúdo.');
+  if(!items.length||items.some(it=>it.review_status!=='checked'||it.strict_review!==true||it.compatibility!=='Alta'))throw new Error('Seleção vazia ou exercício bloqueado pela revisão de conteúdo.');
   items=items.slice().sort(compatibilityOrder);
   const pages=items.flatMap((item,index)=>{
     const support=item.pages?.length?item.pages:[{image:item.image,source_page:item.source_page}];
@@ -229,7 +230,7 @@ function forceDownload(blob,name){
 }
 async function generateFromModal(){
   if(!active.items?.length||generation)return;const body=qs('#graExGenBody');let chosen;
-  try{chosen=resolveSelection().sort(compatibilityOrder)}catch(err){const note=body.querySelector('.gra-exgen-note');if(note){note.innerHTML=`<b style="color:#a61f1f">${esc(err.message||err)}</b>`;note.scrollIntoView({block:'nearest'})}return}
+  try{chosen=resolveSelection().sort(compatibilityOrder)}catch(err){const note=body.querySelector('#graExGenError');if(note){note.innerHTML=`<b style="color:#a61f1f">${esc(err.message||err)}</b>`;note.scrollIntoView({block:'nearest'})}return}
   if(!chosen.length)return;
   const snapshot={y:active.y,c:active.c,level:active.level},ticket=session,controller=new AbortController();generation=controller;jobStats.started++;
   const current=()=>ticket===session&&generation===controller&&!controller.signal.aborted;
@@ -258,6 +259,6 @@ function observe(){
   window.addEventListener('pagehide',cancelGeneration);
 }
 async function testPdf(y='2',c='LP',level='4',n=1){const items=mergeItems(BANK[`${y}|${c}|${level}`]||[]).sort((a,b)=>(a.compatibility==='Alta'?0:1)-(b.compatibility==='Alta'?0:1)).slice(0,n);return generatePdf(items,y,c,level)}
-function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-hotfix-20261006',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
+function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-somente-alta-em-teste-20261006',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
