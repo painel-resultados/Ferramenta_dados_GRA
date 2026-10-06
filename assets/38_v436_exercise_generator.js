@@ -87,14 +87,24 @@ function skillCandidates(skill){
   raw.sort(compatibilityOrder).forEach(it=>{const key=it.audit_uid||[it.image,it.question].join('|');if(!unique.has(key))unique.set(key,it)});
   return [...unique.values()];
 }
+function syncQuantityButtons(){
+  qsa('#graExSkillChoices .gra-exgen-skill-row').forEach(row=>{
+    const cb=row.querySelector('[data-ex-skill]'),inp=row.querySelector('[data-ex-qty]');if(!inp)return;
+    const value=Number(inp.value),max=Number(inp.max),enabled=cb.checked&&!cb.disabled;
+    inp.disabled=!enabled;
+    row.querySelector('[data-ex-step="1"]').disabled=!enabled||value>=max;
+    row.querySelector('[data-ex-step="-1"]').disabled=!enabled||value<=1;
+  });
+}
 function updateQuantity(changed){
   if(changed?.matches?.('[data-ex-skill]')){
-    const row=changed.closest('.gra-exgen-skill-row'),inp=row.querySelector('[data-ex-qty]');
-    inp.value='1';inp.disabled=!changed.checked;
+    const inp=changed.closest('.gra-exgen-skill-row').querySelector('[data-ex-qty]');
+    if(inp)inp.value='1';
   }
+  syncQuantityButtons();
   const marked=qsa('#graExSkillChoices [data-ex-skill]:checked');
   qs('[data-exgen-ok]').disabled=!marked.length;
-  qs('#graExSkillAvailability').textContent=marked.length?`${marked.length} habilidade(s) selecionada(s). Defina a quantidade para cada uma. Itens compartilhados com o mesmo comando aparecem apenas uma vez no PDF.`:'Marque uma ou mais habilidades para gerar os itens.';
+  qs('#graExSkillAvailability').textContent=marked.length?`${marked.length} habilidade(s) selecionada(s). Use as setas para definir a quantidade de cada uma. Você pode marcar todas as habilidades com itens Alta disponíveis. Itens compartilhados com o mesmo comando aparecem apenas uma vez no PDF.`:'Marque uma ou mais habilidades com itens Alta disponíveis. Não há limite de duas seleções.';
 }
 function resolveSelection(){
   const marked=qsa('#graExSkillChoices [data-ex-skill]:checked');if(!marked.length)throw new Error('Selecione pelo menos uma habilidade.');
@@ -119,16 +129,24 @@ function openModal(level){
   const skills=[...new Set([...items.flatMap(relatedSkills),...(cov?.missing||[])])];
   const choices=skills.map((skill,i)=>{
     const count=skillCandidates(skill).length;
-    return `<div class="gra-exgen-skill-row ${count?'':'is-unavailable'}"><label class="gra-exgen-skill-check" for="graExSkill${i}"><input id="graExSkill${i}" type="checkbox" data-ex-skill value="${esc(skill)}" ${count?'':'disabled'}><span class="gra-exgen-skill-copy">${esc(skill)}<small>${count?`${count} item(ns) disponível(is) · compatibilidade Alta`:'Sem item de compatibilidade Alta'}</small></span></label><label class="gra-exgen-row-quantity" for="graExQty${i}">Quantidade<input id="graExQty${i}" data-ex-qty type="number" min="1" step="1" max="${count||1}" value="1" disabled></label></div>`;
+    return `<div class="gra-exgen-skill-row ${count?'':'is-unavailable'}"><label class="gra-exgen-skill-check" for="graExSkill${i}"><input id="graExSkill${i}" type="checkbox" data-ex-skill value="${esc(skill)}" ${count?'':'disabled'}><span class="gra-exgen-skill-copy">${esc(skill)}<small>${count?`${count} item(ns) disponível(is) · compatibilidade Alta`:'Não selecionável: esta habilidade não tem item de compatibilidade Alta neste nível.'}</small></span></label>${count?`<div class="gra-exgen-row-quantity"><label for="graExQty${i}">Quantidade</label><div class="gra-exgen-stepper"><input id="graExQty${i}" data-ex-qty type="number" min="1" step="1" max="${count}" value="1" disabled><div class="gra-exgen-stepper-buttons"><button type="button" data-ex-step="1" aria-label="Aumentar quantidade da habilidade ${i+1}" aria-controls="graExQty${i}" disabled>▲</button><button type="button" data-ex-step="-1" aria-label="Diminuir quantidade da habilidade ${i+1}" aria-controls="graExQty${i}" disabled>▼</button></div></div><small>De 1 a ${count}</small></div>`:'<span class="gra-exgen-unavailable-label">Indisponível<br>0 itens Alta</span>'}</div>`;
   }).join('');
   const body=qs('#graExGenBody');body.innerHTML=`<p class="gra-exgen-test-warning">Funcionalidade EM TESTE, NÃO UTILIZAR</p>
   ${cov?`<div class="gra-exgen-note"><b>${cov.covered} de ${cov.total} habilidades com item revisado.</b> Somente itens de compatibilidade Alta. ${cov.missing.length} sem item Alta.${cov.missing.length?`<details><summary>Ver habilidades sem item</summary><ul>${cov.missing.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}</div>`:''}
-  <fieldset class="gra-exgen-multi-field"><legend>Selecione as habilidades</legend><div id="graExSkillChoices">${choices}</div></fieldset>
+  <fieldset class="gra-exgen-multi-field"><legend>Selecione uma ou mais habilidades</legend><div id="graExSkillChoices">${choices}</div></fieldset>
   <p id="graExSkillAvailability" aria-live="polite"></p>
   <label class="gra-exgen-option"><input id="graExRandomize" type="checkbox" checked><span><b>Variar as questões disponíveis</b><small>Sorteia entre os itens de compatibilidade Alta de cada habilidade selecionada.</small></span></label>
   <p class="gra-exgen-note">Esta versão gera exclusivamente itens de compatibilidade Alta: alinhamento do comando, resposta e condições da habilidade. O PDF identifica o comando alvo quando a página contém outras atividades.</p>
   <p class="gra-exgen-error" id="graExGenError" role="alert"></p><div class="gra-exgen-actions"><button class="gra-exgen-cancel" type="button" data-exgen-cancel>Cancelar</button><button class="gra-exgen-ok" type="button" data-exgen-ok disabled>Gerar PDF</button></div>`;
-  body.querySelector('[data-exgen-cancel]').addEventListener('click',closeModal);body.querySelector('[data-exgen-ok]').addEventListener('click',generateFromModal);qs('#graExSkillChoices').addEventListener('change',e=>updateQuantity(e.target));updateQuantity();
+  body.querySelector('[data-exgen-cancel]').addEventListener('click',closeModal);body.querySelector('[data-exgen-ok]').addEventListener('click',generateFromModal);const chooser=qs('#graExSkillChoices');
+  chooser.addEventListener('change',e=>updateQuantity(e.target));
+  chooser.addEventListener('input',syncQuantityButtons);
+  chooser.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-ex-step]');if(!btn||btn.disabled)return;
+    const inp=btn.closest('.gra-exgen-skill-row').querySelector('[data-ex-qty]');
+    const current=Number(inp.value)||1;inp.value=String(Math.max(1,Math.min(Number(inp.max),current+Number(btn.dataset.exStep))));
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+  });updateQuantity();
   const bd=qs('#graExGenBackdrop');bd.classList.add('open');bd.setAttribute('aria-hidden','false');document.body.classList.add('gra-exgen-open');
   const ticket=session;setTimeout(()=>{if(ticket===session)qs('#graExSkillChoices [data-ex-skill]:not(:disabled)')?.focus()},30);
 }
@@ -273,6 +291,6 @@ function observe(){
   window.addEventListener('pagehide',cancelGeneration);
 }
 async function testPdf(y='2',c='LP',level='4',n=1){const items=mergeItems(BANK[`${y}|${c}|${level}`]||[]).sort((a,b)=>(a.compatibility==='Alta'?0:1)-(b.compatibility==='Alta'?0:1)).slice(0,n);return generatePdf(items,y,c,level)}
-function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-somente-alta-multihabilidades-simulado-20261006b',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
+function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-somente-alta-setas-multihabilidades-20261006c',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

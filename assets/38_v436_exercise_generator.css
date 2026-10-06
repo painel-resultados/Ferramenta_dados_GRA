@@ -59,3 +59,17 @@ body.gra-exgen-open{overflow:hidden!important}
 @media(max-width:480px){.gra-exgen-skill-row{grid-template-columns:minmax(0,1fr);gap:10px;padding:11px}.gra-exgen-row-quantity{margin-left:27px;grid-template-columns:auto 80px;align-items:center;justify-content:start}.gra-exgen-skill-copy{font-size:13px}}
 
 /* Build .438 hotfix 20261006b: início Simulado e múltiplas habilidades. */
+
+/* Hotfix .438 20261006c — setas próprias, limites visíveis e zero itens sem quantidade fictícia. */
+.gra-exgen-stepper{display:flex;align-items:stretch;width:100%;min-width:0}
+.gra-exgen-stepper input{min-width:0;flex:1;border-radius:7px 0 0 7px;appearance:textfield;-moz-appearance:textfield}
+.gra-exgen-stepper input::-webkit-inner-spin-button,.gra-exgen-stepper input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.gra-exgen-stepper-buttons{display:grid;grid-template-rows:1fr 1fr;width:30px;flex:0 0 30px}
+.gra-exgen-stepper-buttons button{appearance:none;border:1px solid #aebfcd;border-left:0;background:#eaf3f9;color:#173f5a;font:700 11px/1 system-ui;min-height:23px;padding:4px;cursor:pointer}
+.gra-exgen-stepper-buttons button:first-child{border-radius:0 7px 0 0}
+.gra-exgen-stepper-buttons button:last-child{border-top:0;border-radius:0 0 7px 0}
+.gra-exgen-stepper-buttons button:disabled{background:#eef1f4;color:#9ba8b1;cursor:default}
+.gra-exgen-stepper-buttons button:focus-visible{outline:2px solid #286da5;outline-offset:1px}
+.gra-exgen-row-quantity>small{font:500 10px/1.4 system-ui;color:#587587}
+.gra-exgen-unavailable-label{font:600 11px/1.5 system-ui;color:#738795}
+@media(max-width:480px){.gra-exgen-row-quantity{grid-template-columns:auto 100px}.gra-exgen-row-quantity>small{grid-column:2}.gra-exgen-unavailable-label{margin-left:27px}}
