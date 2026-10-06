@@ -435,10 +435,10 @@ window.GRA_YIELD_TO_INTERFACE=graYieldToInterface;
 function graSyncNavigationTitle(){
   const section=document.querySelector('.section.active');if(!section)return;
   const master=document.getElementById('regionalScopeSelect'),scope=master?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME';
-  const labels={resultados:'Somativas',adrs:'ADRs',consistencia:'Trajetória e Consistência',georreferenciamento:'Georreferenciamento'};
+  const labels={resultados:'Somativas',adrs:'ADRs',georreferenciamento:'Georreferenciamento'};
   const label=labels[section.id]||section.querySelector('h3')?.textContent?.trim()||document.querySelector(`.nav button[data-section="${section.id}"]`)?.textContent?.trim()||'Ferramenta GRA de análise de dados';
   const h2=document.querySelector('.topbar .title h2'),subtitle=document.querySelector('.topbar .title p');
-  const descriptions={resultados:'Resultados das avaliações somativas',adrs:'Resultados das atividades diagnósticas em rede',consistencia:'ADR 1, ADR 2, ADR 3 e Simulado 2026',georreferenciamento:'Resultados educacionais no território'};
+  const descriptions={resultados:'Resultados das avaliações somativas',adrs:'Resultados das atividades diagnósticas em rede',georreferenciamento:'Resultados educacionais no território'};
   if(h2)h2.textContent=`${label} · ${scope}`;
   if(subtitle)subtitle.textContent=`${descriptions[section.id]||'Dados estruturais'} no recorte ${scope}.`;
 }
@@ -4931,10 +4931,10 @@ window.GRA_YIELD_TO_INTERFACE=graYieldToInterface;
 function graSyncNavigationTitle(){
   const section=document.querySelector('.section.active');if(!section)return;
   const master=document.getElementById('regionalScopeSelect'),scope=master?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME';
-  const labels={resultados:'Somativas',adrs:'ADRs',consistencia:'Trajetória e Consistência',georreferenciamento:'Georreferenciamento'};
+  const labels={resultados:'Somativas',adrs:'ADRs',georreferenciamento:'Georreferenciamento'};
   const label=labels[section.id]||section.querySelector('h3')?.textContent?.trim()||document.querySelector(`.nav button[data-section="${section.id}"]`)?.textContent?.trim()||'Ferramenta GRA de análise de dados';
   const h2=document.querySelector('.topbar .title h2'),subtitle=document.querySelector('.topbar .title p');
-  const descriptions={resultados:'Resultados das avaliações somativas',adrs:'Resultados das atividades diagnósticas em rede',consistencia:'ADR 1, ADR 2, ADR 3 e Simulado 2026',georreferenciamento:'Resultados educacionais no território'};
+  const descriptions={resultados:'Resultados das avaliações somativas',adrs:'Resultados das atividades diagnósticas em rede',georreferenciamento:'Resultados educacionais no território'};
   if(h2)h2.textContent=`${label} · ${scope}`;
   if(subtitle)subtitle.textContent=`${descriptions[section.id]||'Dados estruturais'} no recorte ${scope}.`;
 }
