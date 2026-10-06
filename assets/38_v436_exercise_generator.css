@@ -39,3 +39,23 @@ body.gra-exgen-open{overflow:hidden!important}
 
 .gra-exgen-test-warning{font-size:12px;font-weight:800;color:#a32121;background:#fff0ee;border:1px solid #e3a29c;border-radius:6px;padding:6px 9px;display:inline-block;white-space:normal;line-height:1.4;max-width:100%;}
 .gra-exgen-field{display:flex;flex-direction:column;gap:8px;margin:18px 0;font-weight:700}.gra-exgen-field select{width:100%;padding:12px;border:1px solid #9bafbd;border-radius:8px;font-size:14px;background:white;color:#173e58}.gra-exgen-field input{width:130px;padding:12px;font-size:18px;border:1px solid #9bafbd;border-radius:8px}.gra-exgen-ok:disabled{opacity:.45;cursor:not-allowed}.gra-exgen-error{color:#a32121}.saeb-level-card summary{flex-wrap:wrap;gap:8px}
+
+/* v438 — múltiplas habilidades, com texto integral e quantidade por habilidade. */
+.gra-exgen-multi-field{border:0;padding:0;margin:18px 0;min-width:0}
+.gra-exgen-multi-field legend{font:700 14px/1.4 system-ui;color:#173f5a;margin-bottom:10px}
+#graExSkillChoices{display:grid;gap:9px;min-width:0}
+.gra-exgen-skill-row{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:14px;align-items:start;padding:13px;border:1px solid #dce7ee;border-radius:10px;background:#fff}
+.gra-exgen-skill-row:has([data-ex-skill]:checked){border-color:#81abc6;background:#f2f8fc}
+.gra-exgen-skill-check{display:grid;grid-template-columns:18px minmax(0,1fr);gap:9px;align-items:start;cursor:pointer;min-width:0}
+.gra-exgen-skill-check input{width:17px;height:17px;margin:2px 0 0;accent-color:#c62828}
+.gra-exgen-skill-copy{font:500 13px/1.55 system-ui;color:#244b65;white-space:normal;overflow-wrap:anywhere;word-break:normal;text-overflow:clip;min-width:0}
+.gra-exgen-skill-copy small{display:block;margin-top:7px;font:600 11px/1.4 system-ui;color:#587587}
+.gra-exgen-row-quantity{display:grid;gap:6px;font:600 11px/1.4 system-ui;color:#385b71;min-width:0}
+.gra-exgen-row-quantity input{box-sizing:border-box;width:100%;padding:8px;font:600 15px/1.4 system-ui;border:1px solid #aebfcd;border-radius:7px;background:#fff;color:#173f5a}
+.gra-exgen-row-quantity input:disabled{background:#edf1f4;color:#8494a0}
+.gra-exgen-skill-row.is-unavailable{background:#f7f9fa}
+.gra-exgen-skill-row.is-unavailable .gra-exgen-skill-check{cursor:default}
+#graExSkillAvailability{font:500 12px/1.5 system-ui;color:#385b71}
+@media(max-width:480px){.gra-exgen-skill-row{grid-template-columns:minmax(0,1fr);gap:10px;padding:11px}.gra-exgen-row-quantity{margin-left:27px;grid-template-columns:auto 80px;align-items:center;justify-content:start}.gra-exgen-skill-copy{font-size:13px}}
+
+/* Build .438 hotfix 20261006b: início Simulado e múltiplas habilidades. */
