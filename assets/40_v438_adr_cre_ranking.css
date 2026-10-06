@@ -1,0 +1,17 @@
+.adr-cre-ranking{display:block!important;padding:3px 0 0}
+.adr-cre-ranking-section h4{margin:16px 0 10px;color:#12385d;font-size:15px}
+.adr-cre-ranking-row{display:grid;grid-template-columns:38px minmax(120px,1fr) minmax(90px,1.1fr) 92px;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #e6edf4}
+.adr-cre-position{border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#edf4fa;color:#12385d;font-size:14px}
+.adr-cre-name strong{display:block;color:#12385d;font-size:15px}
+.adr-cre-name small{display:block;color:#60758a;font-size:11px;line-height:1.5;margin-top:3px}
+.adr-cre-meter{height:13px;border-radius:5px;background:#edf2f6;overflow:hidden;position:relative}
+.adr-cre-meter span{display:block;height:100%;background:#1c79b8;border-radius:4px}
+.adr-cre-score{text-align:right;font-size:15px;color:#12385d;white-space:nowrap}
+.adr-cre-meter.signed:after{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:#8a9bad}
+.adr-cre-meter.signed span{position:absolute}
+.adr-cre-meter .positive{background:#1d8f68}.adr-cre-meter .negative{background:#b23b3b}
+.adr-cre-score.positive{color:#1d795d}.adr-cre-score.negative{color:#a73434}
+.adr-cre-ranking-note{font-size:11px;color:#60758a;line-height:1.55;margin:15px 0 0}
+#adrProgressChart.adr-cre-lines-mode .adr-progress-series text{display:none}
+#adrProgressChart.adr-cre-lines-mode .adr-progress-series:has(.adr-progress-line[stroke-width="4.8"]) text{display:block}
+@media(max-width:620px){.adr-cre-ranking-row{grid-template-columns:34px minmax(0,1fr) 94px;gap:8px}.adr-cre-meter{grid-column:2/4;grid-row:2;height:9px}.adr-cre-score{grid-column:3;grid-row:1}.adr-cre-name small{font-size:10px}}
