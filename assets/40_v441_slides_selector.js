@@ -19,24 +19,42 @@ function scope(){
  return {region,agent,query,priority,mine,partners,title,active};
 }
 function scopeKey(s){return JSON.stringify(s)}
-function rowId(r){return [cre(r),H.schoolKey(r.escolaFonte||r.escola),r.adr||r.modalidade,r.ano||r.anoEscolar,r.componente,r.edicao||''].join('|')}
-function allowed(r,s){
+function mergeContext(s){return {names:new Map(),records:new Map(),queryKey:H.schoolKey(s.query),queryNorm:norm(s.query)}}
+function rowName(r,ctx){const name=r.escolaFonte||r.escola;let info=ctx.names.get(name);if(!info){info={key:H.schoolKey(name),normal:norm(r.escola)};ctx.names.set(name,info)}return info}
+function rowId(r,ctx){return [cre(r),rowName(r,ctx).key,r.adr||r.modalidade,r.ano||r.anoEscolar,r.componente,r.edicao||''].join('|')}
+function allowed(r,s,ctx){
  if(s.region&&cre(r)!==s.region)return false;
+ // A busca e os demais filtros baratos vêm antes da associação estrutural.
+ if(s.query){const name=rowName(r,ctx);if(!name.key.includes(ctx.queryKey)&&!name.normal.includes(ctx.queryNorm))return false}
  if(W.graMasterAllowsRow&&!W.graMasterAllowsRow(r))return false;
- const record=H.record(r.escolaFonte||r.escola,cre(r));
- if(s.agent&&norm(record?.agente||r.agente)!==norm(s.agent))return false;
- if(s.query&&!H.schoolKey(r.escolaFonte||r.escola).includes(H.schoolKey(s.query))&&!norm(r.escola).includes(norm(s.query)))return false;
  if(s.priority&&!H.priority(r))return false;
- if(s.partners){
-  if(!W.__GRA_V391_PARTNERS__?.isPartner?.(record||r))return false;
-  const y=order(r.ano||r.anoEscolar);if(y===8||norm(r.anoEscolar)==='anos finais')return false;
+ if(s.partners){const y=order(r.ano||r.anoEscolar);if(y===8||norm(r.anoEscolar)==='anos finais')return false}
+ if(s.agent||s.partners){
+  const id=cre(r)+'|'+(r.escolaFonte||r.escola);
+  if(!ctx.records.has(id))ctx.records.set(id,H.record(r.escolaFonte||r.escola,cre(r)));
+  const record=ctx.records.get(id);
+  if(s.agent&&norm(record?.agente||r.agente)!==norm(s.agent))return false;
+  if(s.partners&&!W.__GRA_V391_PARTNERS__?.isPartner?.(record||r))return false;
  }
  return true;
 }
+function mergeRow(maps,type,r,s,ctx){if(!r?.escola||r._afCreAggregate||!allowed(r,s,ctx))return;maps[type].set(rowId(r,ctx),r)}
+function merged(maps){return {adr:[...maps.adr.values()],som:[...maps.som.values()]}}
 function mergeSources(packages,live,s){
- const maps={adr:new Map(),som:new Map()};
- for(const type of ['adr','som'])for(const rows of [...packages.map(p=>p[type]||[]),live[type]||[]])for(const r of rows){if(!r?.escola||r._afCreAggregate||!allowed(r,s))continue;maps[type].set(rowId(r),r)}
- return {adr:[...maps.adr.values()],som:[...maps.som.values()]};
+ const maps={adr:new Map(),som:new Map()},ctx=mergeContext(s);
+ for(const type of ['adr','som'])for(const rows of [...packages.map(p=>p[type]||[]),live[type]||[]])for(const r of rows)mergeRow(maps,type,r,s,ctx);
+ return merged(maps);
+}
+const yieldUI=()=>new Promise(resolve=>setTimeout(resolve,0));
+async function mergeSourcesAsync(packages,live,s,onProgress=()=>{},isCurrent=()=>true){
+ const maps={adr:new Map(),som:new Map()},ctx=mergeContext(s),sources=['adr','som'].flatMap(type=>[...packages.map(p=>p[type]||[]),live[type]||[]].map(rows=>({type,rows}))),total=sources.reduce((n,x)=>n+x.rows.length,0);
+ let processed=0,sliceStart=performance.now();onProgress({processed,total});await yieldUI();
+ for(const {type,rows} of sources)for(const r of rows){
+  if(!isCurrent())return null;
+  mergeRow(maps,type,r,s,ctx);processed++;
+  if(processed%64===0&&performance.now()-sliceStart>=12){onProgress({processed,total});await yieldUI();if(!isCurrent())return null;sliceStart=performance.now()}
+ }
+ if(!isCurrent())return null;onProgress({processed,total});await yieldUI();return isCurrent()?merged(maps):null;
 }
 function weighted(rows,key){let total=0,weight=0;for(const r of rows){const v=num(r[key]),n=num(r.avaliados);if(v===null||n===0)continue;const w=n>0?n:1;total+=v*w;weight+=w}return weight?total/weight:null}
 function mean(rows,key){const a=rows.map(r=>num(r[key])).filter(v=>v!==null);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
@@ -178,10 +196,10 @@ async function open(){
  try{const regions=s.region?[s.region]:[1,2,3,4,5,6,7,8,9,10,11],packages=[];
   for(const n of regions){const p=await W.GRA_PPT_DATA_LOAD_V388(n);if(run!==session)return;packages.push(p);$('v441SlideLoading').textContent=`Carregando avaliações… ${packages.length}/${regions.length}`;await new Promise(r=>setTimeout(r,0))}
   if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');
-  const data=mergeSources(packages,H.live(),s);state.rows=normalized(data);if(!state.rows.length){shell('<div class="v441-status">Não há avaliações disponíveis para este universo.</div>');return}renderForm();
+  const data=await mergeSourcesAsync(packages,H.live(),s,p=>{if(run===session&&$('v441SlideLoading'))$('v441SlideLoading').textContent=`Organizando avaliações do recorte… ${Math.round(p.total?p.processed/p.total*100:100)}%`},()=>run===session);if(!data||run!==session)return;if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');state.rows=normalized(data);if(!state.rows.length){shell('<div class="v441-status">Não há avaliações disponíveis para este universo.</div>');return}renderForm();
  }catch(e){if(run===session)shell(`<div class="v441-status v441-error" role="alert">${esc(e.message||'Não foi possível carregar as avaliações.')}</div>`)}
 }
 if(!H)return;
 W.GRA_PPT_V388=open;W.__GRA_PPT_ENGINE_VERSION='v441';
-W.GRA_SLIDES_V441={open,close,scope,mergeSources,normalized,options,plan,metricBundle,skills,evolution,renderDeck,weighted,num,get state(){return state}};
+W.GRA_SLIDES_V441={open,close,scope,mergeSources,mergeSourcesAsync,normalized,options,plan,metricBundle,skills,evolution,renderDeck,weighted,num,get state(){return state}};
 })();
