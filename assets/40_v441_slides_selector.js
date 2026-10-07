@@ -8,6 +8,8 @@ const cre=r=>Number(String(r?.regional||r?.cre||'').match(/\d+/)?.[0]||0);
 const uniq=a=>[...new Set(a)],order=s=>Number(String(s).match(/\d+/)?.[0]||99);
 const fmt=(v,unit='')=>num(v)===null?'—':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:unit===' pontos'?2:1})+unit;
 const compLabel=c=>({LP:'Língua Portuguesa',MT:'Matemática',CN:'Ciências da Natureza',CH:'Ciências Humanas',HIS:'História',GEO:'Geografia'}[c]||c);
+// O banco oficial usa 'Geografia'/'História'; padronizar somente a chave de exibição/agrupamento.
+const canonicalComponent=c=>({geografia:'GEO',historia:'HIS',ciencias:'CN','ciencias da natureza':'CN','lingua portuguesa':'LP',matematica:'MT'}[norm(c)]||c);
 let state=null,session=0,lastFocus=null;
 function scope(){
  const active=D.querySelector('.section.active')?.id||'resultados',prefix=active==='adrs'?'adr':active==='georreferenciamento'?'geo':'som';
@@ -62,7 +64,7 @@ function total(rows,key){const a=rows.map(r=>num(r[key])).filter(v=>v!==null);re
 function assessment(r,type){return type==='adr'?r.adr:`${r.modalidade}|${r.edicao||'2025'}`}
 function assessmentLabel(a){if(/^ADR/.test(a))return a;const[m,e]=a.split('|');return m==='Simulado 2026'?m:m==='IDEB 2025'?'IDEB':`${m} ${e}`}
 function normalized(data){
- const out=data.adr.map(r=>({...r,type:'adr',assessment:assessment(r,'adr'),year:r.ano,component:r.componente}));
+ const out=data.adr.map(r=>({...r,type:'adr',assessment:assessment(r,'adr'),year:r.ano,component:canonicalComponent(r.componente)}));
  for(const r of data.som){
   const cs=r.componente==='LP+MT'||(!r.componente&&r.modalidade!=='IDEB 2025')?['LP','MT']:[r.modalidade==='IDEB 2025'?'IDEB':r.componente];
   for(const c of cs){let n={...r,type:'som',assessment:assessment(r,'som'),year:r.anoEscolar,component:c};
@@ -107,36 +109,70 @@ function metricBundle(rows,s){
  return m;
 }
 function grouped(rows){const m=new Map();for(const r of rows){const k=[r.assessment,r.year,r.component].join('~');if(!m.has(k))m.set(k,[]);m.get(k).push(r)}return [...m.values()]}
+// Série das ADRs: % Adequado e % Abaixo do Básico em duas linhas (LP e MT),
+// seguidas de % de acerto total em Ciências, Geografia e História.
+// Nunca interpolar dados ausentes ou converter um campo ausente em zero.
+function adrEvolution(groups){
+ const byYear=new Map();
+ for(const rs of groups){const r=rs[0];if(r.type!=='adr')continue;
+  const yr=String(r.year),component=r.component,adr=r.assessment;
+  if(!/^ADR [123]$/.test(adr))continue;
+  if(!byYear.has(yr))byYear.set(yr,new Map());
+  const byComp=byYear.get(yr);
+  if(!byComp.has(component))byComp.set(component,new Map());
+  byComp.get(component).set(adr,rs);
+ }
+ const slides=[];
+ for(const [year,components]of [...byYear.entries()].sort((a,b)=>order(a[0])-order(b[0]))){
+  const allAdrs=uniq([...components.values()].flatMap(m=>[...m.keys()])).sort((a,b)=>order(a)-order(b));
+  if(allAdrs.length<2)continue;
+  for(const def of [
+   {metric:'adequado',label:'Adequado',title:`${year} — Adequado · LP e Matemática`,components:['LP','MT'],subtitle:'Percentual de estudantes no nível Adequado'},
+   {metric:'abaixo',label:'Abaixo do Básico',title:`${year} — Abaixo do Básico · LP e Matemática`,components:['LP','MT'],subtitle:'Percentual de estudantes no nível Abaixo do Básico'},
+   {metric:'acerto',label:'Acerto total',title:`${year} — Ciências, Geografia e História`,components:['CN','GEO','HIS'],subtitle:'Percentual de acerto total nas ADRs'}
+  ]){
+   const series=[];
+   for(const comp of def.components){const byAdr=components.get(comp);if(!byAdr)continue;
+    const values=allAdrs.map(a=>byAdr.has(a)?weighted(byAdr.get(a),def.metric):null);
+    if(values.filter(v=>v!==null).length<2)continue;
+    series.push({name:compLabel(comp),component:comp,values});
+   }
+   if(series.length)slides.push({kind:'adr-trend',title:`ADR — ${def.title}`,subtitle:def.subtitle,label:def.label,unit:'%',adrs:allAdrs,series,metric:def.metric,year});
+  }
+ }
+ return slides;
+}
 function evolution(groups,s){
- const m=new Map();for(const rows of groups){const r=rows[0],family=r.type==='adr'?'ADR':r.modalidade;
-  const metric=r.type==='adr'?(['LP','MT'].includes(r.component)?'adequado':'acerto'):r.component==='IDEB'?'ideb2025':r.modalidade==='Simulado 2026'&&r.year!=='2º ano'?'notaPadronizadaComponente':'adqAv';
+ // Avaliações não ADR mantêm suas progressões próprias (ex.: IDEB 2023/2025).
+ const m=new Map();for(const rows of groups){const r=rows[0];if(r.type==='adr')continue;
+  const family=r.modalidade,metric=r.component==='IDEB'?'ideb2025':r.modalidade==='Simulado 2026'&&r.year!=='2º ano'?'notaPadronizadaComponente':'adqAv';
   if(r.component==='IDEB'){
    const b=metricBundle(rows,s),v23=b.find(x=>x.key==='ideb2023')?.value,v25=b.find(x=>x.key==='ideb2025')?.value;
    if(num(v23)!==null&&num(v25)!==null)m.set([family,r.year,'IDEB'].join('~'),{kind:'evolution',title:`IDEB — ${r.year}`,subtitle:'Evolução 2023–2025',label:'IDEB',unit:' pontos',points:[{label:'2023',value:v23},{label:'2025',value:v25}]});
    continue;
   }
   const key=[family,r.year,r.component,metric].join('~');
-  if(!m.has(key))m.set(key,{kind:'evolution',title:`${family} — ${r.year} — ${compLabel(r.component)}`,subtitle:'Evolução das avaliações selecionadas',label:metric==='adequado'?'Adequado':metric==='acerto'?'Acerto total':metric==='notaPadronizadaComponente'?'Nota padronizada':'Adequado + Avançado',unit:metric==='notaPadronizadaComponente'?' pontos':'%',points:[]});
+  if(!m.has(key))m.set(key,{kind:'evolution',title:`${family} — ${r.year} — ${compLabel(r.component)}`,subtitle:'Evolução das avaliações selecionadas',label:metric==='notaPadronizadaComponente'?'Nota padronizada':'Adequado + Avançado',unit:metric==='notaPadronizadaComponente'?' pontos':'%',points:[]});
   const x=m.get(key),b=metricBundle(rows,s).find(x=>x.key===metric);
-  if(b)x.points.push({label:assessmentLabel(r.assessment),value:b.value,order:r.type==='adr'?order(r.assessment):order(r.edicao)});
+  if(b)x.points.push({label:assessmentLabel(r.assessment),value:b.value,order:order(r.edicao)});
  }
  return [...m.values()].filter(x=>x.points.length>=2).map(x=>({...x,points:x.points.sort((a,b)=>(a.order||0)-(b.order||0))}));
 }
 function plan(rows,selection,s){
  const selected=rows.filter(r=>selection.assessments.includes(r.assessment)&&selection.years.includes(r.year)&&(r.component==='IDEB'||selection.components.includes(r.component)));
- const groups=grouped(selected).sort((a,b)=>order(a[0].year)-order(b[0].year)||a[0].assessment.localeCompare(b[0].assessment,'pt-BR')||a[0].component.localeCompare(b[0].component));const slides=[];
+ const groups=grouped(selected).sort((a,b)=>order(a[0].year)-order(b[0].year||99)||a[0].assessment.localeCompare(b[0].assessment,'pt-BR')||a[0].component.localeCompare(b[0].component));const slides=[];
  for(const rs of groups){const r=rs[0],title=`${assessmentLabel(r.assessment)} — ${r.year}${r.component==='IDEB'?'':' — '+compLabel(r.component)}`;
   if(selection.contents.includes('results')){const metrics=metricBundle(rs,s);for(let i=0;i<metrics.length;i+=6)slides.push({kind:'results',title,subtitle:'Resultados gerais',metrics:metrics.slice(i,i+6)})}
   if(selection.contents.includes('skills')&&r.component!=='IDEB'){const items=skills(skillRows(rs,s));if(items.length)slides.push({kind:'skills',title,subtitle:'Habilidades mais desafiadoras',items})}
  }
  if(selection.contents.includes('evolution')){
-  slides.push(...evolution(groups,s));
-  const below=new Map();for(const rs of groups){const r=rs[0];if(r.type!=='adr'||!['LP','MT'].includes(r.component))continue;const value=weighted(rs,'abaixo');if(value===null)continue;const key=r.year+'~'+r.component;if(!below.has(key))below.set(key,{kind:'evolution',title:`ADR — ${r.year} — ${compLabel(r.component)}`,subtitle:'Evolução das ADRs selecionadas',label:'Abaixo do Básico',unit:'%',points:[]});below.get(key).points.push({label:r.adr,value,order:order(r.adr)})}slides.push(...[...below.values()].filter(x=>x.points.length>=2).map(x=>({...x,points:x.points.sort((a,b)=>a.order-b.order)})));
+  // A ordem de cada ano é sempre Adequado LP/MT → Abaixo LP/MT → Ciências/GEO/HIS.
+  slides.push(...adrEvolution(groups),...evolution(groups,s));
  }
  return slides;
 }
-function options(rows){return {assessments:uniq(rows.map(r=>r.assessment)).sort((a,b)=>/^ADR/.test(a)&&/^ADR/.test(b)?order(a)-order(b):/^ADR/.test(a)?-1:/^ADR/.test(b)?1:a.localeCompare(b,'pt-BR')),years:uniq(rows.map(r=>r.year)).sort((a,b)=>order(a)-order(b)||a.localeCompare(b,'pt-BR')),components:uniq(rows.map(r=>r.component)).filter(c=>c!=='IDEB').sort((a,b)=>['LP','MT','CN','CH','HIS','GEO'].indexOf(a)-['LP','MT','CN','CH','HIS','GEO'].indexOf(b))}}
-function selectDefault(rows){const o=options(rows),activeAssessment=state?.scope.active==='adrs'?$('adrSelect')?.value:[ $('somModalidade')?.value,$('somEdicao')?.value||'2025'].join('|');return {...o,assessments:o.assessments.includes(activeAssessment)?[activeAssessment]:o.assessments,contents:['results']}}
+function options(rows){return {assessments:uniq(rows.map(r=>r.assessment)).sort((a,b)=>/^ADR/.test(a)&&/^ADR/.test(b)?order(a)-order(b):/^ADR/.test(a)?-1:/^ADR/.test(b)?1:a.localeCompare(b,'pt-BR')),years:uniq(rows.map(r=>r.year)).sort((a,b)=>order(a)-order(b)||a.localeCompare(b,'pt-BR')),components:uniq(rows.map(r=>r.component)).filter(c=>c!=='IDEB').sort((a,b)=>['LP','MT','CN','GEO','HIS','CH'].indexOf(a)-['LP','MT','CN','GEO','HIS','CH'].indexOf(b))}}
+function selectDefault(rows){const o=options(rows),isAdr=state?.scope.active==='adrs',activeAssessment=isAdr?$('adrSelect')?.value:[$('somModalidade')?.value,$('somEdicao')?.value||'2025'].join('|');const adrOptions=o.assessments.filter(a=>/^ADR [123]$/.test(a));return {...o,assessments:isAdr&&adrOptions.length?adrOptions:o.assessments.includes(activeAssessment)?[activeAssessment]:o.assessments,contents:isAdr?['evolution']:['results']}}
 function selection(){return Object.fromEntries(['assessments','years','components','contents'].map(k=>[k,[...$('v441SlideForm').querySelectorAll(`input[data-group="${k}"]:checked`)].filter(x=>!x.disabled).map(x=>x.value)]))}
 function checks(group,values,chosen,label=x=>x){return values.map(v=>`<label class="v441-check"><input type="checkbox" data-group="${group}" value="${esc(v)}" ${chosen.includes(v)?'checked':''}><span>${esc(label(v))}</span></label>`).join('')}
 function dialog(){
@@ -161,19 +197,52 @@ function refresh(){
  const availableComponents=new Set(state.rows.filter(r=>raw.assessments.includes(r.assessment)&&raw.years.includes(r.year)).map(r=>r.component));
  for(const x of form.querySelectorAll('[data-group="components"]'))x.disabled=!availableComponents.has(x.value);
  const s=selection(),candidate=state.rows.filter(r=>s.assessments.includes(r.assessment)&&s.years.includes(r.year)&&(r.component==='IDEB'||s.components.includes(r.component))),groups=grouped(candidate);
- const availability={results:groups.some(rs=>metricBundle(rs,state.scope).length),skills:groups.some(rs=>rs[0].component!=='IDEB'&&skills(skillRows(rs,state.scope)).length),evolution:evolution(groups,state.scope).length>0};
+ const availability={results:groups.some(rs=>metricBundle(rs,state.scope).length),skills:groups.some(rs=>rs[0].component!=='IDEB'&&skills(skillRows(rs,state.scope)).length),evolution:adrEvolution(groups).length>0||evolution(groups,state.scope).length>0};
  for(const x of form.querySelectorAll('[data-group="contents"]'))x.disabled=!availability[x.value];
  state.selection=selection();state.plan=plan(state.rows,state.selection,state.scope);
  const count=state.plan.length?state.plan.length+1:0;$('v441SlideCount').textContent=count?`Capa incluída · ${count} slides`:'Selecione avaliações, anos e conteúdo';
  $('v441SlideGenerate').textContent=`Gerar apresentação${count?' — '+count+' slides':''}`;$('v441SlideGenerate').disabled=!count;
- $('v441SlideHint').textContent=!availability.evolution?'Evolução requer duas ADRs ou edições comparáveis. Habilidades são apresentadas separadamente por avaliação.':'A evolução compara somente a mesma avaliação, ano e componente. Habilidades são apresentadas separadamente por avaliação.';
+ $('v441SlideHint').textContent=!availability.evolution?'Para exibir evolução, selecione pelo menos duas ADRs com resultados ou edições comparáveis.':'ADRs: gráficos LP × Matemática (Adequado e Abaixo do Básico), seguidos de Ciências, Geografia e História (% acerto total). A ADR 3 entra quando selecionada e disponível.';
 }
 function addText(slide,text,x,y,w,h,size=18,extra={}){slide.addText(text,{x,y,w,h,fontFace:'Aptos',fontSize:size,color:'19374F',margin:0,breakLine:false,fit:'shrink',...extra})}
+// Linhas desenhadas como vetores nativos do PPT: valores sempre em uma tabela fixa,
+// sem rótulos sobre os pontos, evitando colisões mesmo quando duas séries coincidem.
+function renderAdrTrend(slide,d){
+ const colors={LP:'176AA0',MT:'198560',CN:'176AA0',GEO:'C18720',HIS:'8055A0'};
+ const chart={x:.82,y:1.52,w:11.72,h:3.89};
+ slide.addShape('roundRect',{x:chart.x,y:chart.y,w:chart.w,h:chart.h,rectRadius:.08,line:{color:'DFE9F0',width:1},fill:{color:'FFFFFF'}});
+ const plot={x:1.65,y:1.87,w:10.30,h:2.85};
+ for(let t=0;t<=4;t++){const y=plot.y+plot.h*t/4;
+  slide.addShape('line',{x:plot.x,y,w:plot.w,h:0,line:{color:t===4?'AFC2CF':'E5ECF1',width:t===4?1.1:.75}});
+  addText(slide,`${100-t*25}%`,.98,y-.12,.48,.24,10,{color:'61788A',align:'right'});
+ }
+ const n=d.adrs.length,xAt=i=>plot.x+(n===1?plot.w/2:plot.w*i/(n-1)),yAt=v=>plot.y+(100-Math.max(0,Math.min(100,v)))*plot.h/100;
+ d.adrs.forEach((adr,i)=>addText(slide,adr,xAt(i)-.53,4.94,1.06,.27,12,{align:'center',bold:true,color:'526D80'}));
+ d.series.forEach((s,index)=>{const color=colors[s.component]||'176AA0',marker=s.component==='MT'||s.component==='GEO'?'diamond':'ellipse';
+  for(let i=0;i<n-1;i++){const a=s.values[i],b=s.values[i+1];if(a===null||b===null)continue;
+   const x1=xAt(i),x2=xAt(i+1),y1=yAt(a),y2=yAt(b);slide.addShape('line',{x:x1,y:Math.min(y1,y2),w:x2-x1,h:Math.abs(y2-y1),flipV:y1>y2,line:{color,width:3,dashType:s.component==='MT'||s.component==='GEO'?'dash':'solid'}});
+  }
+  for(let i=0;i<n;i++){const v=s.values[i];if(v===null)continue;const x=xAt(i),y=yAt(v),r=.092;
+   slide.addShape(marker,{x:x-r,y:y-r,w:r*2,h:r*2,line:{color:'FFFFFF',width:1.2},fill:{color}});
+  }
+ });
+ // Cabeçalho e matriz tabular: linhas separadas evitam sobreposição de percentuais.
+ const table={x:1.05,y:5.54,w:11.25,row:.31};
+ slide.addShape('roundRect',{x:table.x,y:table.y,w:table.w,h:.43+d.series.length*table.row+.10,rectRadius:.05,line:{color:'E1E9EF',width:.9},fill:{color:'F8FBFD'}});
+ addText(slide,'COMPONENTE',table.x+.20,table.y+.11,3,.20,9,{bold:true,color:'61788A'});
+ d.adrs.forEach((a,i)=>addText(slide,a,table.x+3.15+i*2.63,table.y+.11,2.25,.20,9.5,{bold:true,align:'center',color:'61788A'}));
+ d.series.forEach((series,j)=>{const yy=table.y+.49+j*table.row,color=colors[series.component]||'176AA0';
+  slide.addShape('ellipse',{x:table.x+.2,y:yy+.06,w:.11,h:.11,line:{color,transparency:100},fill:{color}});
+  addText(slide,series.name,table.x+.41,yy,2.72,.24,10.5,{bold:true});
+  series.values.forEach((v,i)=>addText(slide,v===null?'—':fmt(v,'%'),table.x+3.15+i*2.63,yy,2.25,.25,11.5,{align:'center',bold:true,color}));
+ });
+}
 function renderDeck(descriptors,s,selection){
  const ppt=H.recorder();ppt.layout='LAYOUT_WIDE';ppt.title=`${s.title} — Avaliações`;ppt.author='CGRA · SME-Rio';ppt.company='Secretaria Municipal de Educação';ppt.lang='pt-BR';ppt.theme={headFontFace:'Aptos Display',bodyFontFace:'Aptos',lang:'pt-BR'};
  const ctx={scopeTitle:s.title,scopeKind:s.query?'Recorte de escolas':s.agent||s.mine?'Agente':s.region?'Coordenadoria Regional':'Rede municipal',sectionLabel:'Resultados das avaliações',filters:[selection.assessments.map(assessmentLabel).join(', '),selection.years.join(', '),selection.components.map(compLabel).join(', ')]};H.cover(ppt,ctx);
- descriptors.forEach((d,i)=>{const slide=ppt.addSlide();H.header(slide,ctx,d.title,d.kind==='evolution'?`${d.subtitle} · ${d.label}`:d.subtitle,i+2);
+ descriptors.forEach((d,i)=>{const slide=ppt.addSlide();H.header(slide,ctx,d.title,d.kind==='evolution'?`${d.subtitle} · ${d.label}`:d.kind==='adr-trend'?`${d.subtitle} · ${d.adrs.join(' → ')}`:d.subtitle,i+2);
   if(d.kind==='results'){d.metrics.forEach((m,j)=>{const y=1.65+j*.75;addText(slide,m.label,.8,y,8.4,.36,19);addText(slide,fmt(m.value,m.unit),9.4,y,3.1,.36,24,{bold:true,align:'right'});slide.addShape('line',{x:.8,y:y+.52,w:11.7,h:0,line:{color:'E3EAF0',width:.8}})})}
+  else if(d.kind==='adr-trend'){renderAdrTrend(slide,d)}
   else if(d.kind==='skills'){d.items.forEach((k,j)=>{const y=1.5+j*1.02;addText(slide,k.code,.8,y,1.3,.25,17,{bold:true});addText(slide,fmt(k.value,'%'),11.1,y,1.4,.25,20,{bold:true,align:'right'});addText(slide,k.description,2.2,y,8.55,.72,k.description.length>330?12:15);slide.addShape('line',{x:.8,y:y+.85,w:11.7,h:0,line:{color:'E3EAF0',width:.8}})})}
   else {slide.addChart('line',[{name:d.label,labels:d.points.map(p=>p.label),values:d.points.map(p=>p.value)}],{x:.9,y:1.6,w:11.5,h:4.55,showLegend:false,showValue:true,showTitle:false,chartColors:['176AA0'],showMarker:true,markerSize:7,lineSize:3,dataLabelPosition:'t',dataLabelFormatCode:d.unit==='%'?'0.0"%"':'0.00',catAxisLabelFontSize:14,valAxisLabelFontSize:13,valAxisTitle:d.label,showCatName:false,showBorder:false});const delta=d.points.at(-1).value-d.points[0].value;addText(slide,`Variação: ${delta>=0?'+':''}${fmt(delta,d.unit==='%'?' p.p.':d.unit)}`,1,6.4,11.3,.3,18,{bold:true})}
  });return ppt;
@@ -187,7 +256,7 @@ async function generate(){
   await H.preload();const compiled=await H.compile(ppt,e=>{if(run===session&&$('v441SlideProgress'))$('v441SlideProgress').textContent=e.message||'Gerando o PowerPoint…'});
   if(compiled.slideCount!==ppt.slides.length)throw Error('O compilador retornou uma quantidade diferente de slides.');
   const filename=`Ferramenta_GRA_${state.scope.title.replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,95)}_v441.pptx`;
-  W.__GRA_PPT_V441_LAST_AUDIT={scope:state.scope.title,selection,slides:ppt.slides.length,kinds:descriptors.map(d=>d.kind)};
+  W.__GRA_PPT_V441_LAST_AUDIT={scope:state.scope.title,selection,slides:ppt.slides.length,kinds:descriptors.map(d=>d.kind),adrTrends:descriptors.filter(d=>d.kind==='adr-trend').map(d=>({title:d.title,adrs:d.adrs,series:d.series.map(s=>({component:s.component,values:s.values}))}))};
   if(run===session){dialog().hidden=true;await H.save(compiled.blob,filename,null)}
  }catch(e){shell(`<div class="v441-status v441-error" role="alert">${esc(e.message||'Não foi possível gerar a apresentação.')}<p><button class="v441-text-button" id="v441Retry">Voltar à seleção</button></p></div>`);$('v441Retry').onclick=()=>renderForm(selection)}finally{state.busy=false}
 }
@@ -201,5 +270,5 @@ async function open(){
 }
 if(!H)return;
 W.GRA_PPT_V388=open;W.__GRA_PPT_ENGINE_VERSION='v441';
-W.GRA_SLIDES_V441={open,close,scope,mergeSources,mergeSourcesAsync,normalized,options,plan,metricBundle,skills,evolution,renderDeck,weighted,num,get state(){return state}};
+W.GRA_SLIDES_V441={open,close,scope,mergeSources,mergeSourcesAsync,normalized,options,plan,metricBundle,skills,evolution,adrEvolution,renderDeck,weighted,num,get state(){return state}};
 })();
