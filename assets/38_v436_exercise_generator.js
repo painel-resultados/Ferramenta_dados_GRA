@@ -12,7 +12,12 @@ function yearKey(){const v=qs('#somAnoEscolar')?.value||'';return v.startsWith('
 function compKey(){return qs('#somComponente')?.value==='MT'?'MT':'LP'}
 function compLabel(c){return c==='MT'?'Matemática':'Língua Portuguesa'}
 function levelLabel(k){return k==='0'?'Nível Abaixo de 1':'Nível '+k}
-function eligibleItem(it){return it?.review_status==='checked'&&it.strict_review===true&&it.compatibility==='Alta'&&!(it.response_kind==='choice'&&relatedSkills(it).some(s=>/^\s*Escrever\b/i.test(s)))}
+function supportComplete(it){
+  if(it?.support_review!=='checked'||it.assessed_command_verified!==true||!Array.isArray(it.support_assets)||!it.support_assets.length)return false;
+  const pages=it.pages?.length?it.pages:[{image:it.image,crop:it.crop}];
+  return pages.every(p=>typeof p.image==='string'&&it.support_assets.includes(p.image)&&(!p.crop||(Array.isArray(p.crop)&&p.crop.length===4&&p.crop.every(Number.isFinite)&&p.crop[0]>=0&&p.crop[1]>=0&&p.crop[2]<=1&&p.crop[3]<=1&&p.crop[2]>p.crop[0]&&p.crop[3]>p.crop[1])));
+}
+function eligibleItem(it){return it?.review_status==='checked'&&it.strict_review===true&&it.compatibility==='Alta'&&supportComplete(it)&&!(it.response_kind==='choice'&&relatedSkills(it).some(s=>/^\s*Escrever\b/i.test(s)))}
 function mergeItems(items){
   const m=new Map();
   (items||[]).forEach(it=>{
@@ -222,7 +227,7 @@ function drawPage(img,item,pageNo,total,y,c,level){
   const skill=drawSkillBox(x,item,src.bottom,H);
   let contentTop=Math.max(leftBottom,src.bottom+18,skill.mode==='top'?skill.bottom+18:0);
   let contentBottom=skill.mode==='footer'?skill.top-20:H-42;
-  const target=item.page_role==='support'?'TEXTO DE APOIO — continue para a questão na próxima página.':`COMANDO AVALIADO: ${item.question||'questão da página'}`;
+  const target=item.page_role==='support'?'TEXTO DE APOIO — a questão está após os textos de apoio.':`COMANDO AVALIADO: ${item.question||'questão da página'}`;
   x.font='700 18px Arial';const targetLines=wrapText(x,target,1080);
   x.fillStyle='#fff4d8';x.fillRect(54,contentTop,1132,24+targetLines.length*23);x.fillStyle='#6f4c00';targetLines.forEach((line,i)=>x.fillText(line,70,contentTop+23+i*23));contentTop+=36+targetLines.length*23;
 
@@ -294,6 +299,6 @@ function observe(){
   window.addEventListener('pagehide',cancelGeneration);
 }
 async function testPdf(y='2',c='LP',level='4',n=1){const items=mergeItems(BANK[`${y}|${c}|${level}`]||[]).sort((a,b)=>(a.compatibility==='Alta'?0:1)-(b.compatibility==='Alta'?0:1)).slice(0,n);return generatePdf(items,y,c,level)}
-function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v439-somente-alta-habilidades-disponiveis-20261007',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
+function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v440-suportes-revisados-20261007',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
