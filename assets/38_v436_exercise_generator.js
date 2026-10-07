@@ -12,10 +12,11 @@ function yearKey(){const v=qs('#somAnoEscolar')?.value||'';return v.startsWith('
 function compKey(){return qs('#somComponente')?.value==='MT'?'MT':'LP'}
 function compLabel(c){return c==='MT'?'Matemática':'Língua Portuguesa'}
 function levelLabel(k){return k==='0'?'Nível Abaixo de 1':'Nível '+k}
+function eligibleItem(it){return it?.review_status==='checked'&&it.strict_review===true&&it.compatibility==='Alta'&&!(it.response_kind==='choice'&&relatedSkills(it).some(s=>/^\s*Escrever\b/i.test(s)))}
 function mergeItems(items){
   const m=new Map();
   (items||[]).forEach(it=>{
-    if(it.review_status!=='checked'||it.compatibility!=='Alta')return;
+    if(!eligibleItem(it))return;
     const key=[it.audit_uid||it.image,it.question||'',it.compatibility].join('|');
     if(!m.has(key))m.set(key,{...it,saeb_skills:relatedSkills(it).slice(),skills:relatedSkills(it).slice()});
     else{
@@ -25,7 +26,7 @@ function mergeItems(items){
   });
   return [...m.values()];
 }
-function itemsFor(level){return mergeItems(BANK[`${yearKey()}|${compKey()}|${level}`]||[])}
+function itemsFor(level){if(yearKey()==='2'&&compKey()==='MT')return [];return mergeItems(BANK[`${yearKey()}|${compKey()}|${level}`]||[])}
 function relatedSkills(item){return (Array.isArray(item?.saeb_skills)&&item.saeb_skills.length?item.saeb_skills:item?.skills||[]).filter(Boolean)}
 function applicatorNotes(items){
   const oral=items.map((it,i)=>({it,index:i+1})).filter(x=>x.it.applicator_prompt);
@@ -121,11 +122,12 @@ function resolveSelection(){
   return [...chosen.values()];
 }
 function openModal(level){
+  if(yearKey()==='2'&&compKey()==='MT')return;
   cancelGeneration();ensureModal();lastFocus=document.activeElement;const y=yearKey(),c=compKey();
   // Preserve separate compatibility for each skill; merging happens after the skill is selected.
-  const items=(BANK[`${y}|${c}|${level}`]||[]).filter(it=>it.review_status==='checked'&&it.strict_review===true&&it.compatibility==='Alta');
+  const items=(BANK[`${y}|${c}|${level}`]||[]).filter(eligibleItem);
   active={level,y,c,items};const cov=window.GRA_EXERCISE_COVERAGE?.[`${y}|${c}|${level}`];
-  qs('#graExGenTitle').textContent=`Gerar exercícios - ${levelLabel(level)}`;qs('#graExGenMeta').textContent=`${y}º ano · ${compLabel(c)} · v438 · somente Alta`;
+  qs('#graExGenTitle').textContent=`Gerar exercícios - ${levelLabel(level)}`;qs('#graExGenMeta').textContent=`${y}º ano · ${compLabel(c)} · v439 · somente Alta`;
   const skills=[...new Set(items.flatMap(relatedSkills))].filter(skill=>skillCandidates(skill).length>0);
   const choices=skills.map((skill,i)=>{
     const count=skillCandidates(skill).length;
@@ -157,7 +159,7 @@ function decorateDrawer(){
     const level=card.dataset.saebCard||'';let b=sum.querySelector('.gra-exgen-trigger');
     if(!b){b=document.createElement('button');b.type='button';b.className='gra-exgen-trigger';b.dataset.exgenLevel=level;b.dataset.graNoSchoolNav='1';b.textContent='Gerar exercícios deste nível';const em=sum.querySelector('em');em?sum.insertBefore(b,em):sum.appendChild(b)}
     if(!sum.querySelector('.gra-exgen-test-warning')){const warn=document.createElement('span');warn.className='gra-exgen-test-warning';warn.textContent='Funcionalidade EM TESTE, NÃO UTILIZAR';b.insertAdjacentElement('afterend',warn)}
-    const n=itemsFor(level).length;b.disabled=level==='0';b.title=n?`${n} exercício${n===1?'':'s'} ${n===1?'disponível':'disponíveis'}`:'Nenhum exercício de compatibilidade Alta disponível neste nível.';
+    const n=itemsFor(level).length;b.disabled=level==='0'||(yearKey()==='2'&&compKey()==='MT');b.title=n?`${n} exercício${n===1?'':'s'} ${n===1?'disponível':'disponíveis'}`:'Nenhum exercício de compatibilidade Alta disponível neste nível.';
   });
 }
 function loadImage(src,signal){return new Promise((resolve,reject)=>{
@@ -220,7 +222,7 @@ function drawPage(img,item,pageNo,total,y,c,level){
   const skill=drawSkillBox(x,item,src.bottom,H);
   let contentTop=Math.max(leftBottom,src.bottom+18,skill.mode==='top'?skill.bottom+18:0);
   let contentBottom=skill.mode==='footer'?skill.top-20:H-42;
-  const target=item.page_role==='support'?'TEXTO DE APOIO — a resposta escrita está na próxima parte.':`COMANDO AVALIADO: ${item.question||'questão da página'}`;
+  const target=item.page_role==='support'?'TEXTO DE APOIO — continue para a questão na próxima página.':`COMANDO AVALIADO: ${item.question||'questão da página'}`;
   x.font='700 18px Arial';const targetLines=wrapText(x,target,1080);
   x.fillStyle='#fff4d8';x.fillRect(54,contentTop,1132,24+targetLines.length*23);x.fillStyle='#6f4c00';targetLines.forEach((line,i)=>x.fillText(line,70,contentTop+23+i*23));contentTop+=36+targetLines.length*23;
 
@@ -239,7 +241,8 @@ function buildPdf(jpegs,w=1240,h=1754){
 }
 async function generatePdf(items,y,c,level,onProgress,signal){
   const jpg=[];throwIfAborted(signal);
-  if(!items.length||items.some(it=>it.review_status!=='checked'||it.strict_review!==true||it.compatibility!=='Alta'))throw new Error('Seleção vazia ou exercício bloqueado pela revisão de conteúdo.');
+  if(y==='2'&&c==='MT')throw new Error('Esta geração de itens não utiliza a escala de Matemática do 2º ano.');
+  if(!items.length||items.some(it=>!eligibleItem(it)))throw new Error('Seleção vazia ou exercício bloqueado pela revisão de conteúdo.');
   items=items.slice().sort(compatibilityOrder);
   const pages=items.flatMap((item,index)=>{
     const support=item.pages?.length?item.pages:[{image:item.image,source_page:item.source_page}];
@@ -291,6 +294,6 @@ function observe(){
   window.addEventListener('pagehide',cancelGeneration);
 }
 async function testPdf(y='2',c='LP',level='4',n=1){const items=mergeItems(BANK[`${y}|${c}|${level}`]||[]).sort((a,b)=>(a.compatibility==='Alta'?0:1)-(b.compatibility==='Alta'?0:1)).slice(0,n);return generatePdf(items,y,c,level)}
-function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v438-somente-alta-habilidades-disponiveis-20261006d',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
+function boot(){observe();window.__GRA_V436_EXERCISES__={version:'v439-somente-alta-habilidades-disponiveis-20261007',bank:BANK,decorateDrawer,openModal,testPdf,buildPdf,generatePdf,relatedSkills,forceDownload,itemsFor,skillInventory,selectDiverse,selectOnePerSkill,resolveSelection,skillCandidates,audit(){return {...jobStats,generating:!!generation,hasPreview:!!blobUrl}}}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
