@@ -1,4 +1,4 @@
-/* Dashboard Definitivo 33 · v441 HF7 · progressão multicurricular ADR; componente na grade principal. */
+/* Dashboard Definitivo 33 · v441 HF9 · progressão multicurricular ADR; componente na grade principal. */
 (()=>{
  'use strict';
  const $=id=>document.getElementById(id);
@@ -13,7 +13,7 @@
  #adrProgressAllToolbar{display:none;flex-wrap:wrap;gap:12px;align-items:end;padding:10px 0 2px}
  #adrProgressAllToolbar label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:800;color:#38556b;min-width:180px}
  #adrProgressAllToolbar select{border-radius:9px;border:1px solid #bed4e6;background:#fff;padding:10px 12px;color:#12385d;font-size:14px;font-weight:750;max-width:100%;min-height:42px}
- #adrs.adr-multi-progression #adrProgressAllToolbar{display:flex}
+ #adrs.adr-multi-progression #adrProgressAllToolbar{display:none!important}
  #adrs.adr-multi-progression #adrComp{display:none!important}
  /* O filtro de progressão ocupa a coluna que a grade já reservava ao Componente. */
  #adrs .adr-controls .adr-all-comp-inline{display:none!important;min-width:0;width:100%}
@@ -53,7 +53,7 @@
  @media(max-width:680px){#adrProgressAllToolbar label{min-width:145px;flex:1}#adrAllChartCard h3{font-size:17px}#adrAllChartLegend button{font-size:11px}}
  `;
  const st=document.createElement('style');st.id='adr-all-style-hf6';st.textContent=style;document.head.appendChild(st);
- let chosen='ALL',manualScope='',chosenLines=new Set();let signature='',lastSchool='',lastCre=null;let updating=false;
+ let chosen='ALL',chosenLines=new Set();let signature='',lastSchool='',lastCre=null;let updating=false,schoolScopeWanted=false;
  function currentRows(){try{return (typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS))?ADR_ROWS:(Array.isArray(window.ADR_ROWS)?window.ADR_ROWS:[])}catch(_){return []}}
  function masterCre(){return Number($('regionalScopeSelect')?.value||0)}
  function currentSchool(rows){
@@ -64,11 +64,28 @@
    const names=[...new Set(rows.filter(r=>norm(r.escola).includes(q)).map(r=>r.escola))];
    return names.length===1?names[0]:'';
  }
+ // O seletor Abrangência original (#adrAgente) é a única fonte de seleção.
+ // Opções especiais usam os mesmos filtros Master e dados do controle já existente.
+ function syncUnifiedScope(rows){
+   const sel=$('adrAgente');if(!sel)return;
+   const cre=masterCre(),school=currentSchool(rows);
+   const aggregate=[...sel.options].find(o=>o.value==='');
+   if(aggregate)aggregate.textContent=cre?`CRE ${String(cre).padStart(2,'0')} — todos os agentes`:'SME — toda a rede';
+   const old=sel.querySelector('option[value="__gra_adr_school__"]');
+   if(!school){if(old)old.remove();if(sel.value==='__gra_adr_school__')sel.value='';schoolScopeWanted=false;}
+   else{
+     let option=old;
+     if(!option){option=document.createElement('option');option.value='__gra_adr_school__';sel.insertBefore(option,sel.firstChild)}
+     option.textContent=`Escola — ${school}`;
+     if(school!==lastSchool)schoolScopeWanted=true;
+     if(schoolScopeWanted)sel.value='__gra_adr_school__';
+   }
+ }
  function scopeState(rows){
-   const school=currentSchool(rows),cre=masterCre();
-   const available=school?['Escola',cre?'CRE':'SME']:[cre?'CRE':'SME'];
-   if(school!==lastSchool || cre!==lastCre || !available.includes(manualScope)){manualScope=school?'Escola':cre?'CRE':'SME';lastSchool=school;lastCre=cre;}
-   return {school,cre,available,scope:manualScope};
+   const school=currentSchool(rows),cre=masterCre(),selected=$('adrAgente')?.value||'';
+   lastSchool=school;lastCre=cre;
+   const scope=selected==='__gra_adr_school__'&&school?'Escola':selected && selected!=='__todas_escolas__'?'Agente':cre?'CRE':'SME';
+   return {school,cre,scope,agent:scope==='Agente'?selected:''};
  }
  function baseRows(){
    const ano=$('adrAno')?.value||'',cre=masterCre(),searchSchool=String(window.__GRA_SELECTED_SCHOOL__||'').trim();
@@ -82,8 +99,9 @@
    });
    return valid;
  }
- function seriesForScope(rows,scope,school){
+ function seriesForScope(rows,scope,school,agent=''){
    if(scope==='Escola' && school)rows=rows.filter(r=>norm(r.escola)===norm(school));
+   if(scope==='Agente' && agent)rows=rows.filter(r=>norm(typeof adrRowAgent==='function'?adrRowAgent(r):r.agente)===norm(agent));
    const comps=[...new Set(rows.map(r=>r.componente))].sort((a,b)=>(compOrder.indexOf(a)<0?99:compOrder.indexOf(a))-(compOrder.indexOf(b)<0?99:compOrder.indexOf(b))||String(a).localeCompare(String(b),'pt-BR'));
    return comps.map(comp=>{
      // LP/MT: % Adequado (ADR 3 não contém Acerto Total). Demais: % de Acerto Total.
@@ -109,10 +127,8 @@
  function fmt(v){return v===null?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'}
  function delta(s){const available=s.values.filter(v=>v!==null);if(available.length<2)return '—';const diff=available.at(-1)-available[0];return (diff>0?'+':'')+diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' p.p.'}
  function ensure(){
-   if($('adrProgressAllToolbar'))return;
+   if($('adrAllChartCard'))return;
    const filter=$('adrFiltersCard'),anchor=$('adrKpis');if(!filter||!anchor)return;
-   const toolbar=document.createElement('div');toolbar.id='adrProgressAllToolbar';toolbar.innerHTML='<label for="adrProgressAllScope">Abrangência<select id="adrProgressAllScope"></select></label>';
-   filter.querySelector('.adr-controls')?.insertAdjacentElement('afterend',toolbar);
    const compField=document.createElement('label');compField.className='v222-field-label adr-all-comp-inline';compField.htmlFor='adrProgressAllComp';
    compField.innerHTML='<span>Componente</span><select id="adrProgressAllComp" aria-label="Componente"><option value="ALL">Todos</option></select>';
    const originalComp=$('adrComp'),compSlot=originalComp?.closest('.v222-field-label')||originalComp;
@@ -125,7 +141,6 @@
      if(chosen!=='ALL' && $('adrComp').value!==chosen){$('adrComp').value=chosen;$('adrComp').dispatchEvent(new Event('change',{bubbles:true}));}
      else render();
    });
-   $('adrProgressAllScope').addEventListener('change',()=>{manualScope=$('adrProgressAllScope').value;chosenLines.clear();render()});
    $('adrAllChartLegend').addEventListener('click',e=>{
      const b=e.target.closest('button');if(!b)return;
      const key=b.dataset.component;
@@ -145,7 +160,7 @@
  }
  function draw(data,sc){
    const title=$('adrAllChartTitle'),sub=$('adrAllChartSubtitle'),plot=$('adrAllChartPlot'),legend=$('adrAllChartLegend'),tab=$('adrAllChartTable'),method=$('adrAllMethod');
-   const where=sc.scope==='Escola'?sc.school:sc.scope==='CRE'?`CRE ${String(sc.cre).padStart(2,'0')}`:'Toda a SME';
+   const where=sc.scope==='Escola'?sc.school:sc.scope==='CRE'?`CRE ${String(sc.cre).padStart(2,'0')}`:sc.scope==='Agente'?`Agente: ${sc.agent}`:'Toda a SME';
    title.textContent=`Progressão das ADRs — ${where}`;
    sub.textContent=`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ADR 1 → ADR 2 → ADR 3. Selecione uma linha na legenda para destacá-la.`;
    const W=960,H=350, L=70,R=28,T=26,B=58,plotH=H-T-B;
@@ -174,15 +189,14 @@
    if(!progress)return;
    updating=true;
    try{
-     const rows=baseRows(),sc=scopeState(rows);
+     const rows=baseRows();syncUnifiedScope(rows);const sc=scopeState(rows);
      const comps=[...new Set(rows.map(r=>r.componente))].sort((a,b)=>(compOrder.indexOf(a)<0?99:compOrder.indexOf(a))-(compOrder.indexOf(b)<0?99:compOrder.indexOf(b))||String(a).localeCompare(String(b),'pt-BR'));
-     const compSel=$('adrProgressAllComp'),scopeSel=$('adrProgressAllScope');
+     const compSel=$('adrProgressAllComp');
      if(chosen!=='ALL'&&!comps.includes(chosen))chosen='ALL';
      compSel.innerHTML='<option value="ALL">Todos</option>'+comps.map(c=>`<option value="${esc(c)}">${esc(titles[c]||c)}</option>`).join('');compSel.value=chosen;
-     scopeSel.innerHTML=sc.available.map(v=>`<option value="${v}">${v==='Escola'?`Escola — ${esc(sc.school)}`:v==='CRE'?`CRE ${String(sc.cre).padStart(2,'0')}`:'SME — toda a rede'}</option>`).join('');scopeSel.value=sc.scope;
      if(chosen==='ALL'){
-       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,$('adrPriority')?.value,rows.length].join('|');if(signature!==key){chosenLines.clear();signature=key}
-       draw(seriesForScope(rows,sc.scope,sc.school),sc);
+       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,rows.length].join('|');if(signature!==key){chosenLines.clear();signature=key}
+       draw(seriesForScope(rows,sc.scope,sc.school,sc.agent),sc);
      }
    }catch(e){console.error('[ADR componentes HF6] Falha ao renderizar',e);const card=$('adrAllChartPlot');if(card)card.innerHTML='<div class="adr-empty">Não foi possível gerar a comparação. Verifique o recorte selecionado.</div>'}
    finally{updating=false}
@@ -193,12 +207,14 @@
    if(typeof previous==='function'&&!previous.__graAdrAll){
      const fn=function(){const out=previous.apply(this,arguments);render();return out};fn.__graAdrAll=true;window.renderADRs=fn;try{renderADRs=fn}catch(_){ }
    }
+   // Captura a escolha ANTES do renderizador original da aba ADR.
+   document.addEventListener('change',e=>{if(e.target?.id==='adrAgente')schoolScopeWanted=e.target.value==='__gra_adr_school__'},true);
    const relevant=['adrMode','adrAno','adrComp','adrMetric','adrAgente','adrPriority','adrSearch','regionalScopeSelect'];
    document.addEventListener('change',e=>{if(relevant.includes(e.target?.id)){if(e.target?.id==='adrMode'&&e.target.value==='progressao'){chosen='ALL';chosenLines.clear();}setTimeout(render,45)}},true);
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);
    setTimeout(render,250);
-   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF7',render,seriesForScope,baseRows,scopeState,get selected(){return chosen}};
+   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF9',render,seriesForScope,baseRows,scopeState,get selected(){return chosen}};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
