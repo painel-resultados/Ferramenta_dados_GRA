@@ -803,9 +803,11 @@ function adrWeightAvg(rows, key) {
 function adrSum(rows, key) { return rows.reduce((a,r)=>a+(Number(r[key])||0),0); }
 function adrUnique(arr) { return [...new Set(arr.filter(Boolean))]; }
 const ADR_ALL_SCHOOLS_VALUE='__todas_escolas__';
+const ADR_CRE_LINES_VALUE='__gra_adr_cre_lines__';
 function adrIsAllSchoolsScope(value) { return value===ADR_ALL_SCHOOLS_VALUE; }
-function adrIsSpecificAgent(value) { return !!value && !adrIsAllSchoolsScope(value) && value!=='__gra_adr_school__'; }
+function adrIsSpecificAgent(value) { return !!value && !adrIsAllSchoolsScope(value) && value!=='__gra_adr_school__' && value!==ADR_CRE_LINES_VALUE; }
 function adrAgentScopeLabel(value) {
+  if(value===ADR_CRE_LINES_VALUE) return 'CREs';
   if(adrIsAllSchoolsScope(value)) return 'Todas as escolas';
   if(value) return value;
   return Number(document.getElementById('regionalScopeSelect')?.value||0)===0 ? 'Todas as CREs' : 'Todos os agentes';
@@ -941,13 +943,13 @@ function adrRefreshSelectors() {
   const aggregateLabel=regionalScope===0 ? 'Todas as CREs' : 'Todos os agentes';
   const currentAllSchools=adrIsAllSchoolsScope(cur.agente);
   const curAgenteCanonical=currentAllSchools ? '' : adrCanonicalAgentName(cur.agente);
-  const defaultAgente=currentAllSchools ? ADR_ALL_SCHOOLS_VALUE : ((curAgenteCanonical && agentes.includes(curAgenteCanonical)) ? curAgenteCanonical : '');
+  const defaultAgente=(adrModeValue==='progressao' && cur.agente===ADR_CRE_LINES_VALUE) ? ADR_CRE_LINES_VALUE : (currentAllSchools ? ADR_ALL_SCHOOLS_VALUE : ((curAgenteCanonical && agentes.includes(curAgenteCanonical)) ? curAgenteCanonical : ''));
   anoSel.innerHTML=adrOptionHtml(anos, defaultAno);
   compSel.innerHTML=adrOptionHtml(comps, defaultComp);
   adrSel.innerHTML=adrOptionHtml(adrs, defaultAdr, 'Todas as ADRs');
   creSel.innerHTML=adrOptionHtml(cres, defaultCre, 'Todas as CREs');
   if(agenteSel) {
-    agenteSel.innerHTML=`<option value="${ADR_ALL_SCHOOLS_VALUE}">Todas as escolas</option>` + adrOptionHtml(agentes, defaultAgente, aggregateLabel);
+    agenteSel.innerHTML=`<option value="${ADR_ALL_SCHOOLS_VALUE}">Todas as escolas</option>` + (defaultAgente===ADR_CRE_LINES_VALUE ? `<option value="${ADR_CRE_LINES_VALUE}">CREs</option>` : '') + adrOptionHtml(agentes, defaultAgente, aggregateLabel);
   }
   anoSel.value=defaultAno; compSel.value=defaultComp; adrSel.value=defaultAdr; creSel.value=defaultCre; if(agenteSel) agenteSel.value=defaultAgente;
 }

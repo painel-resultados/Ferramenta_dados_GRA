@@ -1,4 +1,4 @@
-/* Dashboard Definitivo 33 · v441 HF9 · progressão multicurricular ADR; componente na grade principal. */
+/* Dashboard Definitivo 33 · v441 HF10 · progressão multicurricular ADR; componente na grade principal. */
 (()=>{
  'use strict';
  const $=id=>document.getElementById(id);
@@ -9,6 +9,8 @@
  const titles={LP:'Língua Portuguesa',MT:'Matemática',CN:'Ciências da Natureza',Geografia:'Geografia','História':'História',CH:'Ciências Humanas'};
  const colors={'LP':'#1670b8','MT':'#15835b','CN':'#db8621','Geografia':'#8d58c7','História':'#d34b68','CH':'#19a3aa'};
  const ADRS=['ADR 1','ADR 2','ADR 3'];
+ const CRE_LINES='__gra_adr_cre_lines__';
+ const crePalette=['#12385d','#1c79b8','#1d8f68','#d9861c','#8b5cf6','#ef4444','#0ea5a4','#6366f1','#c07908','#b6407c','#55748b'];
  const style=`
  #adrProgressAllToolbar{display:none;flex-wrap:wrap;gap:12px;align-items:end;padding:10px 0 2px}
  #adrProgressAllToolbar label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:800;color:#38556b;min-width:180px}
@@ -71,6 +73,15 @@
    const cre=masterCre(),school=currentSchool(rows);
    const aggregate=[...sel.options].find(o=>o.value==='');
    if(aggregate)aggregate.textContent=cre?`CRE ${String(cre).padStart(2,'0')} — todos os agentes`:'SME — toda a rede';
+   // Apenas na progressão e quando um componente é escolhido.
+   // O Master continua delimitando o conjunto de CREs comparadas.
+   const showCreLines=$('adrMode')?.value==='progressao'&&chosen!=='ALL';
+   let creOption=sel.querySelector(`option[value="${CRE_LINES}"]`);
+   if(showCreLines){
+     if(!creOption){creOption=document.createElement('option');creOption.value=CRE_LINES;creOption.textContent='CREs';sel.insertBefore(creOption,aggregate||sel.firstChild)}
+   } else if(creOption){
+     const wasSelected=sel.value===CRE_LINES;creOption.remove();if(wasSelected)sel.value='';
+   }
    const old=sel.querySelector('option[value="__gra_adr_school__"]');
    if(!school){if(old)old.remove();if(sel.value==='__gra_adr_school__')sel.value='';schoolScopeWanted=false;}
    else{
@@ -84,7 +95,7 @@
  function scopeState(rows){
    const school=currentSchool(rows),cre=masterCre(),selected=$('adrAgente')?.value||'';
    lastSchool=school;lastCre=cre;
-   const scope=selected==='__gra_adr_school__'&&school?'Escola':selected && selected!=='__todas_escolas__'?'Agente':cre?'CRE':'SME';
+   const scope=selected==='__gra_adr_school__'&&school?'Escola':selected===CRE_LINES?'CREs':selected && selected!=='__todas_escolas__'?'Agente':cre?'CRE':'SME';
    return {school,cre,scope,agent:scope==='Agente'?selected:''};
  }
  function baseRows(){
@@ -124,6 +135,33 @@
      return {key:comp,label:titles[comp]||comp,metric,values:ADRS.map(a=>byEdition.get(a)),schools:paired.size,color:colors[comp]||'#607d8b'};
    }).filter(s=>s.values.some(v=>v!==null));
  }
+ // Comparação regional: uma linha por CRE, na métrica e no componente escolhidos.
+ // Em cada CRE, usam-se as MESMAS escolas nas edições em que há indicador válido.
+ function seriesForCres(rows,component,metric){
+   if(!component||component==='ALL'||!['adequado','abaixo','acerto'].includes(metric))return [];
+   const valid=rows.filter(r=>r.componente===component && ADRS.includes(r.adr) && num(r[metric])!==null && num(r.avaliados)>0);
+   const cres=[...new Set(valid.map(r=>Number(String(r.regional||'').match(/\d+/)?.[0]||0)))].filter(n=>n>=1&&n<=11).sort((a,b)=>a-b);
+   return cres.map(cre=>{
+     const subset=valid.filter(r=>Number(String(r.regional||'').match(/\d+/)?.[0]||0)===cre);
+     const editions=ADRS.filter(a=>subset.some(r=>r.adr===a));
+     if(editions.length<2)return null;
+     const schools=new Map();
+     for(const r of subset){if(!r.escola)continue;const k=norm(r.escola);if(!schools.has(k))schools.set(k,new Set());schools.get(k).add(r.adr)}
+     const paired=new Set([...schools].filter(([,ed])=>editions.every(a=>ed.has(a))).map(([k])=>k));
+     if(!paired.size)return null;
+     const values=ADRS.map(a=>{
+       if(!editions.includes(a))return null;
+       let sum=0,weight=0;
+       for(const r of subset){if(r.adr!==a||!paired.has(norm(r.escola)))continue;
+         const v=num(r[metric]),w=num(r.avaliados);if(v===null||!(w>0))continue;
+         sum+=v*w;weight+=w;
+       }
+       return weight?sum/weight:null;
+     });
+     if(values.filter(v=>v!==null).length<2)return null;
+     return {key:`CRE ${String(cre).padStart(2,'0')}`,label:`CRE ${String(cre).padStart(2,'0')}`,metric,values,schools:paired.size,color:crePalette[(cre-1)%crePalette.length],cre};
+   }).filter(Boolean);
+ }
  function fmt(v){return v===null?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'}
  function delta(s){const available=s.values.filter(v=>v!==null);if(available.length<2)return '—';const diff=available.at(-1)-available[0];return (diff>0?'+':'')+diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' p.p.'}
  function ensure(){
@@ -158,11 +196,14 @@
    area.querySelectorAll('tr[data-component]').forEach(el=>{const yes=!active.size||active.has(el.dataset.component);el.style.opacity=yes?'1':'.24'});
    area.querySelectorAll('#adrAllChartLegend button[data-component]').forEach(el=>{const yes=active.has(el.dataset.component);el.setAttribute('aria-pressed',String(yes));el.style.opacity=!active.size||yes?'1':'.55'});
  }
- function draw(data,sc){
+ function draw(data,sc,mode='components'){
    const title=$('adrAllChartTitle'),sub=$('adrAllChartSubtitle'),plot=$('adrAllChartPlot'),legend=$('adrAllChartLegend'),tab=$('adrAllChartTable'),method=$('adrAllMethod');
    const where=sc.scope==='Escola'?sc.school:sc.scope==='CRE'?`CRE ${String(sc.cre).padStart(2,'0')}`:sc.scope==='Agente'?`Agente: ${sc.agent}`:'Toda a SME';
-   title.textContent=`Progressão das ADRs — ${where}`;
-   sub.textContent=`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ADR 1 → ADR 2 → ADR 3. Selecione uma linha na legenda para destacá-la.`;
+   const perCre=mode==='cres';
+   const componentName=titles[chosen]||chosen;
+   const metricName=$('adrMetric')?.selectedOptions?.[0]?.textContent||$('adrMetric')?.value||'';
+   title.textContent=perCre?`Evolução das CREs — ${componentName}`:`Progressão das ADRs — ${where}`;
+   sub.textContent=perCre?`${$('adrAno').value} · ${metricName} · ${data.length} CRE${data.length===1?'':'s'} com resultados no recorte Master · ADR 1 → ADR 2 → ADR 3. Clique na legenda para destacar uma linha; use Shift para selecionar várias.`:`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ADR 1 → ADR 2 → ADR 3. Selecione uma linha na legenda para destacá-la.`;
    const W=960,H=350, L=70,R=28,T=26,B=58,plotH=H-T-B;
    const X=i=>L+(W-L-R)*(i/(ADRS.length-1)),Y=v=>T+plotH*(1-v/100);
    const grids=[0,20,40,60,80,100].map(v=>`<g><line x1="${L}" y1="${Y(v)}" x2="${W-R}" y2="${Y(v)}" stroke="#e3edf5"/><text x="${L-14}" y="${Y(v)+5}" fill="#6e8191" font-size="15" text-anchor="end">${v}%</text></g>`).join('');
@@ -174,10 +215,10 @@
      const dots=s.values.map((v,i)=>v===null?'':`<circle cx="${X(i)}" cy="${Y(v)}" r="5.5" fill="${s.color}" stroke="white" stroke-width="2"><title>${esc(s.label)} · ${ADRS[i]}: ${fmt(v)}</title></circle>`).join('');
      return `<g data-component="${esc(s.key)}" class="adr-all-series" style="transition:opacity .15s">${lines}${dots}</g>`;
    }).join('');
-   plot.innerHTML=data.length?`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução dos componentes curriculares em três ADRs, com legenda interativa"><text x="${L}" y="15" font-size="14" fill="#526f86">Percentual (%)</text>${grids}<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#c5d5e4"/>${groups}${labels}</svg>`:'<div class="adr-empty">Não há resultados disponíveis para este ano e esta abrangência.</div>';
+   plot.innerHTML=data.length?`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Progressão entre ADRs, com legenda interativa"><text x="${L}" y="15" font-size="14" fill="#526f86">Percentual (%)</text>${grids}<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#c5d5e4"/>${groups}${labels}</svg>`:'<div class="adr-empty">Não há resultados disponíveis para este ano e esta abrangência.</div>';
    legend.innerHTML=(data.length?'<button type="button" data-component="*" class="adr-all-clear">Mostrar todas</button>':'')+data.map(s=>`<button type="button" data-component="${esc(s.key)}" aria-pressed="false"><span class="swatch" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('');
-   tab.innerHTML=data.length?`<table><thead><tr><th>Componente / indicador</th>${ADRS.map(s=>`<th>${s}</th>`).join('')}<th>Variação</th><th>Escolas pareadas</th></tr></thead><tbody>${data.map(s=>`<tr data-component="${esc(s.key)}"><td><span style="color:${s.color}">●</span> ${esc(s.label)}<div style="font-size:11px;font-weight:500;color:#667e90">${s.metric==='adequado'?'% Adequado':'% Acerto Total'}</div></td>${s.values.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${delta(s)}</td><td>${s.schools.toLocaleString('pt-BR')}</td></tr>`).join('')}</tbody></table>`:'';
-   method.innerHTML='<strong>Critério de cálculo:</strong> LP e Matemática usam o percentual de estudantes em <strong>Adequado</strong>; Ciências da Natureza, Geografia e História usam o <strong>percentual de acerto total</strong>. São indicadores distintos, apresentados juntos apenas para visualizar tendências. Cada componente utiliza as mesmas escolas com informação válida em todas as ADRs disponíveis para ele; o resultado de cada ADR é ponderado pelo número de estudantes avaliados. Ausências aparecem como “—”, nunca como 0%. A tabela explicita a métrica de cada linha.';
+   tab.innerHTML=data.length?`<table><thead><tr><th>${perCre?'CRE / indicador':'Componente / indicador'}</th>${ADRS.map(s=>`<th>${s}</th>`).join('')}<th>Variação</th><th>Escolas pareadas</th></tr></thead><tbody>${data.map(s=>`<tr data-component="${esc(s.key)}"><td><span style="color:${s.color}">●</span> ${esc(s.label)}<div style="font-size:11px;font-weight:500;color:#667e90">${perCre?esc(metricName):(s.metric==='adequado'?'% Adequado':'% Acerto Total')}</div></td>${s.values.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${delta(s)}</td><td>${s.schools.toLocaleString('pt-BR')}</td></tr>`).join('')}</tbody></table>`:'';
+   method.innerHTML=perCre?'<strong>Critério de cálculo:</strong> Cada linha representa uma CRE no componente, ano e indicador selecionados. Em cada regional, somente escolas com o indicador disponível em todas as ADRs comparáveis dessa CRE integram a média. Cada ADR é ponderada pelo número de estudantes avaliados (sem atribuir peso a registros sem avaliados). CREs com menos de duas ADRs comparáveis são omitidas. Ausência de resultado é indicada por “—”, jamais como 0%. A opção respeita o Master e o filtro de prioridade.': '<strong>Critério de cálculo:</strong> LP e Matemática usam o percentual de estudantes em <strong>Adequado</strong>; Ciências da Natureza, Geografia e História usam o <strong>percentual de acerto total</strong>. São indicadores distintos, apresentados juntos apenas para visualizar tendências. Cada componente utiliza as mesmas escolas com informação válida em todas as ADRs disponíveis para ele; o resultado de cada ADR é ponderado pelo número de estudantes avaliados. Ausências aparecem como “—”, nunca como 0%. A tabela explicita a métrica de cada linha.';
    updateVisibility();
  }
  function render(){
@@ -185,7 +226,8 @@
    ensure();const section=$('adrs');if(!section||!$('adrMode'))return;
    const progress=$('adrMode').value==='progressao';
    section.classList.toggle('adr-multi-progression',progress);
-   section.classList.toggle('adr-multi-all',progress&&chosen==='ALL');
+   const requestedCreLines=$('adrAgente')?.value===CRE_LINES;
+   section.classList.toggle('adr-multi-all',progress&&(chosen==='ALL'||requestedCreLines&&chosen!=='ALL'));
    if(!progress)return;
    updating=true;
    try{
@@ -194,9 +236,12 @@
      const compSel=$('adrProgressAllComp');
      if(chosen!=='ALL'&&!comps.includes(chosen))chosen='ALL';
      compSel.innerHTML='<option value="ALL">Todos</option>'+comps.map(c=>`<option value="${esc(c)}">${esc(titles[c]||c)}</option>`).join('');compSel.value=chosen;
-     if(chosen==='ALL'){
-       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,rows.length].join('|');if(signature!==key){chosenLines.clear();signature=key}
-       draw(seriesForScope(rows,sc.scope,sc.school,sc.agent),sc);
+     const perCre=chosen!=='ALL'&&sc.scope==='CREs';
+     section.classList.toggle('adr-multi-all',chosen==='ALL'||perCre);
+     if(chosen==='ALL'||perCre){
+       const metric=$('adrMetric')?.value||'adequado';
+       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();signature=key}
+       draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent),sc,perCre?'cres':'components');
      }
    }catch(e){console.error('[ADR componentes HF6] Falha ao renderizar',e);const card=$('adrAllChartPlot');if(card)card.innerHTML='<div class="adr-empty">Não foi possível gerar a comparação. Verifique o recorte selecionado.</div>'}
    finally{updating=false}
@@ -214,7 +259,7 @@
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);
    setTimeout(render,250);
-   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF9',render,seriesForScope,baseRows,scopeState,get selected(){return chosen}};
+   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF10',render,seriesForScope,seriesForCres,baseRows,scopeState,get selected(){return chosen}};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
