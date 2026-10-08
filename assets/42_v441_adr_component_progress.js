@@ -1,4 +1,4 @@
-/* Dashboard Definitivo 33 · v441 HF6 · progressão multicurricular ADR (sem alterar os dados-base). */
+/* Dashboard Definitivo 33 · v441 HF7 · progressão multicurricular ADR; componente na grade principal. */
 (()=>{
  'use strict';
  const $=id=>document.getElementById(id);
@@ -15,6 +15,12 @@
  #adrProgressAllToolbar select{border-radius:9px;border:1px solid #bed4e6;background:#fff;padding:10px 12px;color:#12385d;font-size:14px;font-weight:750;max-width:100%;min-height:42px}
  #adrs.adr-multi-progression #adrProgressAllToolbar{display:flex}
  #adrs.adr-multi-progression #adrComp{display:none!important}
+ /* O filtro de progressão ocupa a coluna que a grade já reservava ao Componente. */
+ #adrs .adr-controls .adr-all-comp-inline{display:none!important;min-width:0;width:100%}
+ #adrs.adr-multi-progression .adr-controls .adr-all-comp-inline{display:grid!important;order:40}
+ #adrs.adr-multi-progression .adr-controls .v222-field-label:has(> #adrComp){display:none!important}
+ #adrs .adr-controls #adrProgressAllComp{width:100%;min-width:0;max-width:100%;min-height:42px;border:1px solid #bed4e6;border-radius:10px;background:#fff;padding:9px 12px;color:#12385d;font-size:14px;font-weight:750}
+ @media(min-width:1101px){#adrs.adr-multi-progression .adr-controls .adr-all-comp-inline{grid-column:4;grid-row:1}}
  #adrAllChartCard{display:none;margin-top:16px;min-width:0}
  #adrs.adr-multi-progression.adr-multi-all #adrAllChartCard{display:block}
  #adrs.adr-multi-progression.adr-multi-all #adrKpis,#adrs.adr-multi-progression.adr-multi-all #adrCreCompareCard,#adrs.adr-multi-progression.adr-multi-all #adrProgressCard{display:none!important}
@@ -105,8 +111,12 @@
  function ensure(){
    if($('adrProgressAllToolbar'))return;
    const filter=$('adrFiltersCard'),anchor=$('adrKpis');if(!filter||!anchor)return;
-   const toolbar=document.createElement('div');toolbar.id='adrProgressAllToolbar';toolbar.innerHTML='<label for="adrProgressAllComp">Componente<select id="adrProgressAllComp"><option value="ALL">Todos</option></select></label><label for="adrProgressAllScope">Abrangência<select id="adrProgressAllScope"></select></label>';
+   const toolbar=document.createElement('div');toolbar.id='adrProgressAllToolbar';toolbar.innerHTML='<label for="adrProgressAllScope">Abrangência<select id="adrProgressAllScope"></select></label>';
    filter.querySelector('.adr-controls')?.insertAdjacentElement('afterend',toolbar);
+   const compField=document.createElement('label');compField.className='v222-field-label adr-all-comp-inline';compField.htmlFor='adrProgressAllComp';
+   compField.innerHTML='<span>Componente</span><select id="adrProgressAllComp" aria-label="Componente"><option value="ALL">Todos</option></select>';
+   const originalComp=$('adrComp'),compSlot=originalComp?.closest('.v222-field-label')||originalComp;
+   if(compSlot?.parentElement)compSlot.insertAdjacentElement('beforebegin',compField);
    const card=document.createElement('div');card.id='adrAllChartCard';card.className='card';card.innerHTML='<div class="panel-title"><div><h3 id="adrAllChartTitle">Evolução dos componentes curriculares</h3><p id="adrAllChartSubtitle"></p></div></div><div id="adrAllChartPlot"></div><div id="adrAllChartLegend"></div><div class="table-wrap" id="adrAllChartTable"></div><p id="adrAllMethod"></p>';
    anchor.parentNode.insertBefore(card,anchor);
    [$('adrSchoolBars')?.closest('.grid'),$('adrTable')?.closest('.card')].forEach(x=>x?.classList.add('adr-all-hide-detail'));
@@ -188,7 +198,7 @@
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);
    setTimeout(render,250);
-   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF6',render,seriesForScope,baseRows,scopeState,get selected(){return chosen}};
+   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF7',render,seriesForScope,baseRows,scopeState,get selected(){return chosen}};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
