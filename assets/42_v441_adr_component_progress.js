@@ -1,4 +1,4 @@
-/* Dashboard Definitivo 33 · v441 HF10 · progressão multicurricular ADR; componente na grade principal. */
+/* Dashboard Definitivo 33 · v441 HF11 · progressão multicurricular ADR (dois gráficos por métrica); componente na grade principal. */
 (()=>{
  'use strict';
  const $=id=>document.getElementById(id);
@@ -39,6 +39,19 @@
  #adrAllChartSubtitle{color:#526f85;line-height:1.55;font-size:13px;margin:0 0 12px}
  #adrAllChartPlot{background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid #e3edf5;border-radius:12px;padding:10px 8px 2px}
  #adrAllChartPlot svg{display:block;width:100%;height:auto;min-height:240px;max-height:390px}
+ /* Duas escalas semanticamente distintas; painéis lado a lado somente quando há ambos os grupos. */
+ #adrAllChartPlot.adr-all-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:0;background:transparent;border:0}
+ #adrAllChartPlot.adr-all-split .adr-all-plot-panel{min-width:0;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid #e3edf5;border-radius:13px;padding:14px 14px 10px}
+ #adrAllChartPlot .adr-all-plot-panel h4{margin:0 0 4px;color:#12385d;font-size:16px;font-weight:850;line-height:1.3}
+ #adrAllChartPlot .adr-all-plot-panel .adr-plot-metric{font-size:12px;color:#536f86;line-height:1.5;margin:0 0 10px}
+ #adrAllChartPlot.adr-all-split svg{width:100%;height:auto;min-height:0;max-height:none}
+ #adrAllChartPlot .adr-plot-legend{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 0;align-items:center}
+ #adrAllChartPlot .adr-plot-legend button{display:inline-flex;align-items:center;gap:7px;border:1px solid #d7e4ee;border-radius:20px;background:white;color:#27485f;padding:7px 10px;font-size:12px;font-weight:800;line-height:1.35;cursor:pointer;max-width:100%;white-space:normal}
+ #adrAllChartPlot .adr-plot-legend button[aria-pressed="true"]{border-color:#438abf;background:#edf7ff;box-shadow:0 3px 10px #12385d19}
+ #adrAllChartPlot .adr-plot-legend .swatch{display:inline-block;flex-shrink:0;height:11px;width:11px;border-radius:50%}
+ #adrAllChartPlot .adr-plot-legend button.adr-all-clear{color:#16628f;border-color:#bcd7e9}
+ @media(max-width:980px){#adrAllChartPlot.adr-all-split{grid-template-columns:1fr}#adrAllChartPlot.adr-all-split .adr-all-plot-panel{width:100%}}
+ @media(max-width:540px){#adrAllChartPlot.adr-all-split .adr-all-plot-panel{padding:11px 8px}#adrAllChartPlot .adr-all-plot-panel h4{font-size:15px}#adrAllChartPlot .adr-plot-legend button{font-size:11px}}
  #adrAllChartLegend{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0 6px;align-items:center}
  #adrAllChartLegend button{border:1px solid #d7e4ee;border-radius:22px;background:white;color:#27485f;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:7px;line-height:1.3}
  #adrAllChartLegend button[aria-pressed="true"]{border-color:#438abf;background:#edf7ff;box-shadow:0 3px 10px #12385d19}
@@ -55,7 +68,7 @@
  @media(max-width:680px){#adrProgressAllToolbar label{min-width:145px;flex:1}#adrAllChartCard h3{font-size:17px}#adrAllChartLegend button{font-size:11px}}
  `;
  const st=document.createElement('style');st.id='adr-all-style-hf6';st.textContent=style;document.head.appendChild(st);
- let chosen='ALL',chosenLines=new Set();let signature='',lastSchool='',lastCre=null;let updating=false,schoolScopeWanted=false;
+ let chosen='ALL',chosenLines=new Set();let chosenGroupLines={desempenho:new Set(),acerto:new Set()};let signature='',lastSchool='',lastCre=null;let updating=false,schoolScopeWanted=false;
  function currentRows(){try{return (typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS))?ADR_ROWS:(Array.isArray(window.ADR_ROWS)?window.ADR_ROWS:[])}catch(_){return []}}
  function masterCre(){return Number($('regionalScopeSelect')?.value||0)}
  function currentSchool(rows){
@@ -110,13 +123,13 @@
    });
    return valid;
  }
- function seriesForScope(rows,scope,school,agent=''){
+ function seriesForScope(rows,scope,school,agent='',lpMetric='adequado'){
    if(scope==='Escola' && school)rows=rows.filter(r=>norm(r.escola)===norm(school));
    if(scope==='Agente' && agent)rows=rows.filter(r=>norm(typeof adrRowAgent==='function'?adrRowAgent(r):r.agente)===norm(agent));
    const comps=[...new Set(rows.map(r=>r.componente))].sort((a,b)=>(compOrder.indexOf(a)<0?99:compOrder.indexOf(a))-(compOrder.indexOf(b)<0?99:compOrder.indexOf(b))||String(a).localeCompare(String(b),'pt-BR'));
    return comps.map(comp=>{
-     // LP/MT: % Adequado (ADR 3 não contém Acerto Total). Demais: % de Acerto Total.
-     const metric=['LP','MT'].includes(comp)?'adequado':'acerto';
+     // LP/MT seguem o indicador de desempenho selecionado; outros componentes usam acerto total.
+     const metric=['LP','MT'].includes(comp)?(lpMetric==='abaixo'?'abaixo':'adequado'):'acerto';
      const byEdition=new Map();
      const subset=rows.filter(r=>r.componente===comp && num(r[metric])!==null && num(r.avaliados)>0);
      const editions=ADRS.filter(a=>subset.some(r=>r.adr===a));
@@ -179,34 +192,38 @@
      if(chosen!=='ALL' && $('adrComp').value!==chosen){$('adrComp').value=chosen;$('adrComp').dispatchEvent(new Event('change',{bubbles:true}));}
      else render();
    });
-   $('adrAllChartLegend').addEventListener('click',e=>{
-     const b=e.target.closest('button');if(!b)return;
+   // O mesmo padrão de legenda funciona tanto no gráfico único quanto em cada painel independente.
+   $('adrAllChartCard').addEventListener('click',e=>{
+     const b=e.target.closest('button[data-component]');if(!b)return;
+     const group=b.closest('[data-adr-group]')?.dataset.adrGroup;
+     const active=group&&chosenGroupLines[group]?chosenGroupLines[group]:chosenLines;
      const key=b.dataset.component;
-     if(key==='*'){chosenLines.clear();}
-     else if(e.shiftKey){if(chosenLines.has(key))chosenLines.delete(key);else chosenLines.add(key)}
-     else if(chosenLines.size===1&&chosenLines.has(key))chosenLines.clear();
-     else {chosenLines.clear();chosenLines.add(key)}
+     if(key==='*')active.clear();
+     else if(e.shiftKey){if(active.has(key))active.delete(key);else active.add(key)}
+     else if(active.size===1&&active.has(key))active.clear();
+     else{active.clear();active.add(key)}
      updateVisibility();
    });
  }
  function updateVisibility(){
    const area=$('adrAllChartCard');if(!area)return;
-   const active=chosenLines;
-   area.querySelectorAll('g[data-component]').forEach(el=>{const yes=!active.size||active.has(el.dataset.component);el.style.opacity=yes?'1':'.10'});
-   area.querySelectorAll('tr[data-component]').forEach(el=>{const yes=!active.size||active.has(el.dataset.component);el.style.opacity=yes?'1':'.24'});
-   area.querySelectorAll('#adrAllChartLegend button[data-component]').forEach(el=>{const yes=active.has(el.dataset.component);el.setAttribute('aria-pressed',String(yes));el.style.opacity=!active.size||yes?'1':'.55'});
+   const visible=(key,group)=>{
+     const active=group&&chosenGroupLines[group]?chosenGroupLines[group]:chosenLines;
+     return !active.size||active.has(key);
+   };
+   area.querySelectorAll('g[data-component]').forEach(el=>{el.style.opacity=visible(el.dataset.component,el.closest('[data-adr-group]')?.dataset.adrGroup)?'1':'.10'});
+   area.querySelectorAll('tr[data-component]').forEach(el=>{el.style.opacity=visible(el.dataset.component,el.dataset.adrGroup)?'1':'.24'});
+   area.querySelectorAll('button[data-component]').forEach(el=>{
+     const group=el.closest('[data-adr-group]')?.dataset.adrGroup;
+     const active=group&&chosenGroupLines[group]?chosenGroupLines[group]:chosenLines;
+     const yes=active.has(el.dataset.component);
+     el.setAttribute('aria-pressed',String(yes));el.style.opacity=!active.size||yes?'1':'.55';
+   });
  }
- function draw(data,sc,mode='components'){
-   const title=$('adrAllChartTitle'),sub=$('adrAllChartSubtitle'),plot=$('adrAllChartPlot'),legend=$('adrAllChartLegend'),tab=$('adrAllChartTable'),method=$('adrAllMethod');
-   const where=sc.scope==='Escola'?sc.school:sc.scope==='CRE'?`CRE ${String(sc.cre).padStart(2,'0')}`:sc.scope==='Agente'?`Agente: ${sc.agent}`:'Toda a SME';
-   const perCre=mode==='cres';
-   const componentName=titles[chosen]||chosen;
-   const metricName=$('adrMetric')?.selectedOptions?.[0]?.textContent||$('adrMetric')?.value||'';
-   title.textContent=perCre?`Evolução das CREs — ${componentName}`:`Progressão das ADRs — ${where}`;
-   sub.textContent=perCre?`${$('adrAno').value} · ${metricName} · ${data.length} CRE${data.length===1?'':'s'} com resultados no recorte Master · ADR 1 → ADR 2 → ADR 3. Clique na legenda para destacar uma linha; use Shift para selecionar várias.`:`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ADR 1 → ADR 2 → ADR 3. Selecione uma linha na legenda para destacá-la.`;
-   const W=960,H=350, L=70,R=28,T=26,B=58,plotH=H-T-B;
+ function drawSvg(data,split=false){
+   const W=split?550:960,H=350,L=split?65:70,R=split?52:52,T=26,B=58,plotH=H-T-B;
    const X=i=>L+(W-L-R)*(i/(ADRS.length-1)),Y=v=>T+plotH*(1-v/100);
-   const grids=[0,20,40,60,80,100].map(v=>`<g><line x1="${L}" y1="${Y(v)}" x2="${W-R}" y2="${Y(v)}" stroke="#e3edf5"/><text x="${L-14}" y="${Y(v)+5}" fill="#6e8191" font-size="15" text-anchor="end">${v}%</text></g>`).join('');
+   const grids=[0,20,40,60,80,100].map(v=>`<g><line x1="${L}" y1="${Y(v)}" x2="${W-R}" y2="${Y(v)}" stroke="#e3edf5"/><text x="${L-12}" y="${Y(v)+5}" fill="#6e8191" font-size="15" text-anchor="end">${v}%</text></g>`).join('');
    const labels=ADRS.map((a,i)=>`<text x="${X(i)}" y="${H-18}" text-anchor="middle" fill="#34566f" font-size="17" font-weight="800">${a}</text>`).join('');
    const groups=data.map(s=>{
      const segments=[];let segment=[];
@@ -215,10 +232,36 @@
      const dots=s.values.map((v,i)=>v===null?'':`<circle cx="${X(i)}" cy="${Y(v)}" r="5.5" fill="${s.color}" stroke="white" stroke-width="2"><title>${esc(s.label)} · ${ADRS[i]}: ${fmt(v)}</title></circle>`).join('');
      return `<g data-component="${esc(s.key)}" class="adr-all-series" style="transition:opacity .15s">${lines}${dots}</g>`;
    }).join('');
-   plot.innerHTML=data.length?`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Progressão entre ADRs, com legenda interativa"><text x="${L}" y="15" font-size="14" fill="#526f86">Percentual (%)</text>${grids}<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#c5d5e4"/>${groups}${labels}</svg>`:'<div class="adr-empty">Não há resultados disponíveis para este ano e esta abrangência.</div>';
-   legend.innerHTML=(data.length?'<button type="button" data-component="*" class="adr-all-clear">Mostrar todas</button>':'')+data.map(s=>`<button type="button" data-component="${esc(s.key)}" aria-pressed="false"><span class="swatch" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('');
-   tab.innerHTML=data.length?`<table><thead><tr><th>${perCre?'CRE / indicador':'Componente / indicador'}</th>${ADRS.map(s=>`<th>${s}</th>`).join('')}<th>Variação</th><th>Escolas pareadas</th></tr></thead><tbody>${data.map(s=>`<tr data-component="${esc(s.key)}"><td><span style="color:${s.color}">●</span> ${esc(s.label)}<div style="font-size:11px;font-weight:500;color:#667e90">${perCre?esc(metricName):(s.metric==='adequado'?'% Adequado':'% Acerto Total')}</div></td>${s.values.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${delta(s)}</td><td>${s.schools.toLocaleString('pt-BR')}</td></tr>`).join('')}</tbody></table>`:'';
-   method.innerHTML=perCre?'<strong>Critério de cálculo:</strong> Cada linha representa uma CRE no componente, ano e indicador selecionados. Em cada regional, somente escolas com o indicador disponível em todas as ADRs comparáveis dessa CRE integram a média. Cada ADR é ponderada pelo número de estudantes avaliados (sem atribuir peso a registros sem avaliados). CREs com menos de duas ADRs comparáveis são omitidas. Ausência de resultado é indicada por “—”, jamais como 0%. A opção respeita o Master e o filtro de prioridade.': '<strong>Critério de cálculo:</strong> LP e Matemática usam o percentual de estudantes em <strong>Adequado</strong>; Ciências da Natureza, Geografia e História usam o <strong>percentual de acerto total</strong>. São indicadores distintos, apresentados juntos apenas para visualizar tendências. Cada componente utiliza as mesmas escolas com informação válida em todas as ADRs disponíveis para ele; o resultado de cada ADR é ponderado pelo número de estudantes avaliados. Ausências aparecem como “—”, nunca como 0%. A tabela explicita a métrica de cada linha.';
+   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Progressão entre as três ADRs"><text x="${L}" y="15" font-size="14" fill="#526f86">Percentual (%)</text>${grids}<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#c5d5e4"/>${groups}${labels}</svg>`;
+ }
+ function legendButtons(data){return (data.length?'<button type="button" data-component="*" class="adr-all-clear">Mostrar todas</button>':'')+data.map(s=>`<button type="button" data-component="${esc(s.key)}" aria-pressed="false"><span class="swatch" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('')}
+ function draw(data,sc,mode='components'){
+   const title=$('adrAllChartTitle'),sub=$('adrAllChartSubtitle'),plot=$('adrAllChartPlot'),legend=$('adrAllChartLegend'),tab=$('adrAllChartTable'),method=$('adrAllMethod');
+   const where=sc.scope==='Escola'?sc.school:sc.scope==='CRE'?`CRE ${String(sc.cre).padStart(2,'0')}`:sc.scope==='Agente'?`Agente: ${sc.agent}`:'Toda a SME';
+   const perCre=mode==='cres';
+   const componentName=titles[chosen]||chosen;
+   const metricName=$('adrMetric')?.selectedOptions?.[0]?.textContent||$('adrMetric')?.value||'';
+   title.textContent=perCre?`Evolução das CREs — ${componentName}`:`Progressão das ADRs — ${where}`;
+   sub.textContent=perCre?`${$('adrAno').value} · ${metricName} · ${data.length} CRE${data.length===1?'':'s'} com resultados no recorte Master · ADR 1 → ADR 2 → ADR 3. Clique na legenda para destacar uma linha; use Shift para selecionar várias.`:`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ADR 1 → ADR 2 → ADR 3. Selecione uma linha na legenda para destacá-la.`;
+   const desempenho=data.filter(s=>['LP','MT'].includes(s.key));
+   const acerto=data.filter(s=>!['LP','MT'].includes(s.key));
+   const split=!perCre&&desempenho.length>0&&acerto.length>0;
+   plot.classList.toggle('adr-all-split',split);
+   if(split){
+     const perfMetric=desempenho[0].metric==='abaixo'?'% Abaixo do Básico':'% Adequado';
+     const acertoTitle=acerto.length===3&&['CN','Geografia','História'].every(c=>acerto.some(s=>s.key===c))?'Ciências da Natureza, Geografia e História':acerto.map(s=>s.label).join(', ').replace(/, ([^,]+)$/,' e $1');
+     const panels=[{group:'desempenho',heading:'Língua Portuguesa e Matemática',metric:perfMetric,data:desempenho},
+                   {group:'acerto',heading:acertoTitle,metric:'% Acerto Total',data:acerto}];
+     plot.innerHTML=panels.map(p=>`<section class="adr-all-plot-panel" data-adr-group="${p.group}" aria-label="${esc(p.heading)}: ${esc(p.metric)}"><h4>${esc(p.heading)}</h4><p class="adr-plot-metric">Indicador: <strong>${esc(p.metric)}</strong></p>${drawSvg(p.data,true)}<div class="adr-plot-legend">${legendButtons(p.data)}</div></section>`).join('');
+     legend.innerHTML='';legend.style.display='none';
+     sub.textContent=`${$('adrAno').value} · ${data.length} componentes · ADR 1 → ADR 2 → ADR 3. Indicadores separados em dois gráficos; selecione linhas nas respectivas legendas.`;
+   }else{
+     plot.innerHTML=data.length?drawSvg(data):'<div class="adr-empty">Não há resultados disponíveis para este ano e esta abrangência.</div>';
+     legend.innerHTML=legendButtons(data);legend.style.display='';
+   }
+   tab.innerHTML=data.length?`<table><thead><tr><th>${perCre?'CRE / indicador':'Componente / indicador'}</th>${ADRS.map(s=>`<th>${s}</th>`).join('')}<th>Variação</th><th>Escolas pareadas</th></tr></thead><tbody>${data.map(s=>`<tr data-component="${esc(s.key)}" data-adr-group="${perCre?'':(['LP','MT'].includes(s.key)?'desempenho':'acerto')}"><td><span style="color:${s.color}">●</span> ${esc(s.label)}<div style="font-size:11px;font-weight:500;color:#667e90">${perCre?esc(metricName):(s.metric==='abaixo'?'% Abaixo do Básico':s.metric==='adequado'?'% Adequado':'% Acerto Total')}</div></td>${s.values.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${delta(s)}</td><td>${s.schools.toLocaleString('pt-BR')}</td></tr>`).join('')}</tbody></table>`:'';
+   const perfMetric=desempenho[0]?.metric==='abaixo'?'Abaixo do Básico':'Adequado';
+   method.innerHTML=perCre?'<strong>Critério de cálculo:</strong> Cada linha representa uma CRE no componente, ano e indicador selecionados. Em cada regional, somente escolas com o indicador disponível em todas as ADRs comparáveis dessa CRE integram a média. Cada ADR é ponderada pelo número de estudantes avaliados (sem atribuir peso a registros sem avaliados). CREs com menos de duas ADRs comparáveis são omitidas. Ausência de resultado é indicada por “—”, jamais como 0%. A opção respeita o Master e o filtro de prioridade.': `<strong>Critério de cálculo:</strong> LP e Matemática usam o percentual de estudantes no indicador <strong>${perfMetric}</strong> selecionado; Ciências da Natureza, Geografia e História usam o <strong>percentual de acerto total</strong>. São indicadores distintos, ${split?'apresentados em gráficos separados para evitar interpretações equivocadas':'explicitados individualmente'}. Cada componente utiliza as mesmas escolas com informação válida em todas as ADRs disponíveis para ele; o resultado de cada ADR é ponderado pelo número de estudantes avaliados. Ausências aparecem como “—”, nunca como 0%. A tabela explicita a métrica de cada linha.`;
    updateVisibility();
  }
  function render(){
@@ -240,8 +283,8 @@
      section.classList.toggle('adr-multi-all',chosen==='ALL'||perCre);
      if(chosen==='ALL'||perCre){
        const metric=$('adrMetric')?.value||'adequado';
-       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();signature=key}
-       draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent),sc,perCre?'cres':'components');
+       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();signature=key}
+       draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent,metric),sc,perCre?'cres':'components');
      }
    }catch(e){console.error('[ADR componentes HF6] Falha ao renderizar',e);const card=$('adrAllChartPlot');if(card)card.innerHTML='<div class="adr-empty">Não foi possível gerar a comparação. Verifique o recorte selecionado.</div>'}
    finally{updating=false}
@@ -255,11 +298,11 @@
    // Captura a escolha ANTES do renderizador original da aba ADR.
    document.addEventListener('change',e=>{if(e.target?.id==='adrAgente')schoolScopeWanted=e.target.value==='__gra_adr_school__'},true);
    const relevant=['adrMode','adrAno','adrComp','adrMetric','adrAgente','adrPriority','adrSearch','regionalScopeSelect'];
-   document.addEventListener('change',e=>{if(relevant.includes(e.target?.id)){if(e.target?.id==='adrMode'&&e.target.value==='progressao'){chosen='ALL';chosenLines.clear();}setTimeout(render,45)}},true);
+   document.addEventListener('change',e=>{if(relevant.includes(e.target?.id)){if(e.target?.id==='adrMode'&&e.target.value==='progressao'){chosen='ALL';chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();}setTimeout(render,45)}},true);
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);
    setTimeout(render,250);
-   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF10',render,seriesForScope,seriesForCres,baseRows,scopeState,get selected(){return chosen}};
+   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF11',render,seriesForScope,seriesForCres,baseRows,scopeState,get selected(){return chosen}};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
