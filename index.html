@@ -3676,14 +3676,14 @@ async function startSystem(access){
     if(access.role==='agent'){sanitizeLive(false);patchSelectors();wrapLoaders()}
     stamp();await yieldFrame(90);
     // Always leave the old start lock before the access gate disappears.
-    try{window.__graStartChooserTest?.applyChoice?.('resultados')}catch(_){}
+    try{window.__graStartChooserTest?.applyChoice?.('georreferenciamento')}catch(_){}
     document.documentElement.classList.remove('gra-start-open');
     updateProgress(100,'Ferramenta pronta e visualmente estabilizada.',false);await yieldFrame(160);
     if(gate)gate.hidden=true;document.documentElement.classList.remove('gra-access-locked');stamp();
   }catch(error){
     console.error('Falha na preparação inicial; abrindo em modo de segurança',error);
     try{document.addEventListener=originalDocAdd;document.removeEventListener=originalDocRemove}catch(_){}
-    try{window.__graStartChooserTest?.activateSection?.('resultados')}catch(_){}
+    try{window.__graStartChooserTest?.activateSection?.('georreferenciamento')}catch(_){}
     document.documentElement.classList.remove('gra-start-open');
     updateProgress(100,'Carregamento concluído em modo de segurança.',false);
     if(detail)detail.textContent='A interface principal foi liberada. Recursos pesados restantes serão carregados quando forem usados.';
@@ -3701,7 +3701,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
   'use strict';
   const VERSION='v414';
   const ALLOWED=new Set(['adrs','resultados','banco','georreferenciamento']);
-  let requested='resultados',applied=false,readyToUse=false,lastProgress=0,watchdog=0;
+  let requested='georreferenciamento',applied=false,readyToUse=false,lastProgress=0,watchdog=0;
 
   function stampVersion(){
     const badge=document.getElementById('dashboardVersionBadge');
@@ -3717,7 +3717,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
     progress(34+r*56,label||'Preparando dados essenciais…');
   };
   function activateSection(sectionId){
-    if(!ALLOWED.has(sectionId))sectionId='resultados';
+    if(!ALLOWED.has(sectionId))sectionId='georreferenciamento';
     const btn=document.querySelector('.nav button[data-section="'+sectionId+'"]');
     if(btn){
       const group=btn.closest('.nav-group');if(group)group.classList.add('open');
@@ -3738,7 +3738,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
     document.documentElement.classList.remove('gra-start-open');
   }
   function applyChoice(sectionId){
-    requested=ALLOWED.has(sectionId)?sectionId:'resultados';
+    requested=ALLOWED.has(sectionId)?sectionId:'georreferenciamento';
     if(!readyToUse)return false;
     if(applied&&document.getElementById(requested)?.classList.contains('active'))return true;
     applied=true;
@@ -3750,7 +3750,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
   function markReady(message='Preparação essencial concluída.'){
     if(readyToUse)return;
     readyToUse=true;clearTimeout(watchdog);progress(100,message);
-    applyChoice(requested||'resultados');
+    applyChoice(requested||'georreferenciamento');
   }
   function preflight(){
     stampVersion();progress(12,'Validando a interface…');
@@ -3801,12 +3801,12 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
       <div class="nav-group open" data-nav-group="results">
         <button class="nav-parent" type="button" data-group-toggle="results"><span class="ico">◆</span><span>Resultados</span><span class="nav-chevron">⌄</span></button>
         <div class="nav-submenu">
-          <button class="active" data-section="resultados" type="button">Somativas</button>
+          <button data-section="resultados" type="button">Somativas</button>
           <button data-section="adrs" type="button">ADRs</button>
           
         </div>
       </div>
-      <button data-section="georreferenciamento" type="button"><span class="ico">⌖</span> Georreferenciamento</button>
+      <button class="active" data-section="georreferenciamento" type="button"><span class="ico">⌖</span> Georreferenciamento</button>
       <button data-section="exclusivas" type="button"><span class="ico">★</span> Exclusivas</button>
       <div class="nav-group" data-nav-group="more">
         <button class="nav-parent" type="button" data-group-toggle="more"><span class="ico">≡</span><span>Bancos de Dados</span><span class="nav-chevron">⌄</span></button>
@@ -3948,7 +3948,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
 </section>
 
 
-    <section id="georreferenciamento" class="section">
+    <section id="georreferenciamento" class="section active">
       <div class="card geo-header-card">
         <div class="panel-title geo-title-row">
           <div>
@@ -4020,7 +4020,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
     </section>
 
 
-    <section id="resultados" class="section active">
+    <section id="resultados" class="section">
       <div class="card result-filter-card som-header-card">
         <div class="panel-title result-title-row">
           <div>
@@ -21190,5 +21190,6 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
 <script src="assets/40_v438_adr_cre_ranking.js"></script>
 <div class="gra-alternative-label" style="position:fixed;bottom:8px;left:10px;z-index:900;padding:4px 9px;background:#fff1cf;color:#6a4600;border-radius:6px;font:12px Arial;pointer-events:none">v441 · hotfix cartaz · somente Alta · em teste</div>
 <script src="assets/41_v441_slides_adr3_explicit.js?v=441-hf4-adr3-20261007"></script>
+<script src="assets/42_v441_adr_component_progress.js?v=441-hf6-20261008"></script>
 </body>
 </html>
