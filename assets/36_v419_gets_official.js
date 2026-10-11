@@ -52,12 +52,12 @@ function applyOfficialClassification(){
 
 function elementSchoolName(el){
   const direct=el?.dataset?.graSchoolName||el?.dataset?.somSchool||el?.dataset?.school;if(direct)return direct;
-  const clone=el?.cloneNode?.(true);clone?.querySelectorAll?.('.gra-get-badge').forEach(x=>x.remove());
+  const clone=el?.cloneNode?.(true);clone?.querySelectorAll?.('.gra-get-badge,.v364-priority-badge,.v363-priority-badge,.dossier-get-badge').forEach(x=>x.remove());
   return String(clone?.textContent||el?.textContent||'').replace(/\s+GET\s*$/i,'').trim();
 }
 function decorateElement(el){
-  if(!(el instanceof Element)||el.closest('.gra-get-badge'))return;
-  const name=elementSchoolName(el),key=canonicalName(name);if(el.dataset.graGetChecked===key)return;
+  if(!(el instanceof Element)||el.closest('.gra-get-badge,.v364-priority-badge,.v363-priority-badge'))return;
+  const name=elementSchoolName(el),cre=el.dataset.cre||el.closest('[data-cre]')?.dataset?.cre||'',key=canonicalName(name)+'|'+creNumber(cre);if(el.dataset.graGetChecked===key)return;
   el.dataset.graGetChecked=key;el.querySelectorAll(':scope > .gra-get-badge').forEach(x=>x.remove());
   if(!name||!isGet(name,el.dataset.cre||el.closest('[data-cre]')?.dataset?.cre||''))return;
   if(el.namespaceURI==='http://www.w3.org/2000/svg'&&el.tagName.toLowerCase()==='text'){

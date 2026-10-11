@@ -803,11 +803,9 @@ function adrWeightAvg(rows, key) {
 function adrSum(rows, key) { return rows.reduce((a,r)=>a+(Number(r[key])||0),0); }
 function adrUnique(arr) { return [...new Set(arr.filter(Boolean))]; }
 const ADR_ALL_SCHOOLS_VALUE='__todas_escolas__';
-const ADR_CRE_LINES_VALUE='__gra_adr_cre_lines__';
 function adrIsAllSchoolsScope(value) { return value===ADR_ALL_SCHOOLS_VALUE; }
-function adrIsSpecificAgent(value) { return !!value && !adrIsAllSchoolsScope(value) && value!=='__gra_adr_school__' && value!==ADR_CRE_LINES_VALUE; }
+function adrIsSpecificAgent(value) { return !!value && !adrIsAllSchoolsScope(value); }
 function adrAgentScopeLabel(value) {
-  if(value===ADR_CRE_LINES_VALUE) return 'CREs';
   if(adrIsAllSchoolsScope(value)) return 'Todas as escolas';
   if(value) return value;
   return Number(document.getElementById('regionalScopeSelect')?.value||0)===0 ? 'Todas as CREs' : 'Todos os agentes';
@@ -943,13 +941,13 @@ function adrRefreshSelectors() {
   const aggregateLabel=regionalScope===0 ? 'Todas as CREs' : 'Todos os agentes';
   const currentAllSchools=adrIsAllSchoolsScope(cur.agente);
   const curAgenteCanonical=currentAllSchools ? '' : adrCanonicalAgentName(cur.agente);
-  const defaultAgente=(adrModeValue==='progressao' && cur.agente===ADR_CRE_LINES_VALUE) ? ADR_CRE_LINES_VALUE : (currentAllSchools ? ADR_ALL_SCHOOLS_VALUE : ((curAgenteCanonical && agentes.includes(curAgenteCanonical)) ? curAgenteCanonical : ''));
+  const defaultAgente=currentAllSchools ? ADR_ALL_SCHOOLS_VALUE : ((curAgenteCanonical && agentes.includes(curAgenteCanonical)) ? curAgenteCanonical : '');
   anoSel.innerHTML=adrOptionHtml(anos, defaultAno);
   compSel.innerHTML=adrOptionHtml(comps, defaultComp);
   adrSel.innerHTML=adrOptionHtml(adrs, defaultAdr, 'Todas as ADRs');
   creSel.innerHTML=adrOptionHtml(cres, defaultCre, 'Todas as CREs');
   if(agenteSel) {
-    agenteSel.innerHTML=`<option value="${ADR_ALL_SCHOOLS_VALUE}">Todas as escolas</option>` + (defaultAgente===ADR_CRE_LINES_VALUE ? `<option value="${ADR_CRE_LINES_VALUE}">CREs</option>` : '') + adrOptionHtml(agentes, defaultAgente, aggregateLabel);
+    agenteSel.innerHTML=`<option value="${ADR_ALL_SCHOOLS_VALUE}">Todas as escolas</option>` + adrOptionHtml(agentes, defaultAgente, aggregateLabel);
   }
   anoSel.value=defaultAno; compSel.value=defaultComp; adrSel.value=defaultAdr; creSel.value=defaultCre; if(agenteSel) agenteSel.value=defaultAgente;
 }
@@ -1040,7 +1038,6 @@ function adrFilteredRows({ignoreAdr=false, ignoreCre=false, onlyCurrentBase=fals
     if(regionalScope){const match=String(r.regional||r.cre||'').match(/\d+/);if(!match||Number(match[0])!==regionalScope)return false;}
     if(!ignoreCre && cre && r.regional!==cre) return false;
     if(adrIsSpecificAgent(agente) && adrRowAgent(r)!==agente) return false;
-    if(agente==='__gra_adr_school__' && window.__GRA_SELECTED_SCHOOL__ && norm(r.escola)!==norm(window.__GRA_SELECTED_SCHOOL__)) return false;
     if(priorityOnly && !priorityMatchesContext(r.escola,ano,'ADR',r.regional)) return false;
     if(q){
       const searchable=norm(`${r.escola} ${r.regional} ${adrRowAgent(r)} ${adrRowTerritorio(r)} ${r.adr} ${r.ano} ${r.componente} ${r.fonte} ${prioritySearchText(r.escola,r.regional)}`);
@@ -3707,7 +3704,7 @@ function geoPointMatchesSegment(point,segment){
   if(segment==='AF')return point.segment==='AF'||point.segment==='AI & AF';
   return true;
 }
-function geoAdrPair(ctx={}){const id=ctx.adrPair||document.getElementById('geoAdrPair')?.value;return id==='13'?['ADR 1','ADR 3']:id==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 2'];}
+function geoAdrPair(ctx={}){return (ctx.adrPair||document.getElementById('geoAdrPair')?.value)==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 2'];}
 function geoAdrEdition(ctx){return ctx.adrView==='progress'?geoAdrPair(ctx)[1]:({adr1:'ADR 1',adr2:'ADR 2',adr3:'ADR 3'}[ctx.adrView]||'ADR 3');}
 window.geoAdrPair=geoAdrPair;window.geoAdrEdition=geoAdrEdition;
 function geoEvalContext(){
@@ -4747,7 +4744,7 @@ function geoRefreshEvaluationFilters(keep=true){
   if(adrViewWrap)adrViewWrap.hidden=!isAdr;
   const saved=GEO_STATE.evalSelections[evaluation]||{};
   const pairSelect=document.getElementById('geoAdrPair'),pairWrap=document.getElementById('geoAdrPairWrap');
-  if(isAdr)geoSetOptions(pairSelect,[{value:'12',label:'ADR 1 → ADR 2'},{value:'23',label:'ADR 2 → ADR 3'},{value:'13',label:'ADR 1 → ADR 3'}],keep?(saved.adrPair||pairSelect?.value||'12'):'12');
+  if(isAdr)geoSetOptions(pairSelect,[{value:'12',label:'ADR 1 → ADR 2'},{value:'23',label:'ADR 2 → ADR 3'}],keep?(saved.adrPair||pairSelect?.value||'12'):'12');
   if(isAdr){
     geoSetOptions(adrView,[
       {value:'adr1',label:'ADR 1'},

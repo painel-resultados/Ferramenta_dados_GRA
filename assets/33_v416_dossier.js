@@ -1,7 +1,7 @@
 /* v416 — Dossiê dinâmico por escola + E.M. Teste (fictícia). */
 (function(){
 'use strict';
-const VERSION='v438';
+const VERSION='v441';
 const DEMO_NAME='E.M. Teste';
 const DEMO_ALIASES=['e.m. teste','em teste','escola municipal teste'];
 const state={context:null,lastTiming:null,lastSchool:null,generating:false};
@@ -61,16 +61,55 @@ function contextRows(){
   try{const el=$('v392MinhaEscolaContextData');const parsed=el?JSON.parse(el.textContent||'{}'):{};state.context=Array.isArray(parsed)?parsed:(parsed.rows||[]);}catch(_){state.context=[]}
   return state.context;
 }
+// HF13: correspondência inequívoca por código SME; sem coincidências parciais de nomes.
+function recordCre(v){const m=String(v??'').match(/\d{1,2}/);return m?Number(m[0]):0;}
+function smeId(row){return String(row?.codigoSME||row?.codeSME||row?.sme||'').replace(/\D/g,'');}
 function matchesRecord(row,record){
   if(!row||!record)return false;
-  const rc=String(record.codigoSME||record.codeSME||'').replace(/\D/g,'');
-  const rr=String(row.codigoSME||row.sme||row.codeSME||'').replace(/\D/g,'');
-  if(rc&&rr&&Number(rc)===Number(rr))return true;
-  const a=schoolKey(row.escola||row.unidade||row.name||''),b=schoolKey(record.unidade||record.escola||record.name||'');
-  return !!a&&!!b&&(a===b||(a.length>7&&b.length>7&&(a.includes(b)||b.includes(a))));
+  const rc=smeId(record),rr=smeId(row);
+  // Identificadores de seis dígitos são suficientes, mas jamais devem se contradizer.
+  if(rc.length===6&&rr.length===6)return rc===rr;
+  const creA=recordCre(row.cre??row.regional??row.creLabel);
+  const creB=recordCre(record.cre??record.regional??record.creLabel);
+  if(creA&&creB&&creA!==creB)return false;
+  const a=schoolKey(row.escola||row.unidade||row.name||'');
+  const b=schoolKey(record.unidade||record.escola||record.name||'');
+  return !!a&&!!b&&a===b;
 }
 function findContext(record){return contextRows().find(r=>matchesRecord(r,record))||null;}
-function hasYear(ctx,n){if(!ctx?.anos)return true;return Object.keys(ctx.anos).some(k=>gradeNum(k)===n&&((Array.isArray(ctx.anos[k])?Number(ctx.anos[k][0]):Number(ctx.anos[k]))||0)>0);}
+function schoolGradeSet(ctx,record){
+  const set=new Set(),years=ctx?.anos;
+  if(years&&typeof years==='object'&&Object.keys(years).length){
+    for(const [key,v] of Object.entries(years)){
+      const grade=gradeNum(key);
+      const pupils=Array.isArray(v)?Number(v[0])||0:Number(v)||0;
+      const classes=Array.isArray(v)?Number(v[1])||0:0;
+      if(grade>=1&&grade<=9&&(pupils>0||classes>0))set.add(grade);
+    }
+    // Uma lista de séries disponível no contexto é a fonte canônica para 2026.
+    return set;
+  }
+  // Fallback: nunca inferir a oferta de uma série apenas de seus resultados.
+  const step=norm(ctx?.etapa||record?.planoAcao||record?.etapa||'');
+  const ai=/\bai\b|anos iniciais/.test(step);
+  const af=/\baf\b|anos finais/.test(step);
+  if(ai&&!af)for(let i=1;i<=5;i++)set.add(i);
+  if(af&&!ai)for(let i=6;i<=9;i++)set.add(i);
+  if(ai&&af)for(let i=1;i<=9;i++)set.add(i);
+  return set.size?set:null;
+}
+function gradeAllowed(row,grades){
+  if(!grades)return true; // Unidades sem oferta documentada não recebem filtragem arbitrária.
+  const label=norm(row?.anoEscolar||row?.ano||'');
+  if(/anos iniciais/.test(label))return [...grades].some(y=>y<=5);
+  if(/anos finais/.test(label))return [...grades].some(y=>y>=6);
+  const year=gradeNum(label);
+  return year===99 || grades.has(year);
+}
+function hasYear(ctx,n){
+  const grades=schoolGradeSet(ctx,null);
+  return !grades||grades.has(n);
+}
 async function ensureSchoolSources(record,ctx){
   const cre=Number(record.cre)||Number(String(record.creLabel||'').match(/\d+/)?.[0])||0;
   try{if(typeof window.__graEnsureAdrSources==='function'&&cre)await window.__graEnsureAdrSources(cre);}catch(e){console.warn('v416 ADR',e)}
@@ -119,7 +158,10 @@ function demoData(){
 async function collect(record,demo=false){
  if(demo)return demoData();
  const context=findContext(record);await ensureSchoolSources(record,context);
- const som=getSomRows(record),adr=getAdrRows(record),sim=getSimRows(record);
+ const grades=schoolGradeSet(context,record);
+ const som=getSomRows(record).filter(r=>gradeAllowed(r,grades));
+ const adr=getAdrRows(record).filter(r=>gradeAllowed(r,grades));
+ const sim=getSimRows(record).filter(r=>gradeAllowed(r,grades));
  const ideb=som.filter(r=>r.modalidade==='IDEB 2025'||r.modalidade==='IDEB'||r.resultadoTipo==='idebOficial');
  const prova=som.filter(r=>r.modalidade==='Prova Rio');
  const avalia=som.filter(r=>r.modalidade==='Avalia RJ');
