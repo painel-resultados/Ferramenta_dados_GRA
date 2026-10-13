@@ -76,8 +76,8 @@
    // A busca digitada tem prioridade sobre a seleção global anterior.
    const q=schoolKey($('adrSearch')?.value||'');
    if(q){
-     const names=[...new Set(rows.filter(r=>schoolKey(r.escola).includes(q)).map(r=>r.escola))];
-     return names.length===1?names[0]:'';
+     const hits=rows.filter(r=>schoolKey(r.escola).includes(q));
+     return new Set(hits.map(r=>schoolKey(r.escola))).size===1 ? (hits[0]?.escola||'') : '';
    }
    const explicit=schoolKey(window.__GRA_SELECTED_SCHOOL__||'');
    return explicit ? (rows.find(r=>schoolKey(r.escola)===explicit)?.escola||'') : '';
