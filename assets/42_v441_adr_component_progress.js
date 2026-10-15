@@ -4,6 +4,7 @@
  const $=id=>document.getElementById(id);
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+ const schoolKey=s=>norm(s).replace(/^\d{5,}\s*/,'').replace(/^get\s+/,'').replace(/^e m\s+/,'escola municipal ').replace(/^em\s+/,'escola municipal ').replace(/^c m\s+/,'creche municipal ').trim();
  const num=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?Number(v):null;
  const compOrder=['LP','MT','CN','Geografia','História','CH'];
  const titles={LP:'Língua Portuguesa',MT:'Matemática',CN:'Ciências da Natureza',Geografia:'Geografia','História':'História',CH:'Ciências Humanas'};
@@ -72,12 +73,14 @@
  function currentRows(){try{return (typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS))?ADR_ROWS:(Array.isArray(window.ADR_ROWS)?window.ADR_ROWS:[])}catch(_){return []}}
  function masterCre(){return Number($('regionalScopeSelect')?.value||0)}
  function currentSchool(rows){
-   const explicit=String(window.__GRA_SELECTED_SCHOOL__||'').trim();
-   if(explicit && rows.some(r=>norm(r.escola)===norm(explicit))) return explicit;
-   const q=norm($('adrSearch')?.value||'');
-   if(!q)return '';
-   const names=[...new Set(rows.filter(r=>norm(r.escola).includes(q)).map(r=>r.escola))];
-   return names.length===1?names[0]:'';
+   // A busca digitada tem prioridade sobre a seleção global anterior.
+   const q=schoolKey($('adrSearch')?.value||'');
+   if(q){
+     const hits=rows.filter(r=>schoolKey(r.escola).includes(q));
+     return new Set(hits.map(r=>schoolKey(r.escola))).size===1 ? (hits[0]?.escola||'') : '';
+   }
+   const explicit=schoolKey(window.__GRA_SELECTED_SCHOOL__||'');
+   return explicit ? (rows.find(r=>schoolKey(r.escola)===explicit)?.escola||'') : '';
  }
  // O seletor Abrangência original (#adrAgente) é a única fonte de seleção.
  // Opções especiais usam os mesmos filtros Master e dados do controle já existente.
@@ -108,11 +111,11 @@
  function scopeState(rows){
    const school=currentSchool(rows),cre=masterCre(),selected=$('adrAgente')?.value||'';
    lastSchool=school;lastCre=cre;
-   const scope=selected==='__gra_adr_school__'&&school?'Escola':selected===CRE_LINES?'CREs':selected && selected!=='__todas_escolas__'?'Agente':cre?'CRE':'SME';
+   const scope=school?'Escola':selected===CRE_LINES?'CREs':selected && selected!=='__todas_escolas__'?'Agente':cre?'CRE':'SME';
    return {school,cre,scope,agent:scope==='Agente'?selected:''};
  }
  function baseRows(){
-   const ano=$('adrAno')?.value||'',cre=masterCre(),searchSchool=String(window.__GRA_SELECTED_SCHOOL__||'').trim();
+   const ano=$('adrAno')?.value||'',cre=masterCre();
    const priorityOnly=$('adrPriority')?.value==='sim';
    const valid= currentRows().filter(r=>{
      if(r.ano!==ano || !ADRS.includes(r.adr) || !r.componente)return false;
@@ -124,7 +127,7 @@
    return valid;
  }
  function seriesForScope(rows,scope,school,agent='',lpMetric='adequado'){
-   if(scope==='Escola' && school)rows=rows.filter(r=>norm(r.escola)===norm(school));
+   if(scope==='Escola' && school)rows=rows.filter(r=>schoolKey(r.escola)===schoolKey(school));
    if(scope==='Agente' && agent)rows=rows.filter(r=>norm(typeof adrRowAgent==='function'?adrRowAgent(r):r.agente)===norm(agent));
    const comps=[...new Set(rows.map(r=>r.componente))].sort((a,b)=>(compOrder.indexOf(a)<0?99:compOrder.indexOf(a))-(compOrder.indexOf(b)<0?99:compOrder.indexOf(b))||String(a).localeCompare(String(b),'pt-BR'));
    return comps.map(comp=>{
@@ -135,11 +138,11 @@
      const editions=ADRS.filter(a=>subset.some(r=>r.adr===a));
      // Uma mesma unidade compõe todas as edições válidas desse componente.
      const coverage=new Map();
-     subset.forEach(r=>{const k=norm(r.regional)+'|'+norm(r.escola);if(!r.escola)return;if(!coverage.has(k))coverage.set(k,new Set());coverage.get(k).add(r.adr)});
+     subset.forEach(r=>{const k=norm(r.regional)+'|'+schoolKey(r.escola);if(!r.escola)return;if(!coverage.has(k))coverage.set(k,new Set());coverage.get(k).add(r.adr)});
      const paired=new Set([...coverage].filter(([,ed])=>editions.every(a=>ed.has(a))).map(([k])=>k));
      for(const a of ADRS){
        let numerator=0,denominator=0;
-       for(const r of subset){if(r.adr!==a||!paired.has(norm(r.regional)+'|'+norm(r.escola)))continue;
+       for(const r of subset){if(r.adr!==a||!paired.has(norm(r.regional)+'|'+schoolKey(r.escola)))continue;
          const v=num(r[metric]), w=num(r.avaliados);if(v===null||!(w>0))continue;
          numerator+=v*w;denominator+=w;
        }
@@ -280,11 +283,13 @@
      if(chosen!=='ALL'&&!comps.includes(chosen))chosen='ALL';
      compSel.innerHTML='<option value="ALL">Todos</option>'+comps.map(c=>`<option value="${esc(c)}">${esc(titles[c]||c)}</option>`).join('');compSel.value=chosen;
      const perCre=chosen!=='ALL'&&sc.scope==='CREs';
-     section.classList.toggle('adr-multi-all',chosen==='ALL'||perCre);
-     if(chosen==='ALL'||perCre){
+     const perSchool=sc.scope==='Escola'&&!!sc.school;
+     // A seleção de uma escola sempre usa a série histórica completa, inclusive com um componente isolado.
+     section.classList.toggle('adr-multi-all',chosen==='ALL'||perCre||perSchool);
+     if(chosen==='ALL'||perCre||perSchool){
        const metric=$('adrMetric')?.value||'adequado';
        const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();signature=key}
-       draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent,metric),sc,perCre?'cres':'components');
+       draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent,metric).filter(x=>chosen==='ALL'||x.key===chosen),sc,perCre?'cres':'components');
      }
    }catch(e){console.error('[ADR componentes HF6] Falha ao renderizar',e);const card=$('adrAllChartPlot');if(card)card.innerHTML='<div class="adr-empty">Não foi possível gerar a comparação. Verifique o recorte selecionado.</div>'}
    finally{updating=false}
@@ -302,7 +307,7 @@
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);
    setTimeout(render,250);
-   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF11',render,seriesForScope,seriesForCres,baseRows,scopeState,get selected(){return chosen}};
+   window.__GRA_ADR_ALL_COMPONENTS__={version:'v441-HF18-ADR3-ESCOLAS',render,seriesForScope,seriesForCres,baseRows,scopeState,get selected(){return chosen}};
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
