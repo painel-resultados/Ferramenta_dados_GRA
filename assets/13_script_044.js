@@ -4965,3 +4965,84 @@ initNav(); initGlobalSearch();
    Assim a tela de login não paga o custo das bases e, para Agentes, o recorte da CRE
    já está aplicado antes da primeira materialização. */
 document.addEventListener('DOMContentLoaded',()=>initResultados(),{once:true});
+
+
+/* HF21 · Índice da ADR 3 para os intervalos 1→3 e 2→3 no mapa.
+   O índice comprimido original é preservado para ADR 1→2. */
+(function(){
+  'use strict';
+  let active=null, indexedMap=null, indexedRows=new WeakSet();
+  function indexOne(row){
+    if(row?.adr!=='ADR 3'||!row.escola)return false;
+    const finder=window.geoFindPointForSchool;
+    if(typeof finder!=='function')return false;
+    const regional=row.cre||row.regional||'';
+    const coded=row.codigoSME?String(row.codigoSME)+' '+row.escola:row.escola;
+    const point=finder(coded,regional)||finder(row.escola,regional);
+    if(!point)return false;
+    const key=geoAdrIndexKey(point.name,row.ano,row.componente,'ADR 3');
+    let agg=GEO_STATE.adrIndex.get(key);
+    if(!agg){
+      agg={adequadoS:0,adequadoN:0,abaixoS:0,abaixoN:0,basicoS:0,basicoN:0,avaliadosPctS:0,avaliadosPctN:0};
+      GEO_STATE.adrIndex.set(key,agg);
+    }
+    for(const field of ['adequado','abaixo','basico','avaliadosPct']){
+      const v=row[field];
+      if(v===null||v===undefined||v===''||!Number.isFinite(Number(v)))continue;
+      agg[field+'S']+=Number(v);
+      agg[field+'N']+=1;
+    }
+    return true;
+  }
+  async function ensureThirdEdition(){
+    if(active)return active;
+    active=(async()=>{
+      try{
+        const cre=Number(document.getElementById('regionalScopeSelect')?.value||GEO_STATE.region||0);
+        if(typeof window.__graEnsureAdrSources==='function')await window.__graEnsureAdrSources(cre||undefined);
+        if(!GEO_STATE.adrReady){
+          await new Promise((resolve,reject)=>{
+            geoBuildAdrIndex(()=>{
+              if(GEO_STATE.adrReady)resolve();
+              else reject(new Error('Índice geográfico de ADR não foi carregado.'));
+            });
+          });
+        }
+        if(indexedMap!==GEO_STATE.adrIndex){
+          indexedMap=GEO_STATE.adrIndex;
+          indexedRows=new WeakSet();
+        }
+        const rows=(typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS))?ADR_ROWS:[];
+        for(let i=0;i<rows.length;i++){
+          const r=rows[i];
+          if(r?.adr!=='ADR 3'||indexedRows.has(r))continue;
+          if(indexOne(r))indexedRows.add(r);
+          if(i>0&&i%1200===0)await new Promise(ok=>setTimeout(ok,0));
+        }
+        GEO_STATE.evalCache?.clear();
+        GEO_STATE.evolutionCache?.clear();
+        if(document.getElementById('georreferenciamento')?.classList.contains('active')){
+          geoUpdateContextUI();
+          geoScheduleFilters(0);
+        }
+        return true;
+      }catch(error){
+        console.warn('HF21: indexação da ADR 3 no mapa',error);
+        return false;
+      }
+    })().finally(()=>{active=null;});
+    return active;
+  }
+  function selectedThird(){
+    const pair=document.getElementById('geoAdrPair')?.value;
+    return (pair==='13'||pair==='23')&&(document.getElementById('geoAdrView')?.value==='progress');
+  }
+  document.addEventListener('change',event=>{
+    if(event.target?.id==='geoAdrPair'&&selectedThird())void ensureThirdEdition();
+  },true);
+  document.addEventListener('click',event=>{
+    if(event.target?.closest?.('[data-section="georreferenciamento"]'))
+      setTimeout(()=>{if(selectedThird())void ensureThirdEdition();},300);
+  },true);
+  window.__GRA_GEO_ADR3_HF21__={ensure:ensureThirdEdition,indexOne};
+})();
