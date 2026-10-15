@@ -312,11 +312,31 @@
     if(evaluation==='ADR')return [];
     return (Array.isArray(SOM_ROWS)?SOM_ROWS:[]).filter(row=>row.modalidade===evaluation&&geoRowInScope(row)&&(!segment||geoRowMatchesYearFilter(row.anoEscolar,segment))&&(!component||typeof somComponentMatches!=='function'||somComponentMatches(row.componente,component,row.modalidade)));
   };
+  // HF20: comparação longitudinal real ADR 1 → ADR 3, na mesma métrica e escola.
+  // Não utiliza zeros para edições ausentes, e inverte a direção de "Abaixo do Básico".
+  function geoAdrProgress13ForPoint(point,ctx){
+    const adr1=geoAdrSingleValueForPoint(point,ctx,'ADR 1');
+    const adr3=geoAdrSingleValueForPoint(point,ctx,'ADR 3');
+    if(!Number.isFinite(adr1)||!Number.isFinite(adr3)){
+      return {status:'nodata',delta:null,rawDelta:null,value:null,count:0,suffix:'p.p.',adrPeriod:'ADR 1 → ADR 3'};
+    }
+    const rawDelta=adr3-adr1,delta=ctx.indicator==='abaixo'?-rawDelta:rawDelta;
+    const status=Math.abs(delta)<=0.5?'flat':delta>0?'up':'down';
+    return {status,delta,rawDelta,value:rawDelta,count:1,suffix:'p.p.',adr1,adr3,
+      adrPeriod:'ADR 1 → ADR 3',bandLabel:status==='flat'?'Estável':status==='up'?'Evolução positiva':'Evolução negativa'};
+  }
   geoAdrSnapshot=function(ctx){
     const scope=geoScopePoints(),cacheKey=['V140_ADR',GEO_STATE.region,ctx.adrView,ctx.segment,ctx.component,ctx.indicator,GEO_STATE.adrReady].join('\u0002'),cached=GEO_STATE.evalCache.get(cacheKey);if(cached)return cached;
     const results=new Map();
-    if(!GEO_STATE.adrReady){scope.forEach(point=>results.set(point.name,{status:'loading',delta:null,value:null,count:0}));const snapshot={results,median:null,count:0};GEO_STATE.evalCache.set(cacheKey,snapshot);return snapshot}
-    if(ctx.adrView==='progress'){scope.forEach(point=>results.set(point.name,geoAdrMetricForPoint(point,ctx)));const snapshot={results,median:null,count:[...results.values()].filter(result=>Number.isFinite(Number(result.value))&&result.count>0).length};GEO_STATE.evalCache.set(cacheKey,snapshot);return snapshot}
+    if(!GEO_STATE.adrReady||(ctx.adrView==='progress13'&&!GEO_STATE.adr3Ready)){
+      if(ctx.adrView==='progress13')window.__GRA_GEO_ADR13__?.ensure?.();
+      scope.forEach(point=>results.set(point.name,{status:'loading',delta:null,value:null,count:0}));const snapshot={results,median:null,count:0};GEO_STATE.evalCache.set(cacheKey,snapshot);return snapshot}
+    if(ctx.adrView==='progress'||ctx.adrView==='progress13'){
+      const between13=ctx.adrView==='progress13';
+      scope.forEach(point=>results.set(point.name,between13?geoAdrProgress13ForPoint(point,ctx):geoAdrMetricForPoint(point,ctx)));
+      const snapshot={results,median:null,count:[...results.values()].filter(result=>Number.isFinite(result.value)&&result.count>0).length};
+      GEO_STATE.evalCache.set(cacheKey,snapshot);return snapshot;
+    }
     const adrName=ctx.adrView==='adr1'?'ADR 1':'ADR 2',values=new Map();scope.forEach(point=>{const value=geoAdrSingleValueForPoint(point,ctx,adrName);if(Number.isFinite(value))values.set(point.name,value)});
     const median=geoMedian([...values.values()]),threshold=.5;
     scope.forEach(point=>{const value=values.get(point.name);if(!Number.isFinite(value)||!Number.isFinite(median)){results.set(point.name,{status:'nodata',delta:null,value:null,median,count:0,suffix:'%'});return}const inverse=ctx.indicator==='abaixo',rawDelta=value-median,directional=inverse?-rawDelta:rawDelta,status=Math.abs(directional)<=threshold?'flat':directional>0?'up':'down',bandLabel=status==='flat'?'Próximo da mediana':inverse?(status==='up'?'Abaixo da mediana':'Acima da mediana'):(status==='up'?'Acima da mediana':'Abaixo da mediana');results.set(point.name,{status,delta:directional,rawDelta,value,median,count:1,suffix:'%',bandLabel})});
