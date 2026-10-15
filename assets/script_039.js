@@ -88,6 +88,132 @@
     try{if(typeof populateGeoAgentFilter==='function')populateGeoAgentFilter();}catch(error){console.warn('Pré-carga de agentes v295',error);}
     return true;
   };
+
+  // HF20 — terceira edição na análise geográfica, sem modificar o índice compacto legado.
+  // A ADR 3 é indexada somente quando a nova comparação é solicitada.
+  const ADR13_VALUE='progress13';
+  let adr3Promise=null,adr3IndexMap=null,adr3IndexedRows=new WeakSet(),patchedContext=false,patchedFilters=false;
+  const selectedMode=()=>{
+    const root=document.getElementById('georreferenciamento');
+    if(!root)return null;
+    return [...root.querySelectorAll('select')].find(sel=>
+      [...sel.options].some(option=>option.value==='progress')&&
+      [...sel.options].some(option=>option.value==='adr1'||option.value==='adr2')
+    )||null;
+  };
+  function syncAdr13Option(){
+    const sel=selectedMode();if(!sel)return false;
+    if(![...sel.options].some(option=>option.value===ADR13_VALUE)){
+      const option=document.createElement('option');
+      option.value=ADR13_VALUE;option.textContent='Progressão ADR 1 → ADR 3';
+      const original=[...sel.options].find(option=>option.value==='progress');
+      if(original?.nextSibling)sel.insertBefore(option,original.nextSibling);else sel.appendChild(option);
+    }
+    return true;
+  }
+  function indexAdr3Row(row){
+    if(row?.adr!=='ADR 3'||!row.escola)return false;
+    const schoolRef=row.codigoSME?String(row.codigoSME)+' '+row.escola:row.escola;
+    const point=typeof geoFindPointForSchool==='function'
+      ? (geoFindPointForSchool(schoolRef,row.cre||row.regional)||geoFindPointForSchool(row.escola,row.cre||row.regional))
+      : null;
+    if(!point)return false;
+    const key=geoAdrIndexKey(point.name,row.ano,row.componente,'ADR 3');
+    let aggregate=GEO_STATE.adrIndex.get(key);
+    if(!aggregate){
+      aggregate={adequadoS:0,adequadoN:0,abaixoS:0,abaixoN:0,basicoS:0,basicoN:0,avaliadosPctS:0,avaliadosPctN:0};
+      GEO_STATE.adrIndex.set(key,aggregate);
+    }
+    for(const field of ['adequado','abaixo','basico','avaliadosPct']){
+      const value=row[field];
+      if(value===null||value===undefined||value===''||!Number.isFinite(Number(value)))continue;
+      aggregate[field+'S']+=Number(value);aggregate[field+'N']++;
+    }
+    return true;
+  }
+  async function ensureAdr3Index(){
+    if(GEO_STATE?.adr3Ready&&adr3IndexMap===GEO_STATE.adrIndex)return true;
+    if(adr3Promise)return adr3Promise;
+    adr3Promise=(async()=>{
+      GEO_STATE.adr3Ready=false;
+      try{
+        // Preserva o carregamento parcelado da base oficial adotado pela ferramenta.
+        const region=Number(document.getElementById('regionalScopeSelect')?.value||GEO_STATE.region||0);
+        if(typeof window.__graEnsureAdrSources==='function')
+          await window.__graEnsureAdrSources(region||undefined);
+        if(!GEO_STATE.adrReady){
+          await new Promise((resolve,reject)=>{
+            let done=false;const settle=(err)=>{if(done)return;done=true;err?reject(err):resolve();};
+            try{geoBuildAdrIndex(()=>GEO_STATE.adrReady?settle():settle(new Error('Índice geográfico indisponível')));}
+            catch(error){settle(error);}
+          });
+        }
+        if(adr3IndexMap!==GEO_STATE.adrIndex){
+          adr3IndexedRows=new WeakSet();adr3IndexMap=GEO_STATE.adrIndex;
+        }
+        const rows=(typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS))?ADR_ROWS:[];
+        for(let i=0;i<rows.length;i++){
+          const row=rows[i];
+          if(row?.adr!=='ADR 3'||adr3IndexedRows.has(row))continue;
+          indexAdr3Row(row);adr3IndexedRows.add(row);
+          if(i>0&&i%1200===0)await yieldFrame();
+        }
+        GEO_STATE.adr3Ready=true;
+        GEO_STATE.evalCache?.clear();GEO_STATE.evolutionCache?.clear();
+        if(document.getElementById('georreferenciamento')?.classList.contains('active')){
+          try{geoUpdateContextUI();geoScheduleFilters(0);}catch(error){console.warn('HF20 atualização mapa',error);}
+        }
+        return true;
+      }catch(error){
+        GEO_STATE.adr3Ready=false;
+        GEO_STATE.evalCache?.clear();
+        console.error('HF20: não foi possível calcular ADR 1 → ADR 3',error);
+        return false;
+      }
+    })().finally(()=>{adr3Promise=null;});
+    return adr3Promise;
+  }
+  function installAdr13Hooks(){
+    if(!patchedContext&&typeof window.geoEvalContext==='function'){
+      const old=window.geoEvalContext;
+      const wrapped=function(){const ctx=old.apply(this,arguments);if(ctx&&ctx.evaluation==='ADR'&&selectedMode()?.value===ADR13_VALUE)ctx.adrView=ADR13_VALUE;return ctx;};
+      window.geoEvalContext=wrapped;
+      try{geoEvalContext=wrapped}catch(_){}
+      patchedContext=true;
+    }
+    if(!patchedFilters&&typeof window.geoRefreshEvaluationFilters==='function'){
+      const old=window.geoRefreshEvaluationFilters;
+      const wrapped=function(){
+        const previous=selectedMode()?.value;
+        const out=old.apply(this,arguments);
+        syncAdr13Option();
+        const sel=selectedMode();
+        if(previous===ADR13_VALUE&&sel)sel.value=ADR13_VALUE;
+        return out;
+      };
+      window.geoRefreshEvaluationFilters=wrapped;
+      try{geoRefreshEvaluationFilters=wrapped}catch(_){}
+      patchedFilters=true;
+    }
+    syncAdr13Option();
+  }
+  document.addEventListener('change',event=>{
+    const section=event.target?.closest?.('#georreferenciamento');
+    if(!section)return;
+    if(event.target?.value===ADR13_VALUE)void ensureAdr3Index();
+    setTimeout(installAdr13Hooks,40);
+    setTimeout(installAdr13Hooks,220);
+  },true);
+  document.addEventListener('click',event=>{
+    if(event.target.closest?.('[data-section="georreferenciamento"]')){
+      setTimeout(installAdr13Hooks,120);
+      setTimeout(installAdr13Hooks,650);
+    }
+  },true);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installAdr13Hooks,{once:true});
+  else installAdr13Hooks();
+  window.__GRA_GEO_ADR13__={ensure:ensureAdr3Index,sync:syncAdr13Option,get ready(){return !!GEO_STATE?.adr3Ready;}};
+
   installBuildOverride();
   window.__GRA_GEO_V295={inflateIndexRows,installBuildOverride,get indexReady(){return !!window.GEO_STATE?.adrReady;},get indexSize(){return window.GEO_STATE?.adrIndex?.size||0;}};
 })();
