@@ -165,3 +165,38 @@ function boot(){
 window.__GRA_DUAL_BADGES__={version:'v441-HF12',scan,priority,isGet,cleanName};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+
+
+/* v441 HF22 — garantir opção ADR 1 → ADR 3 no geoprocessamento */
+(function(){
+  'use strict';
+  const rootId='geoEvalFilters',selectId='geoAdrPair';
+  function ensure(){
+    const select=document.getElementById(selectId);
+    if(!select)return;
+    const previous=select.value;
+    const options=[['12','ADR 1 → ADR 2'],['23','ADR 2 → ADR 3'],['13','ADR 1 → ADR 3']];
+    for(const [value,label] of options){
+      let option=Array.from(select.options).find(item=>item.value===value);
+      if(!option){
+        option=document.createElement('option');
+        option.value=value;option.textContent=label;
+        select.appendChild(option);
+      }else if(option.textContent!==label){option.textContent=label;}
+    }
+    if(previous&&Array.from(select.options).some(item=>item.value===previous))select.value=previous;
+  }
+  function init(){
+    ensure();
+    const root=document.getElementById(rootId);
+    if(root)new MutationObserver(ensure).observe(root,{childList:true,subtree:true,characterData:false});
+    document.addEventListener('click',event=>{
+      if(event.target?.closest?.('[data-section="georreferenciamento"]'))queueMicrotask(ensure);
+    },true);
+    document.addEventListener('change',event=>{
+      if(/^(geoEvalSegment|geoAdrView|geoEvalComponent|geoAdrPair)$/.test(event.target?.id||''))queueMicrotask(ensure);
+    },true);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
+  else init();
+})();
