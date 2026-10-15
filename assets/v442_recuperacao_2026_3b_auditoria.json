@@ -1,0 +1,623 @@
+{
+  "version": "442",
+  "status": "manifesto de homologação; exercícios NÃO incorporados ao banco ativo",
+  "reference_commit": "2cdd1d9b7b6efa0aff404b7381373b5091bf8a55",
+  "date": "2026-10-15",
+  "assessment": "Alta após revisão das pendências",
+  "notes": [
+    "35 selecionados; 31 sem pendência específica e quatro com ajustes editoriais",
+    "Não disponibilizar para alunos sem imagens/suportes originais e conferência das correções do 2º ano",
+    "Vínculos repetidos por diferentes níveis representam o mesmo item físico",
+    "2º MT fora desta escala SAEB"
+  ],
+  "items": [
+    {
+      "id": "RE26-3B-10428-Q10",
+      "source_pdf": "pdf_10428",
+      "source_question": 10,
+      "source_page": "7",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 1,
+          "position": 3
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Ler LAÇO: dissílaba LA-ÇO, duas sílabas CV; figura e alternativas completas."
+    },
+    {
+      "id": "RE26-3B-10435-Q02",
+      "source_pdf": "pdf_10435",
+      "source_question": 2,
+      "source_page": "3",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 5,
+          "position": 6
+        }
+      ],
+      "editorial": "Reconhecer assunto em curiosidade científica sobre Vênus, no tópico inicial. **Preparo:** Gabarito deve ser D, e não B; usar chave revisada e não reproduzir o gabarito de origem.",
+      "rationale": "Reconhecer assunto em curiosidade científica sobre Vênus, no tópico inicial. **Preparo:** Gabarito deve ser D, e não B; usar chave revisada e não reproduzir o gabarito de origem."
+    },
+    {
+      "id": "RE26-3B-10435-Q03",
+      "source_pdf": "pdf_10435",
+      "source_question": 3,
+      "source_page": "3",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 1,
+          "position": 1
+        }
+      ],
+      "editorial": "Som inicial /b/ de BONÉ associado à letra B, com palavra oral na versão do professor. **Preparo:** Manter BONÉ somente na orientação reservada ao aplicador; não imprimir o nome junto à figura no exercício do aluno.",
+      "rationale": "Som inicial /b/ de BONÉ associado à letra B, com palavra oral na versão do professor. **Preparo:** Manter BONÉ somente na orientação reservada ao aplicador; não imprimir o nome junto à figura no exercício do aluno."
+    },
+    {
+      "id": "RE26-3B-10435-Q05",
+      "source_pdf": "pdf_10435",
+      "source_question": 5,
+      "source_page": "5",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 3
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Estado de Rex inferido por pistas visuais localizadas no último quadrinho: machucado."
+    },
+    {
+      "id": "RE26-3B-10435-Q07",
+      "source_pdf": "pdf_10435",
+      "source_question": 7,
+      "source_page": "6",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 2,
+          "position": 2
+        }
+      ],
+      "editorial": "Leitura de PRATO: dissílaba CCV-CV com figura e palavra oral de apoio. Na fonte aparece com o número 8 duplicado. **Preparo:** Manter PRATO somente na orientação reservada ao aplicador e tratar a numeração duplicada na ficha de referência.",
+      "rationale": "Leitura de PRATO: dissílaba CCV-CV com figura e palavra oral de apoio. Na fonte aparece com o número 8 duplicado. **Preparo:** Manter PRATO somente na orientação reservada ao aplicador e tratar a numeração duplicada na ficha de referência."
+    },
+    {
+      "id": "RE26-3B-10435-Q08",
+      "source_pdf": "pdf_10435",
+      "source_question": 8,
+      "source_page": "7",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 8,
+          "position": 1
+        }
+      ],
+      "editorial": "Inferir que o bosque era encantado a partir do conto infantil curto e de seu sentido global. **Preparo:** Gabarito deve ser B (encantado), e não C (fechado); não reproduzir a chave errada.",
+      "rationale": "Inferir que o bosque era encantado a partir do conto infantil curto e de seu sentido global. **Preparo:** Gabarito deve ser B (encantado), e não C (fechado); não reproduzir a chave errada."
+    },
+    {
+      "id": "RE26-3B-10435-Q10",
+      "source_pdf": "pdf_10435",
+      "source_question": 10,
+      "source_page": "8",
+      "destination_year": 2,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 3,
+          "position": 3
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Leitura de frase simples, direta e ativa: A menina segura a boneca; associação à cena."
+    },
+    {
+      "id": "RE26-3B-10443-Q03",
+      "source_pdf": "pdf_10443",
+      "source_question": 3,
+      "source_page": "2",
+      "destination_year": 4,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 1,
+          "position": 1
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Localizar informação explícita na narrativa curta A pomba e a formiga: correnteza forte."
+    },
+    {
+      "id": "RE26-3B-10443-Q05",
+      "source_pdf": "pdf_10443",
+      "source_question": 5,
+      "source_page": "3",
+      "destination_year": 4,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 2,
+          "position": 4
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Inferir estado/característica emocional do rato na fábula: alívio ao deixar o ambiente perigoso."
+    },
+    {
+      "id": "RE26-3B-10443-Q09",
+      "source_pdf": "pdf_10443",
+      "source_question": 9,
+      "source_page": "6",
+      "destination_year": 4,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 1,
+          "position": 2
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Identificar tema do texto informativo Importância de se hidratar."
+    },
+    {
+      "id": "RE26-3B-10446-Q04",
+      "source_pdf": "pdf_10446",
+      "source_question": 4,
+      "source_page": "4",
+      "destination_year": 4,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 2,
+          "position": 5
+        },
+        {
+          "level": 7,
+          "position": 8
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Interpretar linguagem verbal e não verbal na tirinha de Sofia e Otto; identificar a alegria do homem."
+    },
+    {
+      "id": "RE26-3B-10446-Q06",
+      "source_pdf": "pdf_10446",
+      "source_question": 6,
+      "source_page": "5",
+      "destination_year": 4,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 1,
+          "position": 1
+        },
+        {
+          "level": 3,
+          "position": 1
+        },
+        {
+          "level": 6,
+          "position": 2
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Localização explícita em texto jornalístico: estudo pode transformar realidades."
+    },
+    {
+      "id": "RE26-3B-10446-Q08",
+      "source_pdf": "pdf_10446",
+      "source_question": 8,
+      "source_page": "6",
+      "destination_year": 4,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 1,
+          "position": 2
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Identificar assunto do texto de curiosidades sobre formato dos estádios."
+    },
+    {
+      "id": "RE26-3B-10444-Q01",
+      "source_pdf": "pdf_10444",
+      "source_question": 1,
+      "source_page": "2",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 14
+        },
+        {
+          "level": 5,
+          "position": 16
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Valor posicional de 3 em 3.047: quarta ordem, 3.000."
+    },
+    {
+      "id": "RE26-3B-10444-Q03",
+      "source_pdf": "pdf_10444",
+      "source_question": 3,
+      "source_page": "2",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 13
+        },
+        {
+          "level": 6,
+          "position": 9
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Divisão exata 86÷2; divisor de uma ordem e até quatro."
+    },
+    {
+      "id": "RE26-3B-10444-Q04",
+      "source_pdf": "pdf_10444",
+      "source_question": 4,
+      "source_page": "2",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 6,
+          "position": 8
+        },
+        {
+          "level": 6,
+          "position": 19
+        },
+        {
+          "level": 7,
+          "position": 12
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Multiplicação proporcional: quatro pacotes de 12 pratinhos."
+    },
+    {
+      "id": "RE26-3B-10444-Q05",
+      "source_pdf": "pdf_10444",
+      "source_question": 5,
+      "source_page": "2",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 13
+        },
+        {
+          "level": 6,
+          "position": 9
+        },
+        {
+          "level": 7,
+          "position": 12
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Divisão exata equitativa: 36 alunos em dois times."
+    },
+    {
+      "id": "RE26-3B-10444-Q06",
+      "source_pdf": "pdf_10444",
+      "source_question": 6,
+      "source_page": "3",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 3,
+          "position": 6
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Associar a parte vendida da torta à fração 1/4."
+    },
+    {
+      "id": "RE26-3B-10444-Q10",
+      "source_pdf": "pdf_10444",
+      "source_question": 10,
+      "source_page": "5",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 2,
+          "position": 1
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Somar pequenas quantias monetárias em compra: R$23 + R$8."
+    },
+    {
+      "id": "RE26-3B-10445-Q01",
+      "source_pdf": "pdf_10445",
+      "source_question": 1,
+      "source_page": "2",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 2
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Identificar planificação de pirâmide quadrangular entre quatro alternativas."
+    },
+    {
+      "id": "RE26-3B-10445-Q04",
+      "source_pdf": "pdf_10445",
+      "source_question": 4,
+      "source_page": "4",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 17
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Associar 1.230 à decomposição descrita em unidades de milhar, centenas e dezenas. Não cobre ida e volta do descritor 5.18."
+    },
+    {
+      "id": "RE26-3B-10445-Q05",
+      "source_pdf": "pdf_10445",
+      "source_question": 5,
+      "source_page": "4",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 6,
+          "position": 2
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Duração entre 13h00 e 14h30: horas e minutos distintos."
+    },
+    {
+      "id": "RE26-3B-10445-Q09",
+      "source_pdf": "pdf_10445",
+      "source_question": 9,
+      "source_page": "6",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 13
+        },
+        {
+          "level": 7,
+          "position": 12
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Divisão exata 450÷5 em contexto de distribuição."
+    },
+    {
+      "id": "RE26-3B-10445-Q10",
+      "source_pdf": "pdf_10445",
+      "source_question": 10,
+      "source_page": "6",
+      "destination_year": 4,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 6,
+          "position": 7
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Diferença decimal 10,46−2,30."
+    },
+    {
+      "id": "RE26-3B-10456-Q07",
+      "source_pdf": "pdf_10456",
+      "source_question": 7,
+      "source_page": "6",
+      "destination_year": 8,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 6,
+          "position": 9
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Distinguir opinião de enunciados factuais em relato jornalístico do hamster."
+    },
+    {
+      "id": "RE26-3B-10456-Q09",
+      "source_pdf": "pdf_10456",
+      "source_question": 9,
+      "source_page": "6–7",
+      "destination_year": 8,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 5,
+          "position": 1
+        },
+        {
+          "level": 8,
+          "position": 1
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Identificar informação principal do relato jornalístico: hamster levado escondido no avião."
+    },
+    {
+      "id": "RE26-3B-10456-Q10",
+      "source_pdf": "pdf_10456",
+      "source_question": 10,
+      "source_page": "7",
+      "destination_year": 8,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 6,
+          "position": 10
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Inferir pela sequência verbal/visual da tirinha a crítica ao desperdício de água."
+    },
+    {
+      "id": "RE26-3B-10460-Q09",
+      "source_pdf": "pdf_10460",
+      "source_question": 9,
+      "source_page": "5–6",
+      "destination_year": 8,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 6,
+          "position": 9
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Diferenciar fato de opiniões no texto jornalístico do levantamento de peso."
+    },
+    {
+      "id": "RE26-3B-10460-Q10",
+      "source_pdf": "pdf_10460",
+      "source_question": 10,
+      "source_page": "5–6",
+      "destination_year": 8,
+      "component": "LP",
+      "occurrences": [
+        {
+          "level": 5,
+          "position": 1
+        },
+        {
+          "level": 8,
+          "position": 1
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Identificar informação principal do texto jornalístico: atletas brasileiras medalhistas."
+    },
+    {
+      "id": "RE26-3B-10455-Q02",
+      "source_pdf": "pdf_10455",
+      "source_question": 2,
+      "source_page": "2",
+      "destination_year": 8,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 4,
+          "position": 1
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Localizar ponto R a partir de (3,−4) no plano cartesiano com malha."
+    },
+    {
+      "id": "RE26-3B-10455-Q08",
+      "source_pdf": "pdf_10455",
+      "source_question": 8,
+      "source_page": "5",
+      "destination_year": 8,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 7,
+          "position": 8
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Área retangular da lona: 3,7×2,0 m²."
+    },
+    {
+      "id": "RE26-3B-10459-Q02",
+      "source_pdf": "pdf_10459",
+      "source_question": 2,
+      "source_page": "2",
+      "destination_year": 8,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 7,
+          "position": 6
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Calcular cateto por Pitágoras: hipotenusa 10 cm e outro cateto 6 cm."
+    },
+    {
+      "id": "RE26-3B-10459-Q04",
+      "source_pdf": "pdf_10459",
+      "source_question": 4,
+      "source_page": "3",
+      "destination_year": 8,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 2,
+          "position": 4
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Interpretar gráfico de linha simples para identificar período de maior consumo de água."
+    },
+    {
+      "id": "RE26-3B-10459-Q08",
+      "source_pdf": "pdf_10459",
+      "source_question": 8,
+      "source_page": "5",
+      "destination_year": 8,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 7,
+          "position": 24
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Determinar raízes de x²−x−6: resolução de equação do segundo grau."
+    },
+    {
+      "id": "RE26-3B-10459-Q09",
+      "source_pdf": "pdf_10459",
+      "source_question": 9,
+      "source_page": "6",
+      "destination_year": 8,
+      "component": "MT",
+      "occurrences": [
+        {
+          "level": 5,
+          "position": 6
+        }
+      ],
+      "editorial": "sem preparo específico",
+      "rationale": "Associar situação de bilheteria à equação de primeiro grau T=35x+4,5."
+    }
+  ]
+}
