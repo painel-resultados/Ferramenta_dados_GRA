@@ -9,7 +9,7 @@
  const compOrder=['LP','MT','CN','Geografia','História','CH'];
  const titles={LP:'Língua Portuguesa',MT:'Matemática',CN:'Ciências da Natureza',Geografia:'Geografia','História':'História',CH:'Ciências Humanas'};
  const colors={'LP':'#1670b8','MT':'#15835b','CN':'#db8621','Geografia':'#8d58c7','História':'#d34b68','CH':'#19a3aa'};
- const ADRS=['ADR 1','ADR 2','ADR 3'];
+ const ADRS=['ADR 1','ADR 2','ADR 3']; // lista mutável apenas para o intervalo da aba ADR
  const CRE_LINES='__gra_adr_cre_lines__';
  const crePalette=['#12385d','#1c79b8','#1d8f68','#d9861c','#8b5cf6','#ef4444','#0ea5a4','#6366f1','#c07908','#b6407c','#55748b'];
  const style=`
@@ -136,6 +136,7 @@
      const byEdition=new Map();
      const subset=rows.filter(r=>r.componente===comp && num(r[metric])!==null && num(r.avaliados)>0);
      const editions=ADRS.filter(a=>subset.some(r=>r.adr===a));
+     if($('adrPairMain')?.value==='23'&&editions.length<2)return null;
      // Uma mesma unidade compõe todas as edições válidas desse componente.
      const coverage=new Map();
      subset.forEach(r=>{const k=norm(r.regional)+'|'+schoolKey(r.escola);if(!r.escola)return;if(!coverage.has(k))coverage.set(k,new Set());coverage.get(k).add(r.adr)});
@@ -149,7 +150,7 @@
        byEdition.set(a,denominator?numerator/denominator:null);
      }
      return {key:comp,label:titles[comp]||comp,metric,values:ADRS.map(a=>byEdition.get(a)),schools:paired.size,color:colors[comp]||'#607d8b'};
-   }).filter(s=>s.values.some(v=>v!==null));
+   }).filter(s=>s&&s.values.some(v=>v!==null));
  }
  // Comparação regional: uma linha por CRE, na métrica e no componente escolhidos.
  // Em cada CRE, usam-se as MESMAS escolas nas edições em que há indicador válido.
@@ -235,7 +236,7 @@
      const dots=s.values.map((v,i)=>v===null?'':`<circle cx="${X(i)}" cy="${Y(v)}" r="5.5" fill="${s.color}" stroke="white" stroke-width="2"><title>${esc(s.label)} · ${ADRS[i]}: ${fmt(v)}</title></circle>`).join('');
      return `<g data-component="${esc(s.key)}" class="adr-all-series" style="transition:opacity .15s">${lines}${dots}</g>`;
    }).join('');
-   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Progressão entre as três ADRs"><text x="${L}" y="15" font-size="14" fill="#526f86">Percentual (%)</text>${grids}<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#c5d5e4"/>${groups}${labels}</svg>`;
+   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Progressão entre ${ADRS.join(' e ')}"><text x="${L}" y="15" font-size="14" fill="#526f86">Percentual (%)</text>${grids}<line x1="${L}" y1="${Y(0)}" x2="${W-R}" y2="${Y(0)}" stroke="#c5d5e4"/>${groups}${labels}</svg>`;
  }
  function legendButtons(data){return (data.length?'<button type="button" data-component="*" class="adr-all-clear">Mostrar todas</button>':'')+data.map(s=>`<button type="button" data-component="${esc(s.key)}" aria-pressed="false"><span class="swatch" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('')}
  function draw(data,sc,mode='components'){
@@ -245,7 +246,7 @@
    const componentName=titles[chosen]||chosen;
    const metricName=$('adrMetric')?.selectedOptions?.[0]?.textContent||$('adrMetric')?.value||'';
    title.textContent=perCre?`Evolução das CREs — ${componentName}`:`Progressão das ADRs — ${where}`;
-   sub.textContent=perCre?`${$('adrAno').value} · ${metricName} · ${data.length} CRE${data.length===1?'':'s'} com resultados no recorte Master · ADR 1 → ADR 2 → ADR 3. Clique na legenda para destacar uma linha; use Shift para selecionar várias.`:`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ADR 1 → ADR 2 → ADR 3. Selecione uma linha na legenda para destacá-la.`;
+   sub.textContent=perCre?`${$('adrAno').value} · ${metricName} · ${data.length} CRE${data.length===1?'':'s'} com resultados no recorte Master · ${ADRS.join(' → ')}. Clique na legenda para destacar uma linha; use Shift para selecionar várias.`:`${$('adrAno').value} · ${data.length} componente${data.length===1?'':'s'} com resultados · ${ADRS.join(' → ')}. Selecione uma linha na legenda para destacá-la.`;
    const desempenho=data.filter(s=>['LP','MT'].includes(s.key));
    const acerto=data.filter(s=>!['LP','MT'].includes(s.key));
    const split=!perCre&&desempenho.length>0&&acerto.length>0;
@@ -257,7 +258,7 @@
                    {group:'acerto',heading:acertoTitle,metric:'% Acerto Total',data:acerto}];
      plot.innerHTML=panels.map(p=>`<section class="adr-all-plot-panel" data-adr-group="${p.group}" aria-label="${esc(p.heading)}: ${esc(p.metric)}"><h4>${esc(p.heading)}</h4><p class="adr-plot-metric">Indicador: <strong>${esc(p.metric)}</strong></p>${drawSvg(p.data,true)}<div class="adr-plot-legend">${legendButtons(p.data)}</div></section>`).join('');
      legend.innerHTML='';legend.style.display='none';
-     sub.textContent=`${$('adrAno').value} · ${data.length} componentes · ADR 1 → ADR 2 → ADR 3. Indicadores separados em dois gráficos; selecione linhas nas respectivas legendas.`;
+     sub.textContent=`${$('adrAno').value} · ${data.length} componentes · ${ADRS.join(' → ')}. Indicadores separados em dois gráficos; selecione linhas nas respectivas legendas.`;
    }else{
      plot.innerHTML=data.length?drawSvg(data):'<div class="adr-empty">Não há resultados disponíveis para este ano e esta abrangência.</div>';
      legend.innerHTML=legendButtons(data);legend.style.display='';
@@ -271,6 +272,7 @@
    if(updating)return;
    ensure();const section=$('adrs');if(!section||!$('adrMode'))return;
    const progress=$('adrMode').value==='progressao';
+   ADRS.splice(0,ADRS.length,...($('adrPairMain')?.value==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 2','ADR 3']));
    section.classList.toggle('adr-multi-progression',progress);
    const requestedCreLines=$('adrAgente')?.value===CRE_LINES;
    section.classList.toggle('adr-multi-all',progress&&(chosen==='ALL'||requestedCreLines&&chosen!=='ALL'));
@@ -288,7 +290,7 @@
      section.classList.toggle('adr-multi-all',chosen==='ALL'||perCre||perSchool);
      if(chosen==='ALL'||perCre||perSchool){
        const metric=$('adrMetric')?.value||'adequado';
-       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();signature=key}
+       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,$('adrPairMain')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();signature=key}
        draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent,metric).filter(x=>chosen==='ALL'||x.key===chosen),sc,perCre?'cres':'components');
      }
    }catch(e){console.error('[ADR componentes HF6] Falha ao renderizar',e);const card=$('adrAllChartPlot');if(card)card.innerHTML='<div class="adr-empty">Não foi possível gerar a comparação. Verifique o recorte selecionado.</div>'}
@@ -302,7 +304,7 @@
    }
    // Captura a escolha ANTES do renderizador original da aba ADR.
    document.addEventListener('change',e=>{if(e.target?.id==='adrAgente')schoolScopeWanted=e.target.value==='__gra_adr_school__'},true);
-   const relevant=['adrMode','adrAno','adrComp','adrMetric','adrAgente','adrPriority','adrSearch','regionalScopeSelect'];
+   const relevant=['adrMode','adrAno','adrComp','adrMetric','adrPairMain','adrAgente','adrPriority','adrSearch','regionalScopeSelect'];
    document.addEventListener('change',e=>{if(relevant.includes(e.target?.id)){if(e.target?.id==='adrMode'&&e.target.value==='progressao'){chosen='ALL';chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();}setTimeout(render,45)}},true);
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);

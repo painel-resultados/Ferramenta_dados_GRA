@@ -42,12 +42,14 @@
  }
  function scopedRows(raw,mode,component){
    const year=$('adrAno')?.value||'',adr=$('adrSelect')?.value||'',cre=Number($('regionalScopeSelect')?.value||0);
+   const interval=mode==='progressao'&&$('adrPairMain')?.value==='23'?new Set(['ADR 2','ADR 3']):null;
    const agent=$('adrAgente')?.value||'',priority=$('adrPriority')?.value==='sim';
    const q=normalized($('adrSearch')?.value||'');
    const selected=normalized(window.__GRA_SELECTED_SCHOOL__||'');
    return raw.filter(r=>{
      if(!r.escola||r.ano!==year||r.componente!==component)return false;
      if(mode==='individual'&&adr&&r.adr!==adr)return false;
+     if(interval&&!interval.has(r.adr))return false;
      if(cre&&creNumber(r.regional||r.cre)!==cre)return false;
      if(typeof window.graMasterAllowsRow==='function'&&!window.graMasterAllowsRow(r))return false;
      if(priority&&typeof window.priorityMatchesContext==='function'&&!window.priorityMatchesContext(r.escola,year,'ADR',r.regional))return false;
@@ -67,7 +69,8 @@
    const filtro=$('adrEvolucao')?.value||'';
    if(!filtro||!['adequado','abaixo'].includes(metric))return groups;
    return groups.filter(rs=>{
-     const a=weighted(rs.filter(r=>r.adr==='ADR 1'),metric),b=weighted(rs.filter(r=>r.adr==='ADR 2'),metric);
+     const start=$('adrPairMain')?.value==='23'?'ADR 2':'ADR 1';
+     const a=weighted(rs.filter(r=>r.adr===start),metric),b=weighted(rs.filter(r=>r.adr==='ADR 3'),metric);
      if(!has(a)||!has(b))return false;
      const diff=b-a,cls=Math.abs(diff)<=0.5?'estagnou':diff>0?'cresceu':'caiu';
      return cls===filtro;
@@ -138,7 +141,7 @@
    document.addEventListener('change',e=>{
      const id=e.target?.id;
      if(id==='adrHfRankComp')schedule(0);
-     else if(['adrMode','adrAno','adrComp','adrSelect','adrMetric','adrEvolucao','adrCre','adrAgente','adrPriority','regionalScopeSelect','adrProgressAllComp'].includes(id))schedule(120);
+     else if(['adrMode','adrAno','adrComp','adrSelect','adrMetric','adrPairMain','adrEvolucao','adrCre','adrAgente','adrPriority','regionalScopeSelect','adrProgressAllComp'].includes(id))schedule(120);
    },true);
    document.addEventListener('input',e=>{if(e.target?.id==='adrSearch')schedule(170)},true);
    document.addEventListener('click',e=>{if(e.target?.closest?.('button[data-section="adrs"]'))schedule(350)},true);
