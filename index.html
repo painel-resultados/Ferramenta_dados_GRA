@@ -3699,8 +3699,8 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
 <script id="v283-start-router-script">
 (function(){
   'use strict';
-  const VERSION='v414';
-  const ALLOWED=new Set(['adrs','resultados','banco','georreferenciamento']);
+  const VERSION='v442';
+  const ALLOWED=new Set(['adrs','resultados','banco','georreferenciamento','aluno']);
   let requested='georreferenciamento',applied=false,readyToUse=false,lastProgress=0,watchdog=0;
 
   function stampVersion(){
@@ -3803,6 +3803,7 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
         <div class="nav-submenu">
           <button data-section="resultados" type="button">Somativas</button>
           <button data-section="adrs" type="button">ADRs</button>
+          <button data-section="aluno" type="button">Aluno</button>
           
         </div>
       </div>
@@ -4259,6 +4260,15 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
         </div>
       </div>
 
+      <!-- v442 · hotfix: Top 10 e Bottom 10 de ADRs lado a lado -->
+      <section class="card" id="adrTopBottomHf442" aria-label="Top 10 e Bottom 10 das ADRs">
+        <div class="adr-hf-header"><div><h3 id="adrHfTitle">Top 10 e Bottom 10 das ADRs</h3><p id="adrHfSubtitle">Classificação das escolas conforme os filtros.</p></div>
+          <label class="adr-hf-filter" id="adrHfCompWrap" hidden>Componente do ranking<select id="adrHfRankComp" aria-label="Componente do ranking"></select></label>
+        </div>
+        <div id="adrHfPanels" class="adr-hf-panels" aria-live="polite"></div>
+        <p id="adrHfFootnote" class="adr-hf-note"></p>
+      </section>
+
       <div class="card adr-progress-card" id="adrProgressCard" style="margin-top:16px;">
         <div class="panel-title"><div><h3>Progressão entre ADRs</h3><p>Evolução da métrica selecionada no ano/componente filtrado.</p></div></div>
         <div id="adrProgressChart" class="adr-line-chart"></div>
@@ -4271,6 +4281,23 @@ window.__GRA_V324_LOADING__={version:VERSION,get parserReady(){return parserRead
       </div>
     </section>
 
+
+
+    <section id="aluno" class="section">
+      <div class="v443-shell">
+        <div class="v443-head"><div><h3>Aluno</h3><p>Microdados individuais das ADRs 1, 2 e 3 de 2026. Selecione o recorte e investigue a evolução e as habilidades de cada edição.</p></div><span class="v443-pill">Ferramenta GRA · v442</span></div>
+        <div class="v443-card"><div class="v443-filters">
+          <label class="v443-field">CRE<select id="v443Cre" aria-label="CRE"></select></label>
+          <label class="v443-field">Escola<select id="v443School" aria-label="Escola"><option value="">Selecione a escola</option></select></label>
+          <label class="v443-field">Turma<select id="v443Class" aria-label="Turma"><option value="">Todas as turmas</option></select></label>
+          <label class="v443-field">Aluno<select id="v443Student" aria-label="Aluno"><option value="">Selecione um aluno ou analise a turma</option></select></label>
+          <label class="v443-field">Componente<select id="v443Disc" aria-label="Componente"><option value="LP">Língua Portuguesa</option><option value="MT">Matemática</option><option value="CN">Ciências da Natureza</option><option value="CH">Ciências Humanas</option><option value="HIS">História</option><option value="GEO">Geografia</option></select></label>
+          <label class="v443-field">Avaliação<select id="v443Adr" aria-label="Avaliação"><option value="1">ADR 1</option><option value="2">ADR 2</option><option value="3" selected>ADR 3</option></select></label>
+        </div><p id="v443Status" class="v443-status" role="status">Selecione uma escola para consultar os microdados individuais.</p><label class="v443-field">Carregar dados privados da escola (arquivo .json.gz, não publicado no GitHub)<input type="file" id="v443PrivateFile" class="v443-file" accept=".gz,.json,application/gzip,application/json"></label><div class="v443-file-caption">A base de alunos não acompanha os arquivos públicos da aplicação. Pode ser importada localmente ou fornecida por uma API institucional protegida.</div></div>
+        <div class="v443-card"><h4>Perfil e contexto escolar</h4><div id="v443Profile"></div></div>
+        <div class="v443-grid"><div class="v443-card"><h4>Evolução da aprendizagem — ADR 1 → ADR 3</h4><div id="v443Evolution"></div></div><div class="v443-card"><h4>Desempenho por habilidade — ADR selecionada</h4><p class="v443-note">Ordenação decrescente por percentual de acertos. Cada edição utiliza exclusivamente sua própria matriz de descrições.</p><div id="v443Skills"></div></div></div>
+      </div>
+    </section>
 
     <section id="criterios" class="section">
       <div class="grid three-col" id="criteriaCards"></div>
@@ -5752,6 +5779,7 @@ MT: ${gcEsc(gcFmt(mt,'pct'))}</title></circle>`;}).join('');
     agentes:['Agentes e territórios','Distribuição das escolas e unidades por agente GRA.'],
     banco:['Banco bruto','Consulta detalhada do banco mestre da dashboard.'],
     efpd:['Ensino Fundamental e dimensões','Leitura integrada dos planos de ação e de dimensão.'],
+    aluno:['Aluno','Perfil individual, evolução nas ADRs e desempenho por habilidade.'],
     criterios:['Critérios','Regras de classificação utilizadas na dashboard.']
   };
 
@@ -21200,7 +21228,7 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
 @media(max-width:600px){#resultados .v364-priority-badge,#adrs .v364-priority-badge{font-size:9px;padding:3px 6px}}
 </style>
 <script src="assets/43_v441_get_priority_dual_badges.js?v=441-hf13-20261010"></script>
-<script id="gra-v442-display-only">
+<script id="gra-v442-display-only-hf">
 (function(){
   'use strict';
   const v='v442',selectors=['#dashboardVersionBadge','.gra-access-version','.gra-start-version'];
@@ -21209,9 +21237,21 @@ window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-
     if(document.title!== 'Ferramenta GRA de análise de dados — v442')document.title='Ferramenta GRA de análise de dados — v442';
     if(document.documentElement.dataset.graVersion!==v)document.documentElement.dataset.graVersion=v;
   }
-  function start(){stamp();}
-  start();
+  function start(){stamp();for(const selector of selectors){
+    document.querySelectorAll(selector).forEach(el=>new MutationObserver(stamp).observe(el,{childList:true,subtree:true,characterData:true}));
+  }}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 </script>
+
+<div class="v443-overlay" id="v443Overlay" aria-hidden="true"></div>
+<aside class="v443-drawer" id="v443Drawer" role="dialog" aria-label="Alunos do estrato de desempenho" aria-modal="true" aria-hidden="true"><div class="v443-drawer-top"><h3>Alunos por turma</h3><button id="v443Close" class="v443-btn secondary" type="button" aria-label="Fechar painel">Fechar ×</button></div><div id="v443DrawerContent"></div></aside>
+<link rel="stylesheet" href="assets/v443_aluno.css?v=443">
+<script src="assets/v443_catalog.js?v=443"></script>
+<script src="assets/v443_skill_dictionary.js?v=443"></script>
+<script src="assets/v443_config.js?v=443"></script>
+<script src="assets/v443_aluno.js?v=443"></script>
+<link rel="stylesheet" href="assets/44_v442_hf_adr_top_bottom.css?v=442-hf-topbottom-20261020">
+<script src="assets/44_v442_hf_adr_top_bottom.js?v=442-hf-topbottom-20261020"></script>
 </body>
 </html>
