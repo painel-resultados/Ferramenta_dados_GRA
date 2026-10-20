@@ -42,7 +42,8 @@
  }
  function scopedRows(raw,mode,component){
    const year=$('adrAno')?.value||'',adr=$('adrSelect')?.value||'',cre=Number($('regionalScopeSelect')?.value||0);
-   const interval=mode==='progressao'&&$('adrPairMain')?.value==='23'?new Set(['ADR 2','ADR 3']):null;
+   const pairCode=$('adrEvolucao')?.value||'13';
+   const interval=mode==='progressao'&&pairCode!=='13'?new Set(pairCode==='12'?['ADR 1','ADR 2']:['ADR 2','ADR 3']):null;
    const agent=$('adrAgente')?.value||'',priority=$('adrPriority')?.value==='sim';
    const q=normalized($('adrSearch')?.value||'');
    const selected=normalized(window.__GRA_SELECTED_SCHOOL__||'');
@@ -65,23 +66,15 @@
      return true;
    });
  }
- function applyEvolution(groups,metric){
-   const filtro=$('adrEvolucao')?.value||'';
-   if(!filtro||!['adequado','abaixo'].includes(metric))return groups;
-   return groups.filter(rs=>{
-     const start=$('adrPairMain')?.value==='23'?'ADR 2':'ADR 1';
-     const a=weighted(rs.filter(r=>r.adr===start),metric),b=weighted(rs.filter(r=>r.adr==='ADR 3'),metric);
-     if(!has(a)||!has(b))return false;
-     const diff=b-a,cls=Math.abs(diff)<=0.5?'estagnou':diff>0?'cresceu':'caiu';
-     return cls===filtro;
-   });
- }
+ function applyEvolution(groups,metric){return groups;} // Evolução seleciona exclusivamente intervalo
  function makeItems(rows,metric,mode){
    const groups=new Map();
    for(const row of rows){if(!has(row[metric]))continue;const k=key(row);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(row);}
    const paired=mode==='progressao'?applyEvolution([...groups.values()],metric):[...groups.values()];
    const editions=[...new Set(rows.filter(r=>has(r[metric])).map(r=>r.adr).filter(Boolean))].sort((a,b)=>order(a)-order(b));
-   const first=editions[0]||'',last=editions[editions.length-1]||'';
+   const [chosenFirst,chosenLast]=window.adrMainPair?.()||['ADR 1','ADR 3'];
+   const first=mode==='progressao'?chosenFirst:(editions[0]||'');
+   const last=mode==='progressao'?chosenLast:(editions[editions.length-1]||'');
    const items=paired.map(rs=>{
      const r=rs[0];let value=null,initial=null,rawDelta=null;
      if(mode==='progressao'){
@@ -141,7 +134,7 @@
    document.addEventListener('change',e=>{
      const id=e.target?.id;
      if(id==='adrHfRankComp')schedule(0);
-     else if(['adrMode','adrAno','adrComp','adrSelect','adrMetric','adrPairMain','adrEvolucao','adrCre','adrAgente','adrPriority','regionalScopeSelect','adrProgressAllComp'].includes(id))schedule(120);
+     else if(['adrMode','adrAno','adrComp','adrSelect','adrMetric','adrEvolucao','adrCre','adrAgente','adrPriority','regionalScopeSelect','adrProgressAllComp'].includes(id))schedule(120);
    },true);
    document.addEventListener('input',e=>{if(e.target?.id==='adrSearch')schedule(170)},true);
    document.addEventListener('click',e=>{if(e.target?.closest?.('button[data-section="adrs"]'))schedule(350)},true);

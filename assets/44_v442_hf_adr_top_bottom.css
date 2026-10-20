@@ -35,9 +35,8 @@
 
 #adrTopBottomHf442 .adr-hf-filter[hidden]{display:none!important}
 
-/* Hotfix de intervalo ADR 2 → ADR 3: substitui o seletor de edição da ADR individual na progressão. */
-#adrFiltersCard label[for="adrPairMain"]{order:20}
-#adrFiltersCard #adrPairMain{width:100%;min-width:0;min-height:42px}
+/* Evolução é o único controle de intervalo; na progressão, ocupa a posição do antigo seletor duplicado. */
+#adrFiltersCard #adrEvolucao{min-width:0;width:100%;min-height:42px}
 @media(min-width:1101px){
-  #adrs.adr-multi-progression #adrFiltersCard label[for="adrPairMain"]{grid-column:2;grid-row:1}
+  #adrs.adr-multi-progression #adrFiltersCard label[for="adrEvolucao"]{grid-column:2;grid-row:1;order:20}
 }

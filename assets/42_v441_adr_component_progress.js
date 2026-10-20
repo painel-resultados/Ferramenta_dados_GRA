@@ -136,11 +136,12 @@
      const byEdition=new Map();
      const subset=rows.filter(r=>r.componente===comp && num(r[metric])!==null && num(r.avaliados)>0);
      const editions=ADRS.filter(a=>subset.some(r=>r.adr===a));
-     if($('adrPairMain')?.value==='23'&&editions.length<2)return null;
+     const pair=window.adrMainPair?.()||['ADR 1','ADR 3'];
+     if(!pair.every(a=>editions.includes(a)))return null;
      // Uma mesma unidade compõe todas as edições válidas desse componente.
      const coverage=new Map();
      subset.forEach(r=>{const k=norm(r.regional)+'|'+schoolKey(r.escola);if(!r.escola)return;if(!coverage.has(k))coverage.set(k,new Set());coverage.get(k).add(r.adr)});
-     const paired=new Set([...coverage].filter(([,ed])=>editions.every(a=>ed.has(a))).map(([k])=>k));
+     const paired=new Set([...coverage].filter(([,ed])=>pair.every(a=>ed.has(a))).map(([k])=>k));
      for(const a of ADRS){
        let numerator=0,denominator=0;
        for(const r of subset){if(r.adr!==a||!paired.has(norm(r.regional)+'|'+schoolKey(r.escola)))continue;
@@ -161,10 +162,11 @@
    return cres.map(cre=>{
      const subset=valid.filter(r=>Number(String(r.regional||'').match(/\d+/)?.[0]||0)===cre);
      const editions=ADRS.filter(a=>subset.some(r=>r.adr===a));
-     if(editions.length<2)return null;
+     const pair=window.adrMainPair?.()||['ADR 1','ADR 3'];
+     if(!pair.every(a=>editions.includes(a)))return null;
      const schools=new Map();
      for(const r of subset){if(!r.escola)continue;const k=norm(r.escola);if(!schools.has(k))schools.set(k,new Set());schools.get(k).add(r.adr)}
-     const paired=new Set([...schools].filter(([,ed])=>editions.every(a=>ed.has(a))).map(([k])=>k));
+     const paired=new Set([...schools].filter(([,ed])=>pair.every(a=>ed.has(a))).map(([k])=>k));
      if(!paired.size)return null;
      const values=ADRS.map(a=>{
        if(!editions.includes(a))return null;
@@ -272,7 +274,8 @@
    if(updating)return;
    ensure();const section=$('adrs');if(!section||!$('adrMode'))return;
    const progress=$('adrMode').value==='progressao';
-   ADRS.splice(0,ADRS.length,...($('adrPairMain')?.value==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 2','ADR 3']));
+   const code=$('adrEvolucao')?.value||'13';
+   ADRS.splice(0,ADRS.length,...(code==='12'?['ADR 1','ADR 2']:code==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 2','ADR 3']));
    section.classList.toggle('adr-multi-progression',progress);
    const requestedCreLines=$('adrAgente')?.value===CRE_LINES;
    section.classList.toggle('adr-multi-all',progress&&(chosen==='ALL'||requestedCreLines&&chosen!=='ALL'));
@@ -290,7 +293,7 @@
      section.classList.toggle('adr-multi-all',chosen==='ALL'||perCre||perSchool);
      if(chosen==='ALL'||perCre||perSchool){
        const metric=$('adrMetric')?.value||'adequado';
-       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,$('adrPairMain')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();signature=key}
+       const key=[$('adrAno')?.value,sc.scope,sc.school,sc.cre,sc.agent,$('adrPriority')?.value,$('adrEvolucao')?.value,metric,chosen,rows.length].join('|');if(signature!==key){chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();signature=key}
        draw(perCre?seriesForCres(rows,chosen,metric):seriesForScope(rows,sc.scope,sc.school,sc.agent,metric).filter(x=>chosen==='ALL'||x.key===chosen),sc,perCre?'cres':'components');
      }
    }catch(e){console.error('[ADR componentes HF6] Falha ao renderizar',e);const card=$('adrAllChartPlot');if(card)card.innerHTML='<div class="adr-empty">Não foi possível gerar a comparação. Verifique o recorte selecionado.</div>'}
@@ -304,7 +307,7 @@
    }
    // Captura a escolha ANTES do renderizador original da aba ADR.
    document.addEventListener('change',e=>{if(e.target?.id==='adrAgente')schoolScopeWanted=e.target.value==='__gra_adr_school__'},true);
-   const relevant=['adrMode','adrAno','adrComp','adrMetric','adrPairMain','adrAgente','adrPriority','adrSearch','regionalScopeSelect'];
+   const relevant=['adrMode','adrAno','adrComp','adrMetric','adrEvolucao','adrAgente','adrPriority','adrSearch','regionalScopeSelect'];
    document.addEventListener('change',e=>{if(relevant.includes(e.target?.id)){if(e.target?.id==='adrMode'&&e.target.value==='progressao'){chosen='ALL';chosenLines.clear();chosenGroupLines.desempenho.clear();chosenGroupLines.acerto.clear();}setTimeout(render,45)}},true);
    let searchTimer=0;document.addEventListener('input',e=>{if(e.target?.id==='adrSearch'){clearTimeout(searchTimer);searchTimer=setTimeout(render,140)}},true);
    document.addEventListener('click',e=>{if(e.target.closest?.('button[data-section="adrs"]'))setTimeout(render,140)},true);

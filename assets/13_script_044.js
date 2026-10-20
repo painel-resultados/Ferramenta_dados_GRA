@@ -953,10 +953,11 @@ function adrRefreshSelectors() {
 }
 
 function adrMainPair() {
-  return document.getElementById('adrPairMain')?.value==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 3'];
+  const code=document.getElementById('adrEvolucao')?.value||'13';
+  return code==='12'?['ADR 1','ADR 2']:code==='23'?['ADR 2','ADR 3']:['ADR 1','ADR 3'];
 }
 function adrEvolutionSetting() {
-  return document.getElementById('adrEvolucao')?.value || '';
+  return ''; // a caixa Evolução seleciona o intervalo, não um filtro Cresceu/Caiu
 }
 function adrEvolutionDeltaFor(row, metric=null) {
   const selectedMetric = metric || document.getElementById('adrMetric')?.value || 'adequado';
@@ -980,33 +981,10 @@ function adrEvolutionClass(delta) {
   if(Math.abs(delta)<=0.5) return 'estagnou';
   return delta>0 ? 'cresceu' : 'caiu';
 }
-function adrMatchesEvolution(row) {
-  const mode=document.getElementById('adrMode')?.value || 'individual';
-  if(mode!=='progressao') return true;
-  const filtro=adrEvolutionSetting();
-  if(!filtro) return true;
-  const metric=document.getElementById('adrMetric')?.value || 'adequado';
-  if(!['adequado','abaixo'].includes(metric)) return true;
-  const delta=adrEvolutionDeltaFor(row, metric);
-  return adrEvolutionClass(delta)===filtro;
-}
+function adrMatchesEvolution(row) { return true; } // nenhuma escola excluída por classe de crescimento
 function renderADREvolutionStatus(rows) {
   const el=document.getElementById('adrEvolucaoStatus');
-  if(!el) return;
-  const mode=document.getElementById('adrMode')?.value || 'individual';
-  const filtro=adrEvolutionSetting();
-  const metric=document.getElementById('adrMetric')?.value || 'adequado';
-  if(mode!=='progressao' || !filtro) { el.style.display='none'; el.innerHTML=''; return; }
-  if(!['adequado','abaixo'].includes(metric)) {
-    el.style.display='block';
-    el.innerHTML=`<b>Filtro de evolução:</b> selecione % Adequado ou % Abaixo do Básico para comparar ${esc(adrMainPair().join(' → '))}.`;
-    return;
-  }
-  const ano=document.getElementById('adrAno')?.value || 'ano selecionado';
-  const comp=document.getElementById('adrComp')?.value || 'componente selecionado';
-  const label={cresceu:'cresceram',estagnou:'estagnaram',caiu:'tiveram queda'}[filtro] || filtro;
-  el.style.display='block';
-  el.innerHTML=`<b>Filtro de evolução ativo:</b> exibindo unidades que ${label} em ${esc(adrMetricLabel(metric))}, de ${esc(adrMainPair()[0])} para ${esc(adrMainPair()[1])}, no ${esc(ano)} · ${esc(comp)}. Para Abaixo do Básico, queda numérica é o comportamento desejável.`;
+  if(el){el.style.display='none';el.innerHTML='';}
 }
 
 function adrSchoolSearchKey(value){
@@ -1038,7 +1016,9 @@ function adrFilteredRows({ignoreAdr=false, ignoreCre=false, onlyCurrentBase=fals
     if(window.graMasterAllowsRow&&!window.graMasterAllowsRow(r)) return false;
     if(ano && r.ano!==ano) return false;
     if(comp && r.componente!==comp) return false;
-    if(mode==='progressao' && document.getElementById('adrPairMain')?.value==='23' && r.adr!=='ADR 2' && r.adr!=='ADR 3') return false;
+    if(mode==='progressao' && !(['13'].includes(document.getElementById('adrEvolucao')?.value||'13'))){
+      const [start,end]=adrMainPair();if(r.adr!==start && r.adr!==end)return false;
+    }
     if(!ignoreAdr && mode==='individual' && adr && r.adr!==adr) return false;
     if(regionalScope){const match=String(r.regional||r.cre||'').match(/\d+/);if(!match||Number(match[0])!==regionalScope)return false;}
     if(!ignoreCre && cre && r.regional!==cre) return false;
@@ -1132,7 +1112,8 @@ function adrProgressEntityInfo(row, scope) {
 function adrProgressRankingItems(rows, metric) {
   const adrs=adrUnique(rows.map(r=>r.adr)).sort((a,b)=>adrOrder(a)-adrOrder(b));
   if(adrs.length<2) return {items:[], first:'', last:'', scope:adrProgressRankingScope()};
-  const first=adrs[0], last=adrs[adrs.length-1];
+  const [first,last]=adrMainPair();
+  if(!adrs.includes(first)||!adrs.includes(last))return {items:[],first,last,scope:adrProgressRankingScope()};
   const scope=adrProgressRankingScope();
   const map=new Map();
   rows.forEach(r=>{
@@ -1325,18 +1306,19 @@ function renderADRProgress() {
   }
   // Parear todas as edições com o indicador fornecido; manter no eixo as edições sem esse campo.
   const comparisonAdrs=adrs.filter(adr=>rows.some(r=>r.adr===adr&&adrHasValue(r[metric])));
-  if(comparisonAdrs.length<2){
+  const requiredAdrs=adrMainPair();
+  if(!requiredAdrs.every(adr=>comparisonAdrs.includes(adr))){
     document.getElementById('adrProgressChart').innerHTML='<div class="adr-empty">Este indicador não possui resultados válidos nas duas ADRs do intervalo selecionado.</div>';
     document.getElementById('adrProgressTable').innerHTML='';return;
   }
   const missingAdrs=adrs.filter(adr=>!comparisonAdrs.includes(adr));
-  const validProgressValues=values=>values.every((v,i)=>!comparisonAdrs.includes(adrs[i])||adrHasValue(v));
+  const validProgressValues=values=>values.every((v,i)=>!requiredAdrs.includes(adrs[i])||adrHasValue(v));
   const missingNote=missingAdrs.length?`<div class="adr-status"><b>Indicador não fornecido:</b> ${esc(adrMetricLabel(metric))} em ${esc(missingAdrs.join(', '))}. Os pontos disponíveis foram preservados; a ausência não equivale a zero.</div>`:'';
   const progressSchoolKey=r=>norm(`${r.regional||''}|${r.escola||''}`);
   const pairedRowsFor=subset=>{
     const coverage=new Map();
     subset.forEach(r=>{const key=progressSchoolKey(r);if(!key||!r.escola||!adrHasValue(r?.[metric]))return;if(!coverage.has(key))coverage.set(key,new Set());coverage.get(key).add(r.adr);});
-    const keys=new Set([...coverage.entries()].filter(([,seen])=>comparisonAdrs.every(adr=>seen.has(adr))).map(([key])=>key));
+    const keys=new Set([...coverage.entries()].filter(([,seen])=>requiredAdrs.every(adr=>seen.has(adr))).map(([key])=>key));
     return subset.filter(r=>keys.has(progressSchoolKey(r))&&adrHasValue(r?.[metric]));
   };
   const pairedAll=pairedRowsFor(rows);
@@ -1562,7 +1544,7 @@ function renderADRProgress() {
       ? `cada linha representa uma escola ${selectedCre ? 'da '+esc(selectedCre) : 'das CREs selecionadas'}`
       : `cada linha representa uma unidade acompanhada por ${esc(selectedAgente)}`;
     document.getElementById('adrProgressChart').innerHTML=`
-      ${missingNote}<div class="adr-status" style="margin-bottom:10px"><b>Progressão por escola:</b> ${schoolScopeText}, somente com dados em todas as ADRs exibidas${esc(filtroTxt)}. Clique no nome da escola para destacar a linha. Clique no gráfico para expandir.</div>
+      ${missingNote}<div class="adr-status" style="margin-bottom:10px"><b>Progressão por escola:</b> ${schoolScopeText}, somente com dados nas duas ADRs do intervalo ${esc(adrMainPair().join(' → '))}${esc(filtroTxt)}. Clique no nome da escola para destacar a linha. Clique no gráfico para expandir.</div>
       <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:300px">
         ${grid}
         <line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="#c8d9e7" stroke-width="1.2"/>
@@ -1812,9 +1794,6 @@ function adrUpdateFilterUX() {
   const mode=document.getElementById('adrMode')?.value || '';
   setControlVisibility('adrSelect', mode!=='progressao');
   setControlVisibility('adrEvolucao', mode==='progressao');
-  setControlVisibility('adrPairMain', mode==='progressao');
-  const allEvo=document.querySelector('#adrEvolucao option[value=""]');
-  if(allEvo) allEvo.textContent=`Todas as evoluções ${adrMainPair().join(' → ')}`;
   const ctx=document.getElementById('adrFilterContext');
   if(ctx) {
     const ano=document.getElementById('adrAno')?.value || '';
@@ -1875,7 +1854,7 @@ function initADRs() {
   if(saveBtn) saveBtn.addEventListener('click', adrSaveStored);
   const clearBtn=document.getElementById('adrClearSavedBtn');
   if(clearBtn) clearBtn.addEventListener('click', adrClearStored);
-  ['adrMode','adrAno','adrComp','adrSelect','adrMetric','adrPairMain','adrEvolucao','adrCre','adrAgente','adrPriority','adrSearch'].forEach(id=>{
+  ['adrMode','adrAno','adrComp','adrSelect','adrMetric','adrEvolucao','adrCre','adrAgente','adrPriority','adrSearch'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.addEventListener(id==='adrSearch'?'input':'change',()=>{ if(['adrMode','adrAno','adrComp','adrSelect','adrCre'].includes(id)) adrRefreshSelectors(); renderADRs(); });
   });
   document.getElementById('adrFileInput').addEventListener('change', async (ev)=>{
