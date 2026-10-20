@@ -5940,7 +5940,48 @@ MT: ${gcEsc(gcFmt(mt,'pct'))}</title></circle>`;}).join('');
     const scope=(token.includes('alfabet')||token.includes('alfa'))?'ALFA':token.includes('iniciais')?'AI':token.includes('finais')?'AF':'';
     priorityBySchool.set(schoolMatchKey(record.unidade),{scope,type,years,record});
   });
-  priorityMetaForSchool=function(name){return originalPriorityMetaForSchool(name)||priorityBySchool.get(schoolMatchKey(name))||null};
+  // v442 HF · 9ª CRE (20/10/2026): vínculos por código SME + aliases de avaliação.
+  // A fonte original usa nomes extensos; as ADRs e o Avalia RJ também usam nomes abreviados.
+  // Restrito às três unidades confirmadas pela liderança regional; sem alterar outras CREs.
+  const priorityCre9ByCode=new Map();
+  const CRE9_PRIORITY_CODE_ALIASES=[
+    {code:'918101',scope:'ALFA',type:'Alfabetização',years:['2º ano'],aliases:[
+      '918101','918101 - ESCOLA MUNICIPAL YOLIS DA SILVA',
+      'EM YOLIS DA SILVA','ESCOLA MUNICIPAL YOLIS DA SILVA',
+      'Escola Municipal Primário Yólis da Silva','Primário Yólis da Silva','Yólis da Silva'
+    ]},
+    {code:'918097',scope:'AF',type:'Anos Finais',years:['8º ano','9º ano'],aliases:[
+      '918097','918097 - ESCOLA MUNICIPAL CELIA MARIA DE OLIVEIRA CAMARGO',
+      'EM CELIA MARIA DE OLIVEIRA CAMARGO','ESCOLA MUNICIPAL CELIA MARIA DE OLIVEIRA CAMARGO',
+      'Escola Municipal Ginásio Professora Célia Maria de Oliveira Camargo (abrigando a antiga EM Jardim Guararapes)',
+      'Ginásio Professora Célia Maria de Oliveira Camargo','Célia Maria de Oliveira Camargo'
+    ]},
+    {code:'918104',scope:'AF',type:'Anos Finais',years:['8º ano','9º ano'],aliases:[
+      '918104','918104 - ESCOLA MUNICIPAL MEDALHISTA OLIMPICA MAYRA AGUIAR DA SILVA',
+      'EM MEDALHISTA OLIMPICA MAYRA AGUIAR DA SILVA',
+      'ESCOLA MUNICIPAL MEDALHISTA OLIMPICA MAYRA AGUIAR DA SILVA',
+      'Escola Municipal Ginásio Medalhista Olímpico Mayra Aguiar da Silva',
+      'Ginásio Medalhista Olímpico Mayra Aguiar da Silva','Mayra Aguiar da Silva'
+    ]}
+  ];
+  for(const fix of CRE9_PRIORITY_CODE_ALIASES){
+    const record=ALL_STRUCTURAL_RECORDS.find(row=>Number(row.cre)===9&&String(row.codigoSME||'').trim()===fix.code);
+    if(!record)continue;
+    record.prioritariaBase='Sim';record.prioritaria='Sim';
+    record.prioridadeTipoBase=fix.type;record.prioridadeTipo=fix.type;
+    record.prioridadeAnosBase=fix.years.join(', ');record.prioridadeAnos=fix.years.join(', ');
+    record.prioridadeRecorteBase=fix.type;record.prioridadeRecorte=fix.type;
+    const meta={scope:fix.scope,type:fix.type,years:fix.years,record};
+    priorityCre9ByCode.set(fix.code,meta);
+    for(const alias of [record.unidade,record.unidadeOriginal,...fix.aliases]){
+      const key=schoolMatchKey(alias);
+      if(key)priorityBySchool.set(key,meta);
+    }
+  }
+  priorityMetaForSchool=function(name){
+    const match=String(name||'').match(/(?:^|\D)(918101|918097|918104)(?:\D|$)/);
+    return (match&&priorityCre9ByCode.get(match[1]))||originalPriorityMetaForSchool(name)||priorityBySchool.get(schoolMatchKey(name))||null;
+  };
   priorityMatchesContext=function(school,year='',evaluation='',cre=''){
     const meta=priorityMetaForSchool(school);if(!meta)return false;
     if(cre){const requested=creNumber(cre),actual=Number(meta.record?.cre||2);if(requested&&actual!==requested)return false}
