@@ -206,6 +206,11 @@ let ADR_ROWS = __graLazyArrayClone(ADR_INITIAL);
 function esc(v) { return String(v ?? '').replace(/[&<>'"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m])); }
 function norm(v) { return String(v ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
 function pct(v) { return (Math.round(v*10)/10).toLocaleString('pt-BR') + '%'; }
+// Hotfix v442: percentual ADR é exibido na escala 0–100, sem fração redundante.
+function fmtAdrPercent(v) {
+  if(v===null || v===undefined || v==='' || !Number.isFinite(Number(v))) return '—';
+  return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%';
+}
 function badge(v) {
   const s=String(v??'').trim();
   if(!s) return '';
@@ -287,7 +292,7 @@ function renderDonut(id, legendId, items, total, onClick) {
     path.onclick=()=>onClick(path.dataset.cat);
     path.onkeydown=(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onClick(path.dataset.cat);}};
   });
-  document.getElementById(legendId).innerHTML = items.map((it,i)=>`<div class="legend-row" data-cat="${esc(it.categoria)}"${onClick?' role="button" tabindex="0" aria-label="Abrir detalhamento de '+esc(it.categoria)+'"':''}><i class="swatch" style="background:${donutColorForCategory(it.categoria,i)}"></i><strong>${esc(it.categoria)}</strong><span>${it.total} · ${pct(it.percentual)}</span></div>`).join('');
+  document.getElementById(legendId).innerHTML = items.map((it,i)=>`<div class="legend-row" data-cat="${esc(it.categoria)}"${onClick?' role="button" tabindex="0" aria-label="Abrir detalhamento de '+esc(it.categoria)+'"':''}><i class="swatch" style="background:${donutColorForCategory(it.categoria,i)}"></i><strong>${esc(it.categoria)}</strong><span>${id==='adrPie' ? fmtAdrPercent(it.total) : `${it.total} · ${pct(it.percentual)}`}</span></div>`).join('');
   [...document.getElementById(legendId).querySelectorAll('.legend-row')].forEach(row=>{
     row.onclick=()=>onClick && onClick(row.dataset.cat);
     if(onClick) row.onkeydown=(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onClick(row.dataset.cat);}};
@@ -1047,8 +1052,8 @@ function renderADRKpis(rows, allForBase) {
   const participacao=previstos ? avaliados/previstos*100 : avgNum(rows,'avaliadosPct');
   const items=[
     {label:'Registros', value:rows.length, sub:'escolas/unidades no recorte'},
-    {label:adrMetricLabel(metric), value:fmtPctValue(adrWeightAvg(rows,metric),1), sub:'média ponderada por avaliados'},
-    {label:'Avaliados', value:Math.round(avaliados).toLocaleString('pt-BR'), sub:`participação ${fmtPctValue(participacao,1)}`},
+    {label:adrMetricLabel(metric), value:fmtAdrPercent(adrWeightAvg(rows,metric),1), sub:'média ponderada por avaliados'},
+    {label:'Avaliados', value:Math.round(avaliados).toLocaleString('pt-BR'), sub:`participação ${fmtAdrPercent(participacao,1)}`},
     {label:'CREs no arquivo', value:adrUnique(allForBase.map(r=>r.regional)).length, sub:'regionais disponíveis'}
   ];
   renderKpis('adrKpis', items);
@@ -1066,7 +1071,7 @@ function renderADRCreChart() {
   }
   if(card) card.style.display='block';
   const rows=adrFilteredRows({ignoreCre:true});
-  const grouped=[...adrGroupBy(rows,'regional')].map(([regional,rs])=>({name:regional, value:adrWeightAvg(rs,metric), sub:`${rs.length} escolas`, note:fmtPctValue(adrWeightAvg(rs,metric),1)})).filter(item=>adrHasValue(item.value));
+  const grouped=[...adrGroupBy(rows,'regional')].map(([regional,rs])=>({name:regional, value:adrWeightAvg(rs,metric), sub:`${rs.length} escolas`, note:fmtAdrPercent(adrWeightAvg(rs,metric),1)})).filter(item=>adrHasValue(item.value));
   if(!grouped.length){chart.innerHTML='<div class="adr-empty">O indicador não está disponível nos arquivos deste recorte.</div>';return;}
   grouped.sort((a,b)=>adrMetricSort(a.value,b.value,metric));
   const max=Math.max(...grouped.map(x=>x.value||0),1);
@@ -1136,7 +1141,7 @@ function adrProgressRankingItems(rows, metric) {
     const inicial=adrWeightAvg(firstRows,metric),final=adrWeightAvg(lastRows,metric);
     if(!Number.isFinite(Number(inicial))||!Number.isFinite(Number(final)))return null;
     const rawDelta=Number(final)-Number(inicial),progresso=lower?-rawDelta:rawDelta;
-    return {name:o.name,sub:`${first}: ${fmtPctValue(inicial,1)} → ${last}: ${fmtPctValue(final,1)} · variação real ${fmtDelta(rawDelta)} p.p.${scope.kind!=='escola'?` · ${pairedKeys.size} escolas pareadas`:''}`,note:`${fmtDelta(progresso)} p.p.`,inicial,final,rawDelta,progresso,magnitude:Math.abs(progresso),favorable:progresso>=0,title:`${o.name}: evolução favorável ${fmtDelta(progresso)} p.p. | variação real ${fmtDelta(rawDelta)} p.p.`};
+    return {name:o.name,sub:`${first}: ${fmtAdrPercent(inicial,1)} → ${last}: ${fmtAdrPercent(final,1)} · variação real ${fmtDelta(rawDelta)} p.p.${scope.kind!=='escola'?` · ${pairedKeys.size} escolas pareadas`:''}`,note:`${fmtDelta(progresso)} p.p.`,inicial,final,rawDelta,progresso,magnitude:Math.abs(progresso),favorable:progresso>=0,title:`${o.name}: evolução favorável ${fmtDelta(progresso)} p.p. | variação real ${fmtDelta(rawDelta)} p.p.`};
   }).filter(Boolean);
   items.sort((a,b)=>b.progresso-a.progresso||String(a.name).localeCompare(String(b.name),'pt-BR'));
   return {items, first, last, scope};
@@ -1172,7 +1177,7 @@ function adrSchoolRankingItems(rows, metric) {
       name:first.escola,
       value:Number(value)||0,
       sub:`${first.regional||'CRE não informada'} · ${adrRowAgent(first)||'Sem agente'} · ${adrs.join(' / ')||'ADR não informada'}`,
-      note:fmtPctValue(value,1)
+      note:fmtAdrPercent(value,1)
     };
   }).sort((a,b)=>adrMetricSort(a.value,b.value,metric) || String(a.name).localeCompare(String(b.name),'pt-BR'));
 }
@@ -1283,7 +1288,7 @@ function renderADRSkills(rows) {
     const componente=selectedComp || [...o.componentes][0] || '';
     const adr=selectedAdr || [...o.adrs][0] || '';
     const info=adrSkillDisplay(o.codigo, ano, componente, adr, showAdrLabel);
-    return {name:info.label,value,sub:info.desc,note:fmtPctValue(value,1),title:info.title};
+    return {name:info.label,value,sub:info.desc,note:fmtAdrPercent(value,1),title:info.title};
   }).sort((a,b)=>a.value-b.value).slice(0,10);
   if(!skills.length) { document.getElementById('adrSkillBars').innerHTML='<div class="adr-empty">Resultados por habilidade não disponíveis neste recorte. Para ADR 3, os arquivos enviados não contêm colunas de habilidades e a tradução ainda não foi fornecida.</div>'; return; }
   const max=Math.max(...skills.map(x=>x.value),1);
@@ -1346,7 +1351,7 @@ function renderADRProgress() {
     const x=i=>padL + (w-padL-padR)*(adrs.length===1?0:i/(adrs.length-1));
     const y=v=>h-padB - (h-padT-padB)*((v-min)/(max-min||1));
     const yTicks=[0,0.25,0.5,0.75,1].map(t=>min+(max-min)*t);
-    const grid=yTicks.map(v=>`<g><line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="#e4edf5" stroke-width="1"/><text x="${padL-10}" y="${y(v)+4}" text-anchor="end" fill="#7b8da0" font-size="11">${fmtPctValue(v,0)}</text></g>`).join('');
+    const grid=yTicks.map(v=>`<g><line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="#e4edf5" stroke-width="1"/><text x="${padL-10}" y="${y(v)+4}" text-anchor="end" fill="#7b8da0" font-size="11">${fmtAdrPercent(v,0)}</text></g>`).join('');
     const xLabels=adrs.map((adr,i)=>`<text x="${x(i)}" y="${h-14}" text-anchor="middle" fill="#6c8192" font-size="12">${esc(adr)}</text>`).join('');
     const lines=series.map((s,idx)=>{
       const color=colors[idx%colors.length];
@@ -1397,7 +1402,7 @@ function renderADRProgress() {
     colDefs.push(['delta','Variação']);
     const tableRows=series.map(s=>{
       const row={regional:s.regional};
-      s.values.forEach((v,i)=>row[`adr${i}`]=v===null||Number.isNaN(v)?'—':fmtPctValue(v,1));
+      s.values.forEach((v,i)=>row[`adr${i}`]=v===null||Number.isNaN(v)?'—':fmtAdrPercent(v,1));
       const valid=s.values.filter(v=>v!==null && !Number.isNaN(v));
       row.delta=valid.length>=2?fmtDelta(valid[valid.length-1]-valid[0]):'—';
       row._delta=valid.length>=2?(valid[valid.length-1]-valid[0]):-999999;
@@ -1427,7 +1432,7 @@ function renderADRProgress() {
     const x=i=>padL + (w-padL-padR)*(adrs.length===1?0:i/(adrs.length-1));
     const y=v=>h-padB - (h-padT-padB)*((v-min)/(max-min||1));
     const yTicks=[0,0.25,0.5,0.75,1].map(t=>min+(max-min)*t);
-    const grid=yTicks.map(v=>`<g><line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="#e4edf5" stroke-width="1"/><text x="${padL-10}" y="${y(v)+4}" text-anchor="end" fill="#7b8da0" font-size="11">${fmtPctValue(v,0)}</text></g>`).join('');
+    const grid=yTicks.map(v=>`<g><line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="#e4edf5" stroke-width="1"/><text x="${padL-10}" y="${y(v)+4}" text-anchor="end" fill="#7b8da0" font-size="11">${fmtAdrPercent(v,0)}</text></g>`).join('');
     const xLabels=adrs.map((adr,i)=>`<text x="${x(i)}" y="${h-14}" text-anchor="middle" fill="#6c8192" font-size="12">${esc(adr)}</text>`).join('');
     const shortName=name=>String(name||'').split(' ')[0] || name;
     const lines=series.map((s,idx)=>{
@@ -1479,7 +1484,7 @@ function renderADRProgress() {
     colDefs.push(['delta','Variação']);
     const tableRows=series.map(s=>{
       const row={agente:s.agente, territorio:s.territorio || '—'};
-      s.values.forEach((v,i)=>row[`adr${i}`]=v===null||Number.isNaN(v)?'—':fmtPctValue(v,1));
+      s.values.forEach((v,i)=>row[`adr${i}`]=v===null||Number.isNaN(v)?'—':fmtAdrPercent(v,1));
       const valid=s.values.filter(v=>v!==null && !Number.isNaN(v));
       row.delta=valid.length>=2?fmtDelta(valid[valid.length-1]-valid[0]):'—';
       row._delta=valid.length>=2?(valid[valid.length-1]-valid[0]):-999999;
@@ -1522,7 +1527,7 @@ function renderADRProgress() {
     const x=i=>padL + (w-padL-padR)*(adrs.length===1?0:i/(adrs.length-1));
     const y=v=>h-padB - (h-padT-padB)*((v-min)/(max-min||1));
     const yTicks=[0,0.25,0.5,0.75,1].map(t=>min+(max-min)*t);
-    const grid=yTicks.map(v=>`<g><line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="#e4edf5" stroke-width="1"/><text x="${padL-10}" y="${y(v)+4}" text-anchor="end" fill="#7b8da0" font-size="11">${fmtPctValue(v,0)}</text></g>`).join('');
+    const grid=yTicks.map(v=>`<g><line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="#e4edf5" stroke-width="1"/><text x="${padL-10}" y="${y(v)+4}" text-anchor="end" fill="#7b8da0" font-size="11">${fmtAdrPercent(v,0)}</text></g>`).join('');
     const xLabels=adrs.map((adr,i)=>`<text x="${x(i)}" y="${h-14}" text-anchor="middle" fill="#6c8192" font-size="12">${esc(adr)}</text>`).join('');
     const shortSchool=name=>{ const s=String(name||'').replace(/^E\.?\s?M\.?\s*/i,'').replace(/^ESCOLA\s+MUNICIPAL\s+/i,'').trim(); return s.length>22?s.slice(0,21)+'…':s; };
     const evolutionLabel=delta=>{
@@ -1532,7 +1537,7 @@ function renderADRProgress() {
     const lines=series.map((s,idx)=>{
       const color=colors[idx%colors.length];
       const pts=s.values.map((v,i)=>v===null||Number.isNaN(v)?null:`${x(i)},${y(v)}`).filter(Boolean).join(' ');
-      const circles=s.values.map((v,i)=>v===null||Number.isNaN(v)?'':`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${color}" stroke="#fff" stroke-width="1.2"><title>${esc(s.escola)} · ${esc(s.regional)} · ${esc(adrs[i])}: ${fmtPctValue(v,1)}</title></circle>`).join('');
+      const circles=s.values.map((v,i)=>v===null||Number.isNaN(v)?'':`<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${color}" stroke="#fff" stroke-width="1.2"><title>${esc(s.escola)} · ${esc(s.regional)} · ${esc(adrs[i])}: ${fmtAdrPercent(v,1)}</title></circle>`).join('');
       const lastIdx=[...s.values.keys()].reverse().find(i=>s.values[i]!==null && !Number.isNaN(s.values[i]));
       const label=lastIdx===undefined?'':`<text x="${Math.min(x(lastIdx)+8,w-padR-16)}" y="${y(s.values[lastIdx])+4}" fill="${color}" font-size="9.5" font-weight="800">${esc(shortSchool(s.escola))}</text>`;
       return `<g class="adr-progress-series" data-progress-idx="${idx}" style="transition:opacity .18s ease, filter .18s ease"><polyline class="adr-progress-line" points="${pts}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".94" style="transition:stroke-width .18s ease"></polyline>${circles}${label}</g>`;
@@ -1583,7 +1588,7 @@ function renderADRProgress() {
     colDefs.push(['delta','Variação'],['evolucao','Evolução']);
     const tableRows=series.map(s=>{
       const row={regional:s.regional, escola:s.escola};
-      s.values.forEach((v,i)=>row[`adr${i}`]=v===null||Number.isNaN(v)?'—':fmtPctValue(v,1));
+      s.values.forEach((v,i)=>row[`adr${i}`]=v===null||Number.isNaN(v)?'—':fmtAdrPercent(v,1));
       const valid=s.values.filter(v=>v!==null && !Number.isNaN(v));
       row.delta=valid.length>=2?fmtDelta(valid[valid.length-1]-valid[0]):'—';
       row.evolucao=valid.length>=2?evolutionLabel(valid[valid.length-1]-valid[0]):'—';
@@ -1598,7 +1603,7 @@ function renderADRProgress() {
   const x=i=>pad + (w-pad*2)*(groups.length===1?0:i/(groups.length-1));
   const y=v=>h-pad - (h-pad*2)*((v-min)/(max-min||1));
   const pts=groups.map((g,i)=>`${x(i)},${y(g.value)}`).join(' ');
-  const circles=groups.map((g,i)=>`<g><circle cx="${x(i)}" cy="${y(g.value)}" r="5" fill="#12385d"></circle><text x="${x(i)}" y="${y(g.value)-12}" text-anchor="middle" font-size="12" font-weight="800" fill="#12385d">${fmtPctValue(g.value,1)}</text><text x="${x(i)}" y="${h-10}" text-anchor="middle" font-size="12" fill="#6c8192">${esc(g.adr)}</text></g>`).join('');
+  const circles=groups.map((g,i)=>`<g><circle cx="${x(i)}" cy="${y(g.value)}" r="5" fill="#12385d"></circle><text x="${x(i)}" y="${y(g.value)-12}" text-anchor="middle" font-size="12" font-weight="800" fill="#12385d">${fmtAdrPercent(g.value,1)}</text><text x="${x(i)}" y="${h-10}" text-anchor="middle" font-size="12" fill="#6c8192">${esc(g.adr)}</text></g>`).join('');
   document.getElementById('adrProgressChart').innerHTML=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:230px"><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#dce9f3"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" stroke="#dce9f3"/><polyline points="${pts}" fill="none" stroke="#12385d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${circles}</svg>`;
   const first=groups[0].adr, last=groups[groups.length-1].adr;
   const firstRows=rows.filter(r=>r.adr===first), lastRows=rows.filter(r=>r.adr===last);
@@ -1606,7 +1611,7 @@ function renderADRProgress() {
   const deltas=[];
   lastRows.forEach(r=>{ const a=firstMap.get(norm(r.regional+'|'+r.escola)); if(a) deltas.push({regional:r.regional, escola:r.escola, inicial:a[metric], final:r[metric], delta:(Number(r[metric])||0)-(Number(a[metric])||0)}); });
   deltas.sort((a,b)=>adrLowerIsBetter(metric)?a.delta-b.delta:b.delta-a.delta);
-  table('adrProgressTable', deltas.slice(0,40).map(d=>({...d,inicial:fmtPctValue(d.inicial,1),final:fmtPctValue(d.final,1),delta:fmtDelta(d.delta)})), [['regional','CRE'],['escola','Escola'],['inicial',first],['final',last],['delta','Variação']]);
+  table('adrProgressTable', deltas.slice(0,40).map(d=>({...d,inicial:fmtAdrPercent(d.inicial,1),final:fmtAdrPercent(d.final,1),delta:fmtDelta(d.delta)})), [['regional','CRE'],['escola','Escola'],['inicial',first],['final',last],['delta','Variação']]);
 }
 
 function adrEnsureProgressModal() {
@@ -1645,8 +1650,8 @@ function renderADRTable(rows) {
   document.getElementById('adrCount').textContent=`${sorted.length} registros exibidos.`;
   table('adrTable', sorted.map(r=>({
     adr:r.adr, ano:r.ano, componente:r.componente, regional:r.regional, escola:r.escola, agente:adrRowAgent(r)||'—', territorio:adrRowTerritorio(r)||'—',
-    previstos:Math.round(r.previstos||0).toLocaleString('pt-BR'), avaliados:Math.round(r.avaliados||0).toLocaleString('pt-BR'), avaliadosPct:fmtPctValue(r.avaliadosPct,1),
-    abaixo:fmtPctValue(r.abaixo,1), basico:fmtPctValue(r.basico,1), adequado:fmtPctValue(r.adequado,1), acerto:fmtPctValue(r.acerto,1)
+    previstos:Math.round(r.previstos||0).toLocaleString('pt-BR'), avaliados:Math.round(r.avaliados||0).toLocaleString('pt-BR'), avaliadosPct:fmtAdrPercent(r.avaliadosPct,1),
+    abaixo:fmtAdrPercent(r.abaixo,1), basico:fmtAdrPercent(r.basico,1), adequado:fmtAdrPercent(r.adequado,1), acerto:fmtAdrPercent(r.acerto,1)
   })), [['adr','ADR'],['ano','Ano/Segmento'],['componente','Comp.'],['regional','CRE'],['escola','Escola'],['agente','Agente'],['territorio','Terr.'],['avaliados','Avaliados'],['avaliadosPct','Part.'],['abaixo','Abaixo'],['basico','Básico'],['adequado','Adequado'],['acerto','Acerto']]);
 }
 function adrAnimateTargets() {

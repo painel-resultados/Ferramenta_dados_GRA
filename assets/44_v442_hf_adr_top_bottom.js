@@ -7,7 +7,7 @@
  const safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const normalized=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
  const has=x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(Number(x));
- const num=x=>Number(x).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+ const num=x=>Number(x).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
  const pct=x=>has(x)?num(x)+'%':'—';
  const delta=x=>has(x)?(x>0?'+':'')+num(x)+' p.p.':'—';
  const metricLabel=k=>({adequado:'% Adequado',abaixo:'% Abaixo do Básico',acerto:'% Acerto Total'})[k]||k;

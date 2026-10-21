@@ -6,7 +6,7 @@ const creNumber=v=>{const m=String(v||'').match(/\d+/);return m?Number(m[0]):0};
 const schoolKey=r=>String(r.escola||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const ordinal=v=>Number(String(v||'').match(/\d+/)?.[0]||99);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const number=v=>has(v)?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—';
+const number=v=>has(v)?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2}):'—';
 const pct=v=>has(v)?number(v)+'%':'—';
 const delta=v=>has(v)?(v>0?'+':'')+number(v)+' p.p.':'—';
 const lower=metric=>typeof window.adrLowerIsBetter==='function'?window.adrLowerIsBetter(metric):metric==='abaixo';

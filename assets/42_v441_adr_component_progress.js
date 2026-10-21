@@ -181,8 +181,8 @@
      return {key:`CRE ${String(cre).padStart(2,'0')}`,label:`CRE ${String(cre).padStart(2,'0')}`,metric,values,schools:paired.size,color:crePalette[(cre-1)%crePalette.length],cre};
    }).filter(Boolean);
  }
- function fmt(v){return v===null?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'}
- function delta(s){const available=s.values.filter(v=>v!==null);if(available.length<2)return '—';const diff=available.at(-1)-available[0];return (diff>0?'+':'')+diff.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' p.p.'}
+ function fmt(v){return v===null?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%'}
+ function delta(s){const available=s.values.filter(v=>v!==null);if(available.length<2)return '—';const diff=available.at(-1)-available[0];return (diff>0?'+':'')+diff.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+' p.p.'}
  function ensure(){
    if($('adrAllChartCard'))return;
    const filter=$('adrFiltersCard'),anchor=$('adrKpis');if(!filter||!anchor)return;
