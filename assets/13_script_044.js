@@ -206,11 +206,13 @@ let ADR_ROWS = __graLazyArrayClone(ADR_INITIAL);
 function esc(v) { return String(v ?? '').replace(/[&<>'"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m])); }
 function norm(v) { return String(v ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
 function pct(v) { return (Math.round(v*10)/10).toLocaleString('pt-BR') + '%'; }
-// Hotfix v442: percentual ADR é exibido na escala 0–100, sem fração redundante.
-function fmtAdrPercent(v) {
+/* Hotfix v442: ADRs individuais usam valores originais, sem zeros decimais artificiais. */
+function fmtAdrNumber(v) {
   if(v===null || v===undefined || v==='' || !Number.isFinite(Number(v))) return '—';
-  return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})+'%';
+  return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
 }
+function fmtAdrPercent(v){return fmtAdrNumber(v)==='—'?'—':fmtAdrNumber(v)+'%';}
+
 function badge(v) {
   const s=String(v??'').trim();
   if(!s) return '';
@@ -1077,7 +1079,7 @@ function renderADRCreChart() {
   const max=Math.max(...grouped.map(x=>x.value||0),1);
   document.getElementById('adrCreTitle').textContent=`Comparativo entre CREs — ${adrMetricLabel(metric)}`;
   document.getElementById('adrCreSubtitle').textContent=adrLowerIsBetter(metric)?'Média ponderada pelo número de avaliados. Para Abaixo do Básico, menor é melhor.':'Média ponderada pelo número de avaliados.';
-  renderBars('adrCreChart', grouped.map(x=>({name:x.name, value:Number(x.value||0).toFixed(1), sub:x.sub, note:x.note})), max);
+  renderBars('adrCreChart', grouped.map(x=>({name:x.name, value:fmtAdrNumber(x.value), sub:x.sub, note:x.note})), max);
 }
 function renderADRPie(rows) {
   if(typeof window.v250RenderADRPieCore==='function') return window.v250RenderADRPieCore(rows);
@@ -1087,7 +1089,7 @@ function renderADRPie(rows) {
     {categoria:'Adequado', total:adrWeightAvg(rows,'adequado')||0}
   ];
   const total=vals.reduce((a,b)=>a+b.total,0) || 100;
-  const items=vals.map(v=>({categoria:v.categoria,total:Number(v.total.toFixed(1)),percentual:v.total/total}));
+  const items=vals.map(v=>({categoria:v.categoria,total:v.total,percentual:v.total/total}));
   document.getElementById('adrPie').innerHTML='<div class="donut-center"><b>100%</b><span>níveis</span></div>';
   renderDonut('adrPie','adrPieLegend',items,total,(categoria)=>adrOpenLevelDrawer(categoria,rows));
 }
@@ -1256,7 +1258,7 @@ function renderADRSchoolBars(rows) {
   const year=document.getElementById('adrAno')?.value||'';
   const mapRows=arr=>arr.map(r=>{
     const creHint=(String(r.sub||'').match(/CRE\s*\d+/i)||[])[0]||'';
-    return {name:r.name,value:Number(r.value||0).toFixed(1),sub:r.sub,note:r.note,nameBadge:priorityInlineBadge(r.name,year,'ADR',creHint)};
+    return {name:r.name,value:fmtAdrNumber(r.value),sub:r.sub,note:r.note,nameBadge:priorityInlineBadge(r.name,year,'ADR',creHint)};
   });
   renderBars('adrSchoolBestBars',mapRows(split.best),max);
   if(split.challenge.length) renderBars('adrSchoolChallengeBars',mapRows(split.challenge),max);
@@ -1292,7 +1294,7 @@ function renderADRSkills(rows) {
   }).sort((a,b)=>a.value-b.value).slice(0,10);
   if(!skills.length) { document.getElementById('adrSkillBars').innerHTML='<div class="adr-empty">Resultados por habilidade não disponíveis neste recorte. Para ADR 3, os arquivos enviados não contêm colunas de habilidades e a tradução ainda não foi fornecida.</div>'; return; }
   const max=Math.max(...skills.map(x=>x.value),1);
-  renderBars('adrSkillBars', skills.map(x=>({name:x.name,value:Number(x.value).toFixed(1),sub:x.sub,note:x.note,title:x.title})), max, 'pd');
+  renderBars('adrSkillBars', skills.map(x=>({name:x.name,value:fmtAdrNumber(x.value),sub:x.sub,note:x.note,title:x.title})), max, 'pd');
 }
 
 function renderADRProgress() {
