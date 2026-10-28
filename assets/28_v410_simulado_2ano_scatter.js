@@ -252,21 +252,28 @@
 #resultados #somSkillCard.v410-scatter-skill-card .v410-scatter-skills .v301-comp-metrics{grid-template-columns:1fr}
 #resultados #somSkillCard.v410-scatter-skill-card .v301-comp-metric span{white-space:normal}
 #resultados #somSkillCard.v410-scatter-skill-card .v301-comp-metric b{font-size:18px}
-#resultados .card:has(#somPie) .adr-pie-grid.v444-scatter-dual{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-items:stretch}
-#resultados .v444-scatter-dual-section{border:1px solid #e0eaf2;border-radius:14px;padding:12px;min-width:0;background:#fff}
-#resultados .v444-scatter-dual-title{font-size:14px;font-weight:850;color:#12385d;margin-bottom:10px}
-#resultados .v444-scatter-dual-body{display:grid;grid-template-columns:minmax(110px,140px) minmax(0,1fr);gap:10px;align-items:center}
-#resultados .v444-scatter-dual-section .donut{width:136px!important;height:136px!important;max-width:100%;margin:auto}
-#resultados .v444-scatter-dual-section .donut:before{inset:28px!important}
-#resultados .v444-scatter-dual-section .donut .donut-center b{font-size:22px!important}
-#resultados .v444-scatter-dual-section .legend{display:grid;gap:3px}
-#resultados .v444-scatter-dual-section .legend-row{display:grid;grid-template-columns:11px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;padding:4px 0}
+#resultados .v444-scatter-top-grid{grid-template-columns:minmax(0,1fr)!important}
+#resultados .v444-scatter-legacy-pie{display:none!important}
+#resultados .v444-scatter-main-grid{grid-template-columns:minmax(0,1fr)!important}
+#resultados .v444-scatter-main-grid> .card{grid-column:1/-1;min-width:0}
+#resultados .v444-scatter-detail-card{min-width:0;padding:20px 22px;container-type:inline-size}
+#resultados .v444-scatter-detail-head{margin-bottom:14px}
+#resultados .v444-scatter-detail-head h3{font-size:19px;color:#12385d;margin:0 0 5px}
+#resultados .v444-scatter-detail-head p{font-size:12px;color:#61758a;margin:0;line-height:1.5}
+#resultados .v444-scatter-dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+#resultados .v444-scatter-dual-section{border:1px solid #dfe8f0;border-radius:14px;padding:17px;min-width:0;background:#fff}
+#resultados .v444-scatter-dual-title{font-size:16px;font-weight:850;color:#12385d;margin-bottom:14px}
+#resultados .v444-scatter-dual-body{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center;min-width:0}
+#resultados .v444-scatter-dual-section .donut{position:relative;width:146px!important;height:146px!important;max-width:100%;margin:auto}
+#resultados .v444-scatter-dual-section .donut:before{inset:30px!important}
+#resultados .v444-scatter-dual-section .donut .donut-center b{font-size:23px!important}
+#resultados .v444-scatter-dual-section .legend{display:grid;gap:4px;min-width:0}
+#resultados .v444-scatter-dual-section .legend-row{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px;padding:5px 0;min-width:0}
 #resultados .v444-scatter-dual-section .legend-row .swatch{width:10px;height:10px;border-radius:3px}
-#resultados .v444-scatter-dual-section .legend-row strong{font-size:11px;color:#12385d}
-#resultados .v444-scatter-dual-section .legend-row span{font-size:11px;font-weight:800;color:#12385d}
-#resultados .v444-scatter-dual-note{margin-top:8px;color:#65758b;font-size:11px}
-@container (max-width:850px){#resultados .card:has(#somPie) .adr-pie-grid.v444-scatter-dual{grid-template-columns:1fr!important}}
-@media(max-width:580px){#resultados .v444-scatter-dual-body{grid-template-columns:120px minmax(0,1fr)}}
+#resultados .v444-scatter-dual-section .legend-row strong{font-size:12px;color:#12385d;white-space:normal}
+#resultados .v444-scatter-dual-section .legend-row span{font-size:12px;font-weight:850;color:#12385d;white-space:nowrap}
+@container (max-width:850px){.v444-scatter-dual{grid-template-columns:1fr}}
+@media(max-width:620px){#resultados .v444-scatter-dual-body{grid-template-columns:1fr;justify-items:center}#resultados .v444-scatter-dual-section .legend{width:100%}}
 
 @media(max-width:900px){#resultados .v410-scatter-svg{min-width:700px}}
 @media(max-width:620px){#resultados .v410-scatter-svg{min-width:660px}}
@@ -356,48 +363,72 @@
   function legendMarkup(values){
     return LEVELS.map(([label,key,color],i)=>`<div class="legend-row"><i class="swatch" style="background:${color}"></i><strong>${safe(label)}</strong><span>${safe(formatPercent(values[i]))}</span></div>`).join('');
   }
-  function ensureDualDonutLayout(){
-    const lp=$('somPie'),lpLegend=$('somPieLegend'),grid=lp?.closest('.adr-pie-grid');
-    if(!lp||!lpLegend||!grid)return false;
-    if(grid.dataset.v444ScatterDual==='1')return true;
-    const lpCard=document.createElement('section');lpCard.className='v444-scatter-dual-section';
-    lpCard.innerHTML='<div class="v444-scatter-dual-title">Língua Portuguesa · SAEB</div>';
-    const lpBody=document.createElement('div');lpBody.className='v444-scatter-dual-body';
-    lpBody.append(lp,lpLegend);lpCard.append(lpBody);
-    const mtCard=document.createElement('section');mtCard.className='v444-scatter-dual-section';
-    mtCard.innerHTML='<div class="v444-scatter-dual-title">Matemática · CAEd</div><div class="v444-scatter-dual-body"><div class="donut" id="somPieMT"></div><div class="legend" id="somPieLegendMT"></div></div>';
-    grid.append(lpCard,mtCard);grid.classList.add('v444-scatter-dual');grid.dataset.v444ScatterDual='1';
-    return true;
+  // Os dados do componente virtual não devem alimentar a rosca nativa.
+  // A rosca antiga fica intacta, e o novo painel aparece APENAS para uma escola.
+  function scatterLayoutContainers(){
+    const oldPie=$('somPie')?.closest('.card');
+    const topGrid=oldPie?.parentElement;
+    const chartCard=$('somMainChart')?.closest('.card');
+    const mainGrid=chartCard?.parentElement;
+    return {oldPie,topGrid,chartCard,mainGrid};
   }
-  function restoreSingleDonutLayout(){
-    const grid=$('somPie')?.closest('.adr-pie-grid');
-    if(!grid||grid.dataset.v444ScatterDual!=='1')return;
-    const lp=$('somPie'),legend=$('somPieLegend');
-    grid.append(lp,legend);
-    grid.querySelectorAll(':scope > .v444-scatter-dual-section').forEach(section=>section.remove());
-    grid.classList.remove('v444-scatter-dual');delete grid.dataset.v444ScatterDual;
+  function setScatterLayoutMode(active){
+    const {oldPie,topGrid,mainGrid}=scatterLayoutContainers();
+    oldPie?.classList.toggle('v444-scatter-legacy-pie',active);
+    topGrid?.classList.toggle('v444-scatter-top-grid',active);
+    mainGrid?.classList.toggle('v444-scatter-main-grid',active);
+    if(!active)$('v444-scatter-detail-card')?.remove();
+  }
+  function resolveSingleSchool(points){
+    const query=selectedQuery();
+    if(!query&&!selectedPointKey)return null;
+    if(selectedPointKey){
+      const matches=points.filter(p=>`${p.cre}|${schoolKey(p.school)}`===selectedPointKey);
+      if(matches.length===1)return matches[0];
+    }
+    if(!query)return null;
+    // A busca pode selecionar uma escola por nome completo ou por um trecho
+    // único. Nunca apresentar duas roscas agregadas como se fossem individuais.
+    const matches=points.filter(p=>searchMatches(p.LP,query));
+    return matches.length===1?matches[0]:null;
+  }
+  function ensureScatterDetailPanel(){
+    const {chartCard,mainGrid}=scatterLayoutContainers();
+    if(!chartCard||!mainGrid)return null;
+    let detail=$('v444-scatter-detail-card');
+    if(!detail){
+      detail=document.createElement('section');
+      detail.className='card v444-scatter-detail-card';
+      detail.id='v444-scatter-detail-card';
+      detail.innerHTML=`<header class="v444-scatter-detail-head"><h3>Distribuição por nível da escola</h3><p id="v444-scatter-detail-subtitle"></p></header>
+        <div class="v444-scatter-dual">
+          <section class="v444-scatter-dual-section"><div class="v444-scatter-dual-title">Língua Portuguesa · SAEB</div><div class="v444-scatter-dual-body"><div class="donut" id="v444-scatter-lp-pie"></div><div class="legend" id="v444-scatter-lp-legend"></div></div></section>
+          <section class="v444-scatter-dual-section"><div class="v444-scatter-dual-title">Matemática · CAEd</div><div class="v444-scatter-dual-body"><div class="donut" id="v444-scatter-mt-pie"></div><div class="legend" id="v444-scatter-mt-legend"></div></div></section>
+        </div>`;
+    }
+    // Ordem obrigatória: dispersão, roscas LP/MT, depois habilidades.
+    if(detail.previousElementSibling!==chartCard)chartCard.after(detail);
+    return detail;
   }
   function renderScatterDonuts(points=pairRows(scatterRows({ignoreSearch:!!selectedQuery()}))){
-    if(!isScatter()||!ensureDualDonutLayout())return false;
-    const query=selectedQuery();
-    const matched=points.filter(p=>selectedPointKey
-      ? `${p.cre}|${schoolKey(p.school)}`===selectedPointKey
-      : (query&&searchMatches(p.LP,query)));
-    const relevant=matched.length?matched:(!query?points:[]);
-    const subtitle=$('somPieSubtitle');
-    if(subtitle)subtitle.textContent=matched.length===1
-      ? `Distribuição por níveis na ${matched[0].school}, separada por componente.`
-      : (matched.length>1?'Distribuição das escolas encontradas, separada por componente.':
-        (query?'Escola não localizada no universo do gráfico.':'Distribuição por níveis de LP e MT no recorte filtrado.'));
-    const lpValues=aggregateLevels(relevant,'LP'),mtValues=aggregateLevels(relevant,'MT');
-    $('somPie').innerHTML=donutMarkup(lpValues);$('somPieLegend').innerHTML=legendMarkup(lpValues);
-    $('somPieMT').innerHTML=donutMarkup(mtValues);$('somPieLegendMT').innerHTML=legendMarkup(mtValues);
+    if(!isScatter()){setScatterLayoutMode(false);return false;}
+    setScatterLayoutMode(true);
+    const chosen=resolveSingleSchool(points);
+    if(!chosen){$('v444-scatter-detail-card')?.remove();return false;}
+    if(!ensureScatterDetailPanel())return false;
+    const subtitle=$('v444-scatter-detail-subtitle');
+    if(subtitle)subtitle.textContent=`${chosen.school} · 2º ano · Simulado 2026. Percentuais de desempenho separados por componente.`;
+    const lp=aggregateLevels([chosen],'LP'),mt=aggregateLevels([chosen],'MT');
+    $('v444-scatter-lp-pie').innerHTML=donutMarkup(lp);
+    $('v444-scatter-lp-legend').innerHTML=legendMarkup(lp);
+    $('v444-scatter-mt-pie').innerHTML=donutMarkup(mt);
+    $('v444-scatter-mt-legend').innerHTML=legendMarkup(mt);
     return true;
   }
 
   function renderScatter(){
     if(!isScatter())return false;
-    installStyle();markScatterSentinel();
+    installStyle();markScatterSentinel();setScatterLayoutMode(true);
     const host=$('somMainChart'),title=$('somMainTitle'),subtitle=$('somMainSubtitle');
     if(!host)return false;
     // A busca de uma escola destaca o ponto, mas preserva o universo de comparação
@@ -618,7 +649,7 @@
   function cleanupScatterClasses(){
     if(isScatter())return;
     selectedPointKey=null;
-    restoreSingleDonutLayout();
+    setScatterLayoutMode(false);
     $('somMainChart')?.classList.remove('v410-scatter-chart');
     const card=$('somSkillCard');
     card?.classList.remove('v410-scatter-skill-card');
