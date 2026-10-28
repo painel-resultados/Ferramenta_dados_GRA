@@ -36,6 +36,7 @@
   let scheduledSkill=0;
   let scheduledScatter=0;
   let observer=null;
+  let selectedPointKey=null;
 
   function currentYear(){return $('somAnoEscolar')?.value||'';}
   function isSim(){return $('somModalidade')?.value==='Simulado 2026';}
@@ -251,6 +252,22 @@
 #resultados #somSkillCard.v410-scatter-skill-card .v410-scatter-skills .v301-comp-metrics{grid-template-columns:1fr}
 #resultados #somSkillCard.v410-scatter-skill-card .v301-comp-metric span{white-space:normal}
 #resultados #somSkillCard.v410-scatter-skill-card .v301-comp-metric b{font-size:18px}
+#resultados .card:has(#somPie) .adr-pie-grid.v444-scatter-dual{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-items:stretch}
+#resultados .v444-scatter-dual-section{border:1px solid #e0eaf2;border-radius:14px;padding:12px;min-width:0;background:#fff}
+#resultados .v444-scatter-dual-title{font-size:14px;font-weight:850;color:#12385d;margin-bottom:10px}
+#resultados .v444-scatter-dual-body{display:grid;grid-template-columns:minmax(110px,140px) minmax(0,1fr);gap:10px;align-items:center}
+#resultados .v444-scatter-dual-section .donut{width:136px!important;height:136px!important;max-width:100%;margin:auto}
+#resultados .v444-scatter-dual-section .donut:before{inset:28px!important}
+#resultados .v444-scatter-dual-section .donut .donut-center b{font-size:22px!important}
+#resultados .v444-scatter-dual-section .legend{display:grid;gap:3px}
+#resultados .v444-scatter-dual-section .legend-row{display:grid;grid-template-columns:11px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;padding:4px 0}
+#resultados .v444-scatter-dual-section .legend-row .swatch{width:10px;height:10px;border-radius:3px}
+#resultados .v444-scatter-dual-section .legend-row strong{font-size:11px;color:#12385d}
+#resultados .v444-scatter-dual-section .legend-row span{font-size:11px;font-weight:800;color:#12385d}
+#resultados .v444-scatter-dual-note{margin-top:8px;color:#65758b;font-size:11px}
+@container (max-width:850px){#resultados .card:has(#somPie) .adr-pie-grid.v444-scatter-dual{grid-template-columns:1fr!important}}
+@media(max-width:580px){#resultados .v444-scatter-dual-body{grid-template-columns:120px minmax(0,1fr)}}
+
 @media(max-width:900px){#resultados .v410-scatter-svg{min-width:700px}}
 @media(max-width:620px){#resultados .v410-scatter-svg{min-width:660px}}
 `;
@@ -268,7 +285,9 @@
     const gridX=xTicks.map(v=>`<g><line x1="${x(v).toFixed(2)}" y1="${T}" x2="${x(v).toFixed(2)}" y2="${H-B}" stroke="#e6edf2" stroke-width="1"/><text x="${x(v).toFixed(2)}" y="${H-B+24}" text-anchor="middle" font-size="12" fill="#68798b">${v}</text></g>`).join('');
     const gridY=yTicks.map(v=>`<g><line x1="${L}" y1="${y(v).toFixed(2)}" x2="${W-R}" y2="${y(v).toFixed(2)}" stroke="#e6edf2" stroke-width="1"/><text x="${L-12}" y="${(y(v)+4).toFixed(2)}" text-anchor="end" font-size="12" fill="#68798b">${v}</text></g>`).join('');
     const query=selectedQuery();
-    const selectedKeys=new Set(points.filter(p=>query&&searchMatches(p.LP,query)).map(p=>`${p.cre}|${schoolKey(p.school)}`));
+    const selectedKeys=new Set(points.filter(p=>selectedPointKey
+      ? `${p.cre}|${schoolKey(p.school)}`===selectedPointKey
+      : (query&&searchMatches(p.LP,query))).map(p=>`${p.cre}|${schoolKey(p.school)}`));
     const haveSelection=selectedKeys.size>0;
     let markerHtml='';
     for(const p of points){
@@ -288,6 +307,94 @@
     return `<svg class="v410-scatter-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dispersão das proficiências do Simulado 2026 do 2º ano — ${safe(scatterScopeLabel())}"><rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="#fff" stroke="#dce7ef"/>${gridX}${gridY}<line x1="${x(X_CUT).toFixed(2)}" y1="${T}" x2="${x(X_CUT).toFixed(2)}" y2="${H-B}" stroke="#d85b70" stroke-width="1.7" stroke-dasharray="8 7"/><line x1="${L}" y1="${y(Y_CUT).toFixed(2)}" x2="${W-R}" y2="${y(Y_CUT).toFixed(2)}" stroke="#d85b70" stroke-width="1.7" stroke-dasharray="8 7"/><text x="${(x(X_CUT)+5).toFixed(2)}" y="${T+14}" font-size="10.5" font-weight="800" fill="#b44a60">corte 743</text><text x="${W-R-5}" y="${(y(Y_CUT)-7).toFixed(2)}" text-anchor="end" font-size="10.5" font-weight="800" fill="#b44a60">corte 500</text>${markerHtml}<text x="${L+pw/2}" y="${H-17}" text-anchor="middle" font-size="13" font-weight="850" fill="#12385d">Proficiência em Leitura / Língua Portuguesa (SAEB)</text><text x="21" y="${T+ph/2}" transform="rotate(-90 21 ${T+ph/2})" text-anchor="middle" font-size="13" font-weight="850" fill="#12385d">Proficiência na escala CAEd (Matemática)</text></svg>`;
   }
 
+  // A dispersão é uma VISUALIZAÇÃO, nunca um componente curricular. Os dois
+  // gráficos de rosca utilizam exclusivamente os registros reais de LP e MT.
+  const LEVELS=[['Abaixo do Básico','abaixo','#d94b4b'],['Básico','basico','#f6a827'],['Adequado','adequado','#19916f'],['Avançado','avancado','#237db7']];
+  const validNumber=v=>v!==null&&v!==undefined&&String(v).trim()!==''&&Number.isFinite(Number(v));
+  function numericPct(v){return validNumber(v)?Math.min(100,Math.max(0,Number(v))):null;}
+  function formatPercent(v){
+    return v===null?'—':`${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})}%`;
+  }
+  function levelsForRow(row,component){
+    if(!row)return null;
+    // As escalas oficiais carregam quatro parcelas precisas após os três
+    // campos de proficiência/desvio/padrão. Não confundir LP (SAEB) e MT (CAEd).
+    const scale=row.escalas?.[component==='LP'?'SAEB':'CAED'];
+    const shares=Array.isArray(scale)&&scale.length>=7?scale.slice(3,7).map(numericPct):null;
+    const values=shares&&shares.every(v=>v!==null)?shares:LEVELS.map(([,key])=>numericPct(row[key]));
+    return values.some(v=>v!==null)?values:null;
+  }
+  function aggregateLevels(points,component){
+    const sums=[0,0,0,0],weights=[0,0,0,0];
+    for(const point of points){
+      const row=point?.[component],values=levelsForRow(row,component);
+      if(!values)continue;
+      const w=Number(row.avaliados);
+      if(!Number.isFinite(w)||w<=0)continue;
+      values.forEach((v,i)=>{if(v!==null){sums[i]+=v*w;weights[i]+=w;}});
+    }
+    return sums.map((sum,i)=>weights[i]>0?sum/weights[i]:null);
+  }
+  function arcPath(startAngle,endAngle){
+    const point=a=>{const r=(a-90)*Math.PI/180;return [100+68*Math.cos(r),100+68*Math.sin(r)];};
+    const [x1,y1]=point(startAngle),[x2,y2]=point(endAngle);
+    return `M ${x1.toFixed(3)} ${y1.toFixed(3)} A 68 68 0 ${endAngle-startAngle>180?1:0} 1 ${x2.toFixed(3)} ${y2.toFixed(3)}`;
+  }
+  function donutMarkup(values){
+    const total=values.reduce((sum,v)=>sum+(v??0),0);
+    if(!total)return '<div class="donut-center"><b>—</b><span>sem dados</span></div>';
+    let start=0;const arcs=LEVELS.map((def,i)=>{
+      const v=values[i]??0,extent=360*v/total;
+      if(extent<=0)return '';
+      const segStart=start;start+=extent;
+      const end=segStart+extent;
+      const gap=Math.min(.3,extent/4);
+      return `<path d="${arcPath(segStart+gap,Math.min(end-gap,segStart+359.99))}" fill="none" stroke="${def[2]}" stroke-width="36"><title>${safe(def[0])}: ${safe(formatPercent(v))}</title></path>`;
+    }).join('');
+    return `<svg viewBox="0 0 200 200" role="img" aria-label="Distribuição dos quatro níveis de desempenho">${arcs}</svg><div class="donut-center"><b>100%</b><span>níveis</span></div>`;
+  }
+  function legendMarkup(values){
+    return LEVELS.map(([label,key,color],i)=>`<div class="legend-row"><i class="swatch" style="background:${color}"></i><strong>${safe(label)}</strong><span>${safe(formatPercent(values[i]))}</span></div>`).join('');
+  }
+  function ensureDualDonutLayout(){
+    const lp=$('somPie'),lpLegend=$('somPieLegend'),grid=lp?.closest('.adr-pie-grid');
+    if(!lp||!lpLegend||!grid)return false;
+    if(grid.dataset.v444ScatterDual==='1')return true;
+    const lpCard=document.createElement('section');lpCard.className='v444-scatter-dual-section';
+    lpCard.innerHTML='<div class="v444-scatter-dual-title">Língua Portuguesa · SAEB</div>';
+    const lpBody=document.createElement('div');lpBody.className='v444-scatter-dual-body';
+    lpBody.append(lp,lpLegend);lpCard.append(lpBody);
+    const mtCard=document.createElement('section');mtCard.className='v444-scatter-dual-section';
+    mtCard.innerHTML='<div class="v444-scatter-dual-title">Matemática · CAEd</div><div class="v444-scatter-dual-body"><div class="donut" id="somPieMT"></div><div class="legend" id="somPieLegendMT"></div></div>';
+    grid.append(lpCard,mtCard);grid.classList.add('v444-scatter-dual');grid.dataset.v444ScatterDual='1';
+    return true;
+  }
+  function restoreSingleDonutLayout(){
+    const grid=$('somPie')?.closest('.adr-pie-grid');
+    if(!grid||grid.dataset.v444ScatterDual!=='1')return;
+    const lp=$('somPie'),legend=$('somPieLegend');
+    grid.append(lp,legend);
+    grid.querySelectorAll(':scope > .v444-scatter-dual-section').forEach(section=>section.remove());
+    grid.classList.remove('v444-scatter-dual');delete grid.dataset.v444ScatterDual;
+  }
+  function renderScatterDonuts(points=pairRows(scatterRows({ignoreSearch:!!selectedQuery()}))){
+    if(!isScatter()||!ensureDualDonutLayout())return false;
+    const query=selectedQuery();
+    const matched=points.filter(p=>selectedPointKey
+      ? `${p.cre}|${schoolKey(p.school)}`===selectedPointKey
+      : (query&&searchMatches(p.LP,query)));
+    const relevant=matched.length?matched:(!query?points:[]);
+    const subtitle=$('somPieSubtitle');
+    if(subtitle)subtitle.textContent=matched.length===1
+      ? `Distribuição por níveis na ${matched[0].school}, separada por componente.`
+      : (matched.length>1?'Distribuição das escolas encontradas, separada por componente.':
+        (query?'Escola não localizada no universo do gráfico.':'Distribuição por níveis de LP e MT no recorte filtrado.'));
+    const lpValues=aggregateLevels(relevant,'LP'),mtValues=aggregateLevels(relevant,'MT');
+    $('somPie').innerHTML=donutMarkup(lpValues);$('somPieLegend').innerHTML=legendMarkup(lpValues);
+    $('somPieMT').innerHTML=donutMarkup(mtValues);$('somPieLegendMT').innerHTML=legendMarkup(mtValues);
+    return true;
+  }
+
   function renderScatter(){
     if(!isScatter())return false;
     installStyle();markScatterSentinel();
@@ -303,10 +410,12 @@
     host.classList.add('v410-scatter-chart');
     if(!points.length){
       host.innerHTML='<div class="som-empty">Não há pares de Língua Portuguesa e Matemática neste recorte para gerar a dispersão.</div>';
+      renderScatterDonuts(points);
       return false;
     }
     const counts=points.reduce((a,p)=>{a[p.status]++;if(p.priority)a.priority++;return a;},{blue:0,yellow:0,red:0,priority:0});
     host.innerHTML=`<div class="v410-scatter-shell"><div class="v410-scatter-legend"><span><i class="v410-dot"></i>Não prioritárias</span><span><i class="v410-square"></i>Prioritárias</span><span><i class="v410-color" style="background:${COLORS.blue}"></i>Acima dos dois cortes</span><span><i class="v410-color" style="background:${COLORS.yellow}"></i>Abaixo de um corte</span><span><i class="v410-color" style="background:${COLORS.red}"></i>Abaixo dos dois cortes</span></div><div class="v410-scatter-scroll">${buildScatterSvg(points)}</div><div class="v410-scatter-note">${points.length.toLocaleString('pt-BR')} escolas no universo do gráfico · ${counts.priority.toLocaleString('pt-BR')} prioritárias. Passe o mouse sobre um ponto para identificar a unidade; clique para selecioná-la.</div></div>`;
+    renderScatterDonuts(points);
     return true;
   }
 
@@ -508,6 +617,8 @@
 
   function cleanupScatterClasses(){
     if(isScatter())return;
+    selectedPointKey=null;
+    restoreSingleDonutLayout();
     $('somMainChart')?.classList.remove('v410-scatter-chart');
     const card=$('somSkillCard');
     card?.classList.remove('v410-scatter-skill-card');
@@ -616,32 +727,24 @@
 
   function onSearchInput(event){
     if(event.target?.id!=='somSearch')return;
+    if(selectedPointKey&&!selectedPointKey.endsWith(`|${schoolKey(selectedQuery())}`))selectedPointKey=null;
     if(isScatter())queueScatter(95);
     queueSkills(115);
   }
 
-  function openSchoolInPortuguese(cre,school){
-    const comp=$('somComponente');
-    scatterSticky=false;
-    if(comp){
-      comp.dataset.v410LastComponent='LP';
-      comp.value='LP';
-      comp.dispatchEvent(new Event('change',{bubbles:true}));
-    }
-    cleanupScatterClasses();
-
-    // Depois de sair da dispersão, reutiliza a seleção canônica da escola. Assim,
-    // a busca, os KPIs, as habilidades, a tabela e o detalhamento por turma passam
-    // a trabalhar no recorte real de Língua Portuguesa.
-    try{
-      if(typeof window.__GRA_V311__?.selectSchool==='function'){
-        window.__GRA_V311__.selectSchool(cre,school);
-        return true;
-      }
-    }catch(_){ }
-    const input=$('somSearch');
-    if(input){input.value=school;input.dispatchEvent(new Event('input',{bubbles:true}));return true;}
-    return false;
+  function selectSchoolInScatter(cre,school){
+    const input=$('somSearch');if(!input)return false;
+    selectedPointKey=`${cre}|${schoolKey(school)}`;
+    scatterSticky=true;
+    markScatterSentinel();
+    // Preserva a seleção canônica e dispara a cadeia normal de atualização.
+    // NÃO troca o componente virtual para LP: as roscas usam ambas as linhas.
+    input.value=school;
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    const component=$('somComponente');
+    if(component){ensureOption();component.value=SCATTER_VALUE;}
+    queueScatter(60);queueSkills(95);
+    return true;
   }
 
   function installPointNavigation(){
@@ -659,7 +762,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       event.stopPropagation();
-      openSchoolInPortuguese(cre,school);
+      selectSchoolInScatter(cre,school);
     };
     chart.addEventListener('click',activate,true);
     chart.addEventListener('keydown',activate,true);
@@ -734,7 +837,7 @@
   const scatterApi={
     version:VERSION,value:SCATTER_VALUE,label:SCATTER_LABEL,
     limits:{xMin:X_MIN,xMax:X_MAX,yMin:Y_MIN,yMax:Y_MAX},cuts:{x:X_CUT,y:Y_CUT},
-    eligible,isScatter,ensureOption,ensureScatterData,render:renderScatter,renderSkills:renderScatterSkills,stabilizeSkills,audit,schoolKey,scatterScopeLabel
+    eligible,isScatter,ensureOption,ensureScatterData,render:renderScatter,renderSkills:renderScatterSkills,renderDonuts:renderScatterDonuts,selectSchool:selectSchoolInScatter,stabilizeSkills,audit,schoolKey,scatterScopeLabel
   };
   // Mantém o alias v410 para não quebrar nenhuma integração criada na versão anterior.
   window.__GRA_V410_SCATTER__=scatterApi;

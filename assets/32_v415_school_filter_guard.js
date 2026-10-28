@@ -141,6 +141,9 @@ function syncSom(){
   const y=String(yearSel.value||'');
   if(modal==='Simulado 2026'){
     const byComp=data?.[y]||{};Object.keys(byComp).forEach(c=>componentsForYear.add(String(c)));
+    // O gráfico de dispersão do 2º ano compara simultaneamente LP e MT;
+    // é uma seleção virtual válida quando ambos têm resultados para a escola.
+    if(y==='2º ano'&&byComp.LP&&byComp.MT)componentsForYear.add('GRAFICO_DISPERSAO');
   }else{
     const yrRows=rows.filter(r=>String(r?.anoEscolar||'')===y);
     for(const o of compSel?.options||[]){if(o.value&&yrRows.some(r=>somComponentMatch(r,o.value)))componentsForYear.add(String(o.value));}

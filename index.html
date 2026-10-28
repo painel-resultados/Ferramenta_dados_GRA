@@ -13423,7 +13423,7 @@ window.__GRA_SCHOOL_NAV_TEST__=function(name){
  },260));
 };
 function clickHandler(e){
- if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;
+ if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],.v410-scatter-point,#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;
  if(e.defaultPrevented)return;
  const direct=e.target?.closest?.('[data-gra-school-name]');
  const name=direct?.dataset?.graSchoolName||resolveFromTarget(e.target);
@@ -13431,7 +13431,7 @@ function clickHandler(e){
  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();focusSchool(name)
 }
 function keyHandler(e){
- if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;
+ if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],.v410-scatter-point,#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;
  if(!['Enter',' '].includes(e.key))return;
  const el=e.target?.closest?.('.gra-school-clickable,[data-gra-school-name]');if(!el)return;
  const name=el.dataset?.graSchoolName||resolveFromTarget(el);if(!name)return;
@@ -13763,11 +13763,11 @@ function resolveFromTarget(target){
  return '';
 }
 function clickCapture(e){
- if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;
+ if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],.v410-scatter-point,#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;
  const name=resolveFromTarget(e.target);if(!name)return;
  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openSchool(name);
 }
-function keyCapture(e){if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;if(!['Enter',' '].includes(e.key))return;const name=resolveFromTarget(e.target);if(!name)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openSchool(name)}
+function keyCapture(e){if(e.target?.closest?.('.topbar .actions,.geo-detail-close,[data-gra-no-school-nav],.v410-scatter-point,#slideChoiceOverlay,#slideExportOverlay,#pptReadyOverlayV388'))return;if(!['Enter',' '].includes(e.key))return;const name=resolveFromTarget(e.target);if(!name)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();openSchool(name)}
 function decorate(){
  const root=document.querySelector('.section.active');if(!root)return;const cat=buildCatalog();let count=0;
  const nodes=root.querySelectorAll('[data-gra-school-name],.gra-school-clickable,.bar-name strong,.v210-rank-school strong,.adr-rank-row strong,.v213-school-label,.sim311-school-main strong,td strong,td:first-child,h3,h4');
@@ -20765,7 +20765,7 @@ window.__GRA_V436_VERSION__={version:V,features:['Busca universal cooperativa no
 
 <!-- v441 — Dispersão do Simulado 2026 · 2º ano · todas as seleções do filtro Master.
      Deve permanecer imediatamente ANTES do guard v409, preservando o guard como último patch. -->
-<script src="assets/28_v410_simulado_2ano_scatter.js"></script>
+<script src="assets/28_v410_simulado_2ano_scatter.js?v=444-hf-dispersao-dual-20261028"></script>
 
 <!-- v414 — camada consolidada de estabilidade de transição.
      Deve ficar antes do hard guard v409. -->
@@ -20859,7 +20859,7 @@ document.addEventListener('click',event=>{
 window.__GRA_DASHBOARD26__={version:'v415',feature:'direct-start-context-filter-stability'};
 })();
 </script>
-<script src="assets/32_v415_school_filter_guard.js"></script>
+<script src="assets/32_v415_school_filter_guard.js?v=444-hf-dispersao-dual-20261028"></script>
 <script src="assets/33_v416_dossier.js?v=441-hf13-20261010"></script>
 
 <!-- Dashboard Definitivo 28 hotfix: nomenclatura canônica de prioridades e correção aditiva da 5ª CRE. -->
