@@ -293,9 +293,68 @@
 (()=>{const s=document.createElement('style');s.textContent='.gra-skill-line{display:block;width:100%;height:auto;background:#f8fbfd;border:1px solid #e2ebf1;border-radius:10px;margin:12px 0}.gra-skill-line text{font-family:system-ui,sans-serif;fill:#234966;font-size:13px;font-weight:750}.gra-skill-line text:nth-last-child(-n+2){fill:#5d7283;font-size:12px}';document.head.appendChild(s)})();
 
 (()=>{const s=document.createElement('style');s.textContent='#graSkillSchoolSuggestions{display:grid;max-height:230px;overflow:auto;border:1px solid #c2d8e7;border-radius:10px;background:white;margin-top:4px}#graSkillSchoolSuggestions[hidden]{display:none}#graSkillSchoolSuggestions button{background:white;border:0;border-bottom:1px solid #e7eef4;text-align:left;padding:12px;color:#183b59;font:inherit;font-size:14px;cursor:pointer}#graSkillSchoolSuggestions button:hover,#graSkillSchoolSuggestions button:focus{background:#e8f3fb}.gra-skill-filters option:disabled{color:#9daab5}';document.head.appendChild(s)})();
-/* v46 design system assets, loaded once after the existing dashboard modules. */
+
+/* v46 visual system is bundled here to keep the deployed asset self-contained. */
+(()=>{const style=document.createElement('style');style.id='gra-ux46-styles';style.textContent='/* GRA visual system: presentation only. Existing chart, table and filter DOM remains intact. */\nbody.exp-ui {\n  --navy:#173b59;\n  --blue:#156789;\n  --blue2:#2181a4;\n  --sky:#eaf4f7;\n  --line:#d6e3e9;\n  --text:#1c3448;\n  --muted:#526d7e;\n  --card:#fff;\n  --soft:#f5f9fa;\n  --shadow:0 7px 24px rgba(20,57,78,.055);\n  --radius:16px;\n  color:var(--text);\n  background:#f4f8fa;\n  font-family:Inter,"Segoe UI",Arial,sans-serif;\n  line-height:1.45;\n}\nbody.exp-ui .main {max-width:none}\nbody.exp-ui .section {min-width:0}\nbody.exp-ui .section > .card,\nbody.exp-ui .section .grid > .card,\nbody.exp-ui .section > .grid .card {\n  border-color:#dbe6eb;\n  border-radius:16px;\n  box-shadow:var(--shadow);\n}\nbody.exp-ui .section .card {min-width:0}\nbody.exp-ui .section .card h3 {font-size:clamp(17px,1.45vw,20px);line-height:1.25;letter-spacing:-.025em;color:#173b59}\nbody.exp-ui .section .card h4 {font-size:15px;line-height:1.3}\nbody.exp-ui .section .panel-title {align-items:flex-start;gap:14px}\nbody.exp-ui .section .panel-title p {color:#557081;font-size:13px;line-height:1.45;max-width:75ch}\nbody.exp-ui .section .footer-note,\nbody.exp-ui .section .muted {color:#577182}\nbody.exp-ui .sidebar {background:#123b56;box-shadow:4px 0 20px rgba(18,48,67,.13)}\nbody.exp-ui .sidebar .brand {border-color:rgba(255,255,255,.15)}\nbody.exp-ui .sidebar .nav {gap:5px}\nbody.exp-ui .sidebar .nav button {\n  font-family:inherit;\n  font-size:14px;\n  line-height:1.25;\n  border-radius:11px;\n  min-height:42px;\n  transition:background .15s ease,color .15s ease;\n}\nbody.exp-ui .sidebar .nav button.active {background:#eff8fa;color:#123b56;box-shadow:none}\nbody.exp-ui .sidebar .nav button:focus-visible,\nbody.exp-ui .main button:focus-visible,\nbody.exp-ui .main summary:focus-visible,\nbody.exp-ui .main input:focus-visible,\nbody.exp-ui .main select:focus-visible {outline:3px solid #51a5c0;outline-offset:2px}\nbody.exp-ui .topbar {background:#fff;border:1px solid #dbe6eb;border-radius:17px;padding:16px 18px;box-shadow:var(--shadow)}\nbody.exp-ui .topbar .title h2 {font-size:clamp(18px,2vw,27px);line-height:1.2;color:#173b59}\nbody.exp-ui .topbar .title p {font-size:13px;color:#557081}\nbody.exp-ui .main .btn,\nbody.exp-ui .main .pill {box-shadow:none;border-color:#cbdce4}\nbody.exp-ui .main .btn:hover,\nbody.exp-ui .main .pill:hover {background:#eaf5f8;border-color:#8db8c9}\nbody.exp-ui .main .pill.active {background:#173b59;color:#fff}\nbody.exp-ui .section select,\nbody.exp-ui .section input[type="search"],\nbody.exp-ui .section input.search,\nbody.exp-ui .section .search {\n  color:#1c3b50;\n  border-color:#cbdde5;\n  background-color:#fff;\n  border-radius:11px;\n  font-family:inherit;\n  font-size:14px;\n  min-height:44px;\n}\nbody.exp-ui .section select:disabled,\nbody.exp-ui .section input:disabled {opacity:.48;cursor:not-allowed}\nbody.exp-ui .section .toolbar {gap:10px}\nbody.exp-ui .section .toolbar > select,\nbody.exp-ui .section .toolbar > input,\nbody.exp-ui .section .toolbar > label {min-width:min(100%,170px);max-width:100%}\nbody.exp-ui .section .filter-context,\nbody.exp-ui .section .geo-eval-context {font-size:12px;line-height:1.4}\nbody.exp-ui .section details > summary {cursor:pointer;color:#1b5270;font-weight:750}\nbody.exp-ui .section .table-wrap {border-color:#d9e5ea;border-radius:12px;max-width:100%}\nbody.exp-ui .section table {font-variant-numeric:tabular-nums}\nbody.exp-ui .section table th {background:#173b59;letter-spacing:.01em}\nbody.exp-ui .section table td {border-color:#e6edf0}\nbody.exp-ui .section table tr:hover td {background:#f2f8fa}\nbody.exp-ui .section .kpi {border-radius:15px;min-height:105px}\nbody.exp-ui .section .kpi:after {display:none}\nbody.exp-ui .section .kpi .label {letter-spacing:0;text-transform:none;font-size:12px}\nbody.exp-ui .section .kpi .value {font-size:clamp(26px,2.7vw,34px);letter-spacing:-.045em}\nbody.exp-ui .section .bar-row {min-width:0}\nbody.exp-ui .section .bar-name {min-width:0;overflow-wrap:anywhere}\nbody.exp-ui .section .legend-row {border-radius:10px}\nbody.exp-ui .gra-ux-section-intro {\n  margin:0 0 16px;\n  padding:20px 22px;\n  border:1px solid #d9e7eb;\n  border-left:4px solid #2181a4;\n  background:#fff;\n  border-radius:15px;\n  box-shadow:var(--shadow);\n}\n#adrs.gra-skills-active > .gra-ux-section-intro:not(.gra-skill-page) {display:block!important}\nbody.exp-ui .gra-ux-section-intro h2 {font-size:clamp(21px,2.1vw,27px);line-height:1.2;letter-spacing:-.03em;margin:0;color:#173b59}\nbody.exp-ui .gra-ux-section-intro p {font-size:13px;color:#557081;margin:6px 0 0;max-width:72ch}\nbody.exp-ui .gra-ux-context {display:inline-block;margin-top:10px;padding:5px 9px;background:#eaf4f7;border-radius:8px;color:#245a73;font-size:12px;font-weight:750}\nbody.exp-ui .gra-ux-jumps {display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}\nbody.exp-ui .gra-ux-jumps button {border:1px solid #c9dce5;border-radius:9px;background:#f6fafb;color:#25536c;padding:7px 11px;min-height:38px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}\nbody.exp-ui .gra-ux-jumps button:hover {background:#e7f3f7}\nbody.exp-ui .gra-ux-jumps button:focus-visible {outline:3px solid #51a5c0;outline-offset:2px}\nbody.exp-ui .gra-ux-rank-link {border:1px solid #c9dce5;background:#f6fafb;color:#1d526f;padding:9px 13px;border-radius:10px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}\nbody.exp-ui .adr-hf-complete {margin-top:12px;border:1px solid #d5e4ea;background:#fff;border-radius:11px;padding:11px 15px}\nbody.exp-ui .adr-hf-complete summary {font-size:13px}\nbody.exp-ui .adr-hf-complete ol {columns:2;column-gap:32px;padding-left:26px;line-height:1.7;font-size:13px}\nbody.exp-ui .adr-hf-complete li {break-inside:avoid;margin-bottom:5px}\n@media(max-width:1100px){\n  body.exp-ui .main {padding:16px}\n  body.exp-ui .section .grid {min-width:0}\n}\n@media(max-width:700px){\n  body.exp-ui .main {padding:10px 11px 24px}\n  body.exp-ui .topbar {padding:11px;margin-bottom:12px}\n  body.exp-ui .section > .card,\n  body.exp-ui .section .grid > .card {padding:15px;border-radius:14px}\n  body.exp-ui .gra-ux-section-intro {padding:15px;margin-bottom:12px}\n  body.exp-ui .section .panel-title {flex-wrap:wrap}\n  body.exp-ui .section .toolbar > select,\n  body.exp-ui .section .toolbar > input,\n  body.exp-ui .section .toolbar > label {width:100%;flex:1 1 100%}\n  body.exp-ui .section .table-wrap {overflow-x:auto;overscroll-behavior-inline:contain}\n  body.exp-ui .adr-hf-complete ol {columns:1}\n  body.exp-ui .gra-ux-jumps {display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}\n  body.exp-ui .gra-ux-jumps button {padding:8px 5px;line-height:1.25}\n}\n@media(prefers-reduced-motion:reduce){\n  body.exp-ui .section,body.exp-ui .sidebar .nav button {animation:none;transition:none}\n}\n';document.head.append(style)})();
+/* GRA navigation layer. No datasets, charts, filters or exports are replaced. */
 (()=>{
-  if(document.getElementById('gra-ux46-styles'))return;
-  const link=document.createElement('link');link.id='gra-ux46-styles';link.rel='stylesheet';link.href='assets/46_ux_overhaul.css?v=46-20261110';document.head.append(link);
-  const script=document.createElement('script');script.src='assets/46_ux_overhaul.js?v=46-20261110';script.defer=true;document.body.append(script);
+ 'use strict';
+ if(window.__GRA_UX46__)return;
+ const definitions={
+   cre:['Visão geral','Conheça as unidades e os segmentos da 2ª CRE.'],
+   agentes:['Agentes e territórios','Consulte a distribuição e as unidades por agente.'],
+   banco:['Banco de dados','Encontre escolas e consulte os registros detalhados.'],
+   georreferenciamento:['Mapa de resultados','Escolha uma avaliação e explore as escolas no mapa.'],
+   exclusivas:['Unidades exclusivas','Explore as unidades por categoria e consulte a lista.'],
+   efpd:['Ensino Fundamental e Dimensão','Veja a distribuição por plano e unidade.'],
+   resultados:['Somativas','Escolha o recorte, leia os indicadores e aprofunde os resultados.'],
+   adrs:['ADRs','Analise resultados, progressão e habilidades por edição.'],
+   criterios:['Critérios','Consulte a definição dos campos e recortes usados na ferramenta.']
+ };
+ const targets={
+   cre:[['Indicadores','#creKpis'],['Gráficos','#donutEF'],['Listas','#agentTable']],
+   agentes:[['Filtros','#territorySelect'],['Resumo','#territoryFacts'],['Lista','#territoryTable']],
+   banco:[['Filtros','#bankSearch'],['Resultados','#bankTable'],['Metas','#metasBankCard']],
+   georreferenciamento:[['Avaliação','#geoEvalFilters'],['Filtros','#geoSearch'],['Mapa','#geoMap']],
+   exclusivas:[['Categorias','#exclusivePills'],['Busca','#exclusiveSearch'],['Lista','#exclusiveTable']],
+   efpd:[['Gráficos','#efpdPageBars'],['Dados','#efpdTable']],
+   resultados:[['Filtros','#somFiltersCard'],['Indicadores','#somKpis'],['Lista','#somTable']],
+   adrs:[['Filtros','#adrFiltersCard'],['Gráficos','#adrSchoolBars'],['Lista','#adrTable']],
+   criterios:[['Critérios','#criteriaCards']]
+ };
+ function intro(section){
+   if(section.querySelector(':scope > .gra-ux-section-intro'))return;
+   const [title,description]=definitions[section.id]||[section.id,''];
+   const header=document.createElement('div');header.className='gra-ux-section-intro';
+   const h=document.createElement('h2');h.textContent=title;header.append(h);
+   const p=document.createElement('p');p.textContent=description;header.append(p);
+   const context=document.createElement('span');context.className='gra-ux-context';header.append(context);
+   const links=document.createElement('nav');links.className='gra-ux-jumps';links.setAttribute('aria-label','Ir para conteúdo de '+title);
+   for(const [label,selector] of targets[section.id]||[]){
+     const destination=section.querySelector(selector);
+     if(!destination)continue;
+     const button=document.createElement('button');button.type='button';button.textContent=label;
+     button.addEventListener('click',()=>{
+       // The ADR skills view is an alternate view, so use its own filters when selected.
+       const activeSkills=section.id==='adrs'&&section.classList.contains('gra-skills-active');
+       const target=activeSkills?section.querySelector('#graSkillPage'):destination;
+       target?.scrollIntoView({behavior:'smooth',block:'start'});
+     });
+     links.append(button);
+   }
+   if(links.childElementCount)header.append(links);
+   section.prepend(header);
+ }
+ function update(){
+   const select=document.getElementById('regionalScopeSelect');
+   const scope=select?.selectedOptions?.[0]?.textContent?.trim()||'Toda a SME';
+   document.querySelectorAll('.gra-ux-context').forEach(el=>{if(el.textContent!==scope)el.textContent=scope});
+ }
+ function boot(){
+   document.querySelectorAll('main.main > section.section').forEach(intro);
+   update();
+   document.getElementById('regionalScopeSelect')?.addEventListener('change',update);
+   window.__GRA_UX46__={update};
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
