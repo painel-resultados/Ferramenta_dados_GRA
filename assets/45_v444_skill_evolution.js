@@ -67,6 +67,8 @@
    return {...info,values};
  }
  function attach(rows){
+   // Acompanhamento centralizado na sub-aba Habilidade.
+   return;
    const area=$('adrSkillBars');if(!area)return;
    const bars=[...area.querySelectorAll('.bar-row')];if(!bars.length)return;
    const grouped=new Map();
@@ -168,5 +170,78 @@
  const versionObserver=new MutationObserver(stamp);
  function initialize(){stamp();document.querySelectorAll('.gra-access-version,.gra-start-version,.exp-badge,#dashboardVersionBadge').forEach(el=>versionObserver.observe(el,{childList:true,characterData:true,subtree:true}));}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
- window.__GRA_V444_SKILL_EVOLUTION__={match,series,open,plot,pct,attach,stamp};
+ window.__GRA_V444_SKILL_EVOLUTION__={match,series,scoped,open,plot,pct,attach,stamp};
+})();
+
+(()=>{let s=document.createElement("style");s.id="gra-v46-responsive";s.textContent='/* Responsive controls: intrinsic height and normal document flow. */\n@media(max-width:760px){\n body.exp-ui .topbar{height:auto!important;min-height:0!important;position:relative!important}\n body.exp-ui .topbar .actions{position:relative!important;inset:auto!important;transform:none!important;height:auto!important;min-height:0!important;grid-template-rows:none!important;grid-auto-rows:minmax(56px,auto)!important;align-items:stretch!important;padding-bottom:10px!important}\n body.exp-ui .topbar .actions > *{position:relative!important;inset:auto!important;transform:none!important;min-width:0!important;height:auto!important;min-height:56px!important;max-height:none!important;box-sizing:border-box!important}\n body.exp-ui .topbar .actions .global-search-wrap{min-height:52px!important}\n body.exp-ui .topbar .actions #v392SchoolContextBtn,\n body.exp-ui .topbar .actions #partnersEducationBtn,\n body.exp-ui .topbar .actions #pdfExportBtn,\n body.exp-ui .topbar .actions #slideExportBtn,\n body.exp-ui .topbar .actions #reportExperimentalBtn{height:auto!important;min-height:56px!important;align-self:stretch!important}\n body.exp-ui #partnersEducationBtn .gra-partner-switch-label{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.22!important;font-size:12px!important}\n body.exp-ui #partnersEducationBtn .gra-partner-switch-status{font-size:10px!important}\n body.exp-ui .topbar + *,body.exp-ui main{position:relative;clear:both}\n .geo-map-card .geo-legend{max-width:calc(100vw - 28px)!important;overflow-x:auto!important;justify-content:flex-start!important;scrollbar-width:thin}\n}\n@media(max-width:430px){\n body.exp-ui .topbar .actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important}\n body.exp-ui .topbar .actions > button{white-space:normal!important;line-height:1.2!important;overflow-wrap:anywhere!important}\n}\n.gra-skill-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}\n.gra-skill-tabs button{min-height:46px;border:1px solid #bdd4e4;background:#fff;color:#12385d;border-radius:12px;padding:10px 18px;font:inherit;font-weight:800;cursor:pointer}\n.gra-skill-tabs button.active{background:#12385d;color:#fff}\n#adrs.gra-skills-active > :not(.gra-skill-tabs):not(.gra-skill-page){display:none!important}\n.gra-skill-page[hidden]{display:none!important}\n.gra-skill-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:16px}\n.gra-skill-filters label{display:grid;gap:6px;color:#415c73;font-size:12px;font-weight:800;min-width:0}\n.gra-skill-filters select,.gra-skill-filters input{width:100%;min-width:0;min-height:46px;border:1px solid #bfd3e0;border-radius:11px;background:#fff;color:#183b59;padding:9px 12px;font:inherit;font-size:15px}\n.gra-skill-search{grid-column:span 2}\n.gra-skill-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}\n.gra-skill-result{border:1px solid #d5e4ec;border-left:5px solid #8a9dac;border-radius:12px;padding:14px;background:#fff;min-width:0}\n.gra-skill-result.up{border-left-color:#16865f}.gra-skill-result.down{border-left-color:#b34444}\n.gra-skill-result-head,.gra-skill-values{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}\n.gra-skill-result-head span{font-size:12px;font-weight:800}.gra-skill-result.up .gra-skill-result-head span{color:#08714d}.gra-skill-result.down .gra-skill-result-head span{color:#ab3838}\n.gra-skill-result p{line-height:1.45;margin:9px 0}.gra-skill-values{padding:9px 0;border-top:1px solid #e7eef3;font-size:13px}.gra-skill-result small{color:#5a7183}\n.gra-skill-empty{grid-column:1/-1;padding:18px;background:#f4f8fb;border-radius:12px}\n@media(max-width:600px){.gra-skill-filters{grid-template-columns:1fr 1fr}.gra-skill-filters label{grid-column:1/-1}.gra-skill-tabs button{flex:1}.gra-skill-results{grid-template-columns:1fr}}\n';document.head.appendChild(s)})();
+(()=>{const section=document.getElementById('adrs');if(!section||document.getElementById('graSkillPage'))return;const nav=document.createElement('nav');nav.className='gra-skill-tabs';nav.setAttribute('aria-label','Visualização das ADRs');nav.innerHTML='<button type="button" class="active" data-gra-adr-tab="overview" aria-pressed="true">Visão geral</button><button type="button" data-gra-adr-tab="skills" aria-pressed="false">Habilidade</button>';const panel=document.createElement('div');panel.className='card gra-skill-page';panel.id='graSkillPage';panel.hidden=true;panel.innerHTML='<div class="panel-title"><div><h3>Progressão por habilidade</h3><p>Compare o percentual de acerto da mesma habilidade curricular em duas ADRs.</p></div></div><div class="gra-skill-filters"><label>Ano escolar<select id="graSkillYear"></select></label><label>Componente<select id="graSkillComp"></select></label><label>Comparar edições<select id="graSkillPair"><option value="12">ADR 1 → ADR 2</option><option value="23">ADR 2 → ADR 3</option><option value="13">ADR 1 → ADR 3</option></select></label><label>Resultado<select id="graSkillDirection"><option value="all">Todas</option><option value="up">Subiram</option><option value="flat">Estagnaram</option><option value="down">Caíram</option></select></label><label class="gra-skill-search">Buscar habilidade<input id="graSkillSearch" type="search" placeholder="Código ou descrição"></label></div><p id="graSkillStatus" class="footer-note" aria-live="polite"></p><div id="graSkillResults" class="gra-skill-results"></div>';section.prepend(panel);section.prepend(nav)})();
+/* ADR: comparação curricular por habilidade, conforme o recorte atual. */
+(()=>{
+ 'use strict';
+ const $=id=>document.getElementById(id);
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+ const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const fmt=n=>Number(n).toLocaleString('pt-BR',{maximumFractionDigits:1});
+ const pairs={12:[0,1],23:[1,2],13:[0,2]};
+ let timer;
+ function rows(){
+   try{return typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS)?ADR_ROWS:window.ADR_ROWS||[]}catch(_){return []}
+ }
+ function options(select,values,preferred){
+   const previous=select.value||preferred;
+   select.innerHTML=values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');
+   select.value=values.includes(previous)?previous:values[0]||'';
+ }
+ function sync(){
+   const all=rows(),y=$('graSkillYear'),c=$('graSkillComp');
+   if(!all.length){$('graSkillStatus').textContent='Carregando resultados das ADRs…';return false}
+   const years=[...new Set(all.filter(r=>r.habilidades?.length).map(r=>r.ano))].sort((a,b)=>parseInt(a)-parseInt(b));
+   if(years.join('|')!==y.dataset.options){options(y,years,$('adrAno')?.value);y.dataset.options=years.join('|')}
+   const comps=[...new Set(all.filter(r=>r.ano===y.value&&r.habilidades?.length).map(r=>r.componente))].sort((a,b)=>['LP','MT','CN','CH'].indexOf(a)-['LP','MT','CN','CH'].indexOf(b));
+   if(comps.join('|')!==c.dataset.options){options(c,comps,$('adrComp')?.value);c.dataset.options=comps.join('|')}
+   return true;
+ }
+ function render(){
+   if(!$('graSkillPage')||$('graSkillPage').hidden||!sync())return;
+   const engine=window.__GRA_V444_SKILL_EVOLUTION__;if(!engine){$('graSkillStatus').textContent='Carregando correspondências curriculares…';return}
+   const year=$('graSkillYear').value,comp=$('graSkillComp').value,[a,b]=pairs[$('graSkillPair').value]||pairs[13];
+   const scope=engine.scoped(year,comp),base='ADR '+(a+1),end='ADR '+(b+1);
+   const unique=new Map();
+   for(const row of scope){
+     if(row.adr!==base&&row.adr!==end)continue;
+     for(const h of row.habilidades||[]){
+       const m=engine.match(h.codigo,year,comp,row.adr);
+       if(!m.origin||!m.matches[base]||!m.matches[end])continue;
+       const key=m.origin.code+'|'+m.origin.description;
+       if(!unique.has(key))unique.set(key,{code:m.origin.original,description:m.origin.text,h:h.codigo,adr:row.adr});
+     }
+   }
+   const query=norm($('graSkillSearch').value.trim()),direction=$('graSkillDirection').value;
+   const output=[];
+   for(const item of unique.values()){
+     const data=engine.series(item.h,year,comp,item.adr),start=data.values[a],finish=data.values[b];
+     if(!start||!finish)continue;
+     const delta=finish.value-start.value,trend=delta>1?'up':delta< -1?'down':'flat';
+     if(direction!=='all'&&direction!==trend)continue;
+     if(query&&!norm(item.code+' '+item.description).includes(query))continue;
+     output.push({...item,start,finish,delta,trend});
+   }
+   output.sort((x,y)=>x.delta-y.delta||x.code.localeCompare(y.code,'pt-BR'));
+   $('graSkillStatus').textContent=`${output.length} habilidade(s) comparáveis · ${year} · ${comp} · ${base} → ${end}. Estagnação: variação de até 1 ponto percentual. Médias ponderadas pelos alunos avaliados de cada escola; as turmas e a dificuldade dos itens podem variar.`;
+   $('graSkillResults').innerHTML=output.length?output.map(item=>`<article class="gra-skill-result ${item.trend}"><div class="gra-skill-result-head"><strong>${esc(item.code)}</strong><span>${item.trend==='up'?'Subiu':item.trend==='down'?'Caiu':'Estagnou'}</span></div><p>${esc(item.description)}</p><div class="gra-skill-values"><span>${base}: <b>${fmt(item.start.value)}%</b></span><span>${end}: <b>${fmt(item.finish.value)}%</b></span><strong>${item.delta>0?'+':''}${fmt(item.delta)} p.p.</strong></div><small>${item.start.schools} escola(s) na primeira ADR · ${item.finish.schools} na segunda</small></article>`).join(''):'<p class="gra-skill-empty">Não há habilidades com dois resultados válidos neste recorte e nestes filtros.</p>';
+ }
+ function schedule(){clearTimeout(timer);timer=setTimeout(render,120)}
+ function boot(){
+   document.querySelectorAll('[data-gra-adr-tab]').forEach(button=>button.addEventListener('click',()=>{
+     const active=button.dataset.graAdrTab==='skills',section=$('adrs');
+     section.classList.toggle('gra-skills-active',active);$('graSkillPage').hidden=!active;
+     document.querySelectorAll('[data-gra-adr-tab]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button))});
+     if(active){sync();schedule()}
+   }));
+   ['graSkillYear','graSkillComp','graSkillPair','graSkillDirection','regionalScopeSelect','adrAgente','adrPriority'].forEach(id=>$(id)?.addEventListener('change',()=>{if(id==='graSkillYear')$('graSkillComp').dataset.options='';schedule()}));
+   $('graSkillSearch')?.addEventListener('input',schedule);
+   $('adrSearch')?.addEventListener('input',schedule);
+   document.addEventListener('click',e=>{if(e.target.closest?.('.nav button[data-section="adrs"]'))schedule()});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
