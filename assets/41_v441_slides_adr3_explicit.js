@@ -15,7 +15,10 @@ function scope(){
  const active=D.querySelector('.section.active')?.id||'resultados',prefix=active==='adrs'?'adr':active==='georreferenciamento'?'geo':'som';
  const master=$('regionalScopeSelect'),region=Number(master?.value||0)||Number(W.__GRA_ACCESS__?.role==='agent'?W.__GRA_ACCESS__.cre:0);
  const rawAgent=$(prefix==='geo'?'geoAgent':prefix+'Agente')?.value||'',agent=rawAgent.startsWith('__')?'':rawAgent;
- const query=String($(prefix==='geo'?'geoSearch':prefix+'Search')?.value||'').trim();
+ const skillInput=active==='adrs'&&$('adrs')?.classList.contains('gra-skills-active')?$('graSkillSchool'):null;
+ const skillLabel=String(skillInput?.value||'').trim();
+ const skillExact=skillLabel&&[...$('graSkillSchoolList')?.options||[]].some(o=>o.value===skillLabel);
+ const query=skillExact?skillLabel.replace(/ · [^·]+$/,'').trim():String($(prefix==='geo'?'geoSearch':prefix+'Search')?.value||'').trim();
  const priority=$(prefix+'Priority')?.value==='sim',mine=W.__GRA_MASTER_SCOPE__==='mine',partners=!!W.__GRA_PARTNERS_EDUCATION_ACTIVE__;
  const record=query?H.record(query,region):null;
  const recordName=record?.escola||record?.name||record?.unidade||'';
@@ -217,12 +220,14 @@ function renderForm(chosen=selectDefault(state.rows)){
 async function generateFullSchool(){
  const school=state?.scope?.school,original=W.GRA_PPT_CREATE_RECORDER_V388;
  if(!school||typeof original!=='function'||typeof W.generateAllEvaluationUnitPresentationV388!=='function')return;
+ const search=$('adrSearch'),oldSearch=search?.value,oldSelected=W.__GRA_SELECTED_SCHOOL__;
+ if(search)search.value=school;W.__GRA_SELECTED_SCHOOL__=school;
  // O motor completo preserva seus detalhamentos; apenas a capa fica com o nome da escola.
  W.GRA_PPT_CREATE_RECORDER_V388=function(){const deck=original(),addSlide=deck.addSlide;let first=true;
   deck.addSlide=function(){const slide=addSlide.apply(this,arguments);if(first){first=false;const addText=slide.addText;slide.addText=function(text,options){if(String(text)===school)return addText.call(this,text,options);return this}}return slide};return deck};
  dialog().hidden=true;
  try{await W.generateAllEvaluationUnitPresentationV388()}
- finally{W.GRA_PPT_CREATE_RECORDER_V388=original}
+ finally{W.GRA_PPT_CREATE_RECORDER_V388=original;if(search)search.value=oldSearch;W.__GRA_SELECTED_SCHOOL__=oldSelected}
 }
 function refresh(){
  const form=$('v441SlideForm');if(!form)return;
