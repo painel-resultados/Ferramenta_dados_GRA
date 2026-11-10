@@ -17,8 +17,11 @@ function scope(){
  const rawAgent=$(prefix==='geo'?'geoAgent':prefix+'Agente')?.value||'',agent=rawAgent.startsWith('__')?'':rawAgent;
  const query=String($(prefix==='geo'?'geoSearch':prefix+'Search')?.value||'').trim();
  const priority=$(prefix+'Priority')?.value==='sim',mine=W.__GRA_MASTER_SCOPE__==='mine',partners=!!W.__GRA_PARTNERS_EDUCATION_ACTIVE__;
- const title=[region?`${region}ª CRE`:'SME-Rio',mine?W.__GRA_ACCESS__?.name:agent,query?`Busca: ${query}`:'',priority?'Prioritárias':'',partners?'Parceiros da Educação':''].filter(Boolean).join(' · ');
- return {region,agent,query,priority,mine,partners,title,active};
+ const record=query?H.record(query,region):null;
+ const recordName=record?.escola||record?.name||record?.unidade||'';
+ const school=recordName&&H.schoolKey(recordName)===H.schoolKey(query)?recordName:'';
+ const title=school||[region?`${region}ª CRE`:'SME-Rio',mine?W.__GRA_ACCESS__?.name:agent,query?`Busca: ${query}`:'',priority?'Prioritárias':'',partners?'Parceiros da Educação':''].filter(Boolean).join(' · ');
+ return {region,agent,query,priority,mine,partners,school,title,active};
 }
 function scopeKey(s){return JSON.stringify(s)}
 function mergeContext(s){return {names:new Map(),records:new Map(),queryKey:H.schoolKey(s.query),queryNorm:norm(s.query)}}
@@ -74,7 +77,7 @@ function normalized(data){
  }
  return out.filter(r=>r.assessment&&r.year&&r.component);
 }
-function skills(rows){
+function skills(rows,limit=5){
  const map=new Map();for(const r of rows)for(const k of r.habilidades||[]){
   const v=num(k.valor);if(v===null||num(r.avaliados)===0)continue;
   const c=String(k.codigo||'');if(r.component!=='IDEB'&&/^(LP|MT)\s/.test(c)&&!c.startsWith(r.component+' '))continue;
@@ -83,7 +86,7 @@ function skills(rows){
   const w=num(k.avaliados)>0?num(k.avaliados):num(r.avaliados)>0?num(r.avaliados):1;
   if(!map.has(code))map.set(code,{code,description,sum:0,weight:0});const x=map.get(code);x.sum+=v*w;x.weight+=w;
  }
- return [...map.values()].map(x=>({...x,value:x.sum/x.weight})).sort((a,b)=>a.value-b.value||a.code.localeCompare(b.code,'pt-BR')).slice(0,5);
+ return [...map.values()].map(x=>({...x,value:x.sum/x.weight})).sort((a,b)=>a.value-b.value||a.code.localeCompare(b.code,'pt-BR')).slice(0,limit);
 }
 function pure(s){return !s.agent&&!s.query&&!s.priority&&!s.mine&&!s.partners}
 function skillRows(rows,s){const r=rows[0];if(pure(s)&&r.modalidade==='Simulado 2026'&&H.officialSkillRows){const official=H.officialSkillRows(r.year,r.component);if(official.length)return official.map(x=>({...x,year:r.year,component:r.component}))}return rows}
@@ -109,6 +112,12 @@ function metricBundle(rows,s){
  return m;
 }
 function grouped(rows){const m=new Map();for(const r of rows){const k=[r.assessment,r.year,r.component].join('~');if(!m.has(k))m.set(k,[]);m.get(k).push(r)}return [...m.values()]}
+function schoolRanking(rows,s){
+ const sample=rows[0];if(!sample||s.school)return [];
+ const key=sample.component==='IDEB'?'ideb2025':sample.type==='adr'?(['LP','MT'].includes(sample.component)?'adequado':'acerto'):sample.modalidade==='Simulado 2026'&&sample.year!=='2º ano'?'notaPadronizadaComponente':'adqAv';
+ const groups=new Map();for(const r of rows){if(!r.escola)continue;const id=cre(r)+'|'+H.schoolKey(r.escolaFonte||r.escola);if(!groups.has(id))groups.set(id,[]);groups.get(id).push(r)}
+ return [...groups.values()].map(rs=>({name:rs[0].escola,value:weighted(rs,key)})).filter(x=>num(x.value)!==null).sort((a,b)=>b.value-a.value||a.name.localeCompare(b.name,'pt-BR'));
+}
 // Série das ADRs: % Adequado e % Abaixo do Básico em duas linhas (LP e MT),
 // seguidas de % de acerto total em Ciências, Geografia e História.
 // Nunca interpolar dados ausentes ou converter um campo ausente em zero.
@@ -164,6 +173,8 @@ function plan(rows,selection,s){
  for(const rs of groups){const r=rs[0],title=`${assessmentLabel(r.assessment)} — ${r.year}${r.component==='IDEB'?'':' — '+compLabel(r.component)}`;
   if(selection.contents.includes('results')){const metrics=metricBundle(rs,s);for(let i=0;i<metrics.length;i+=6)slides.push({kind:'results',title,subtitle:'Resultados gerais',metrics:metrics.slice(i,i+6)})}
   if(selection.contents.includes('skills')&&r.component!=='IDEB'){const items=skills(skillRows(rs,s));if(items.length)slides.push({kind:'skills',title,subtitle:'Habilidades mais desafiadoras',items})}
+  if(selection.contents.includes('skillcatalog')&&r.component!=='IDEB'){const items=skills(skillRows(rs,s),Infinity);for(let i=0;i<items.length;i+=10)slides.push({kind:'skillcatalog',title,subtitle:`Todas as habilidades · ${i+1}–${Math.min(items.length,i+10)} de ${items.length}`,items:items.slice(i,i+10)})}
+  if(selection.contents.includes('ranking')){const rank=schoolRanking(rs,s);if(rank.length>=2){const unit=r.component==='IDEB'||(r.type==='som'&&r.modalidade==='Simulado 2026'&&r.year!=='2º ano')?' pontos':'%';slides.push({kind:'ranking',title,subtitle:'Dez melhores resultados',unit,items:rank.slice(0,10),color:'198560'});slides.push({kind:'ranking',title,subtitle:'Dez resultados mais desafiadores',unit,items:rank.slice(-10).reverse(),color:'C46A55'})}}
  }
  if(selection.contents.includes('evolution')){
   // A ordem de cada ano é sempre Adequado LP/MT → Abaixo LP/MT → Ciências/GEO/HIS.
@@ -182,7 +193,7 @@ function assessmentCheckboxes(o,chosen){
  // Linha exclusiva para ADRs; não se mistura com demais avaliações ao quebrar a linha.
  return `<div class="v441-adr-options">${checks('assessments',ADR_ASSESSMENTS,chosen.assessments,assessmentLabel)}</div><div class="v441-options v441-other-assessments">${checks('assessments',o.assessments.filter(a=>!ADR_ASSESSMENTS.includes(a)),chosen.assessments,assessmentLabel)}</div>`;
 }
-function selectDefault(rows){const o=options(rows),isAdr=state?.scope.active==='adrs',activeAssessment=isAdr?$('adrSelect')?.value:[$('somModalidade')?.value,$('somEdicao')?.value||'2025'].join('|');const adrOptions=o.assessments.filter(a=>/^ADR [123]$/.test(a));return {...o,assessments:isAdr&&adrOptions.length?adrOptions:o.assessments.includes(activeAssessment)?[activeAssessment]:o.assessments,contents:isAdr?['evolution']:['results']}}
+function selectDefault(rows){const o=options(rows),isAdr=state?.scope.active==='adrs',activeAssessment=isAdr?$('adrSelect')?.value:[$('somModalidade')?.value,$('somEdicao')?.value||'2025'].join('|');const adrOptions=o.assessments.filter(a=>/^ADR [123]$/.test(a));return {...o,assessments:isAdr&&adrOptions.length?adrOptions:o.assessments.includes(activeAssessment)?[activeAssessment]:o.assessments,contents:isAdr?['results','evolution','skills','ranking']:['results','skills','ranking']}}
 function selection(){return Object.fromEntries(['assessments','years','components','contents'].map(k=>[k,[...$('v441SlideForm').querySelectorAll(`input[data-group="${k}"]:checked`)].filter(x=>!x.disabled).map(x=>x.value)]))}
 function checks(group,values,chosen,label=x=>x){return values.map(v=>`<label class="v441-check"><input type="checkbox" data-group="${group}" value="${esc(v)}" ${chosen.includes(v)?'checked':''}><span>${esc(label(v))}</span></label>`).join('')}
 function dialog(){
@@ -194,10 +205,24 @@ function dialog(){
 function close(){if(state?.busy)return;session++;dialog().hidden=true;lastFocus?.focus?.()}
 function shell(body){const o=dialog();o.innerHTML=`<section class="v441-dialog" role="dialog" aria-modal="true" aria-labelledby="v441SlideTitle"><header class="v441-head"><div><h2 id="v441SlideTitle">Criar apresentação</h2><p>${esc(state?.scope.title||'')}</p></div><button type="button" class="v441-close" aria-label="Fechar">×</button></header>${body}</section>`;o.hidden=false;o.querySelector('.v441-close').onclick=close;return o}
 function renderForm(chosen=selectDefault(state.rows)){
- const o=options(state.rows);shell(`<form id="v441SlideForm"><div class="v441-body"><fieldset><legend>Avaliações</legend><div class="v441-assessments">${assessmentCheckboxes(o,chosen)}</div></fieldset><fieldset><legend>Anos</legend><div class="v441-options">${checks('years',o.years,chosen.years)}</div></fieldset><fieldset><legend>Componentes</legend><div class="v441-options">${checks('components',o.components,chosen.components,compLabel)}</div><p class="v441-message">O IDEB é apresentado por segmento.</p></fieldset><fieldset><legend>O que incluir nos slides</legend><div class="v441-content">${checks('contents',['results','evolution','skills'],chosen.contents,v=>({results:'Resultados gerais',evolution:'Evolução dos resultados',skills:'Habilidades mais desafiadoras'})[v])}</div></fieldset><button type="button" class="v441-text-button" id="v441SelectAll">Marcar todas as avaliações</button><button type="button" class="v441-text-button" id="v441Clear">Limpar seleção</button><p class="v441-message" id="v441SlideHint" aria-live="polite"></p></div><footer class="v441-footer"><span id="v441SlideCount" aria-live="polite"></span><button type="submit" class="v441-generate" id="v441SlideGenerate">Gerar apresentação</button></footer></form>`);
+ const o=options(state.rows);shell(`<form id="v441SlideForm"><div class="v441-body"><fieldset><legend>Avaliações</legend><div class="v441-assessments">${assessmentCheckboxes(o,chosen)}</div></fieldset><fieldset><legend>Anos</legend><div class="v441-options">${checks('years',o.years,chosen.years)}</div></fieldset><fieldset><legend>Componentes</legend><div class="v441-options">${checks('components',o.components,chosen.components,compLabel)}</div><p class="v441-message">O IDEB é apresentado por segmento.</p></fieldset><fieldset><legend>O que incluir nos slides</legend><div class="v441-content">${checks('contents',['results','evolution','skills','skillcatalog','ranking'],chosen.contents,v=>({results:'Resultados gerais',evolution:'Evolução dos resultados',skills:'Habilidades mais desafiadoras',skillcatalog:'Todas as habilidades (tabelas paginadas)',ranking:'Ranking das escolas (melhores e mais desafiadoras)'})[v])}</div></fieldset><button type="button" class="v441-text-button" id="v441SelectAll">Marcar todas as avaliações</button><button type="button" class="v441-text-button" id="v441Clear">Limpar seleção</button><p class="v441-message" id="v441SlideHint" aria-live="polite"></p></div><footer class="v441-footer"><span id="v441SlideCount" aria-live="polite"></span><button type="submit" class="v441-generate" id="v441SlideGenerate">Gerar apresentação</button></footer></form>`);
  $('v441SlideForm').onchange=refresh;$('v441SlideForm').onsubmit=e=>{e.preventDefault();generate()};
  $('v441SelectAll').onclick=()=>{for(const x of $('v441SlideForm').querySelectorAll('[data-group="assessments"]'))x.checked=true;refresh()};
- $('v441Clear').onclick=()=>{for(const x of $('v441SlideForm').querySelectorAll('input'))x.checked=false;refresh()};refresh();dialog().querySelector('input')?.focus();
+ $('v441Clear').onclick=()=>{for(const x of $('v441SlideForm').querySelectorAll('input'))x.checked=false;refresh()};
+ if(state.scope.school&&typeof W.generateAllEvaluationUnitPresentationV388==='function'){
+  const button=D.createElement('button');button.type='button';button.className='v441-text-button';button.textContent='Gerar PPT completo da escola';button.onclick=generateFullSchool;
+  $('v441SlideForm').querySelector('.v441-body').appendChild(button);
+ }refresh();dialog().querySelector('input')?.focus();
+}
+async function generateFullSchool(){
+ const school=state?.scope?.school,original=W.GRA_PPT_CREATE_RECORDER_V388;
+ if(!school||typeof original!=='function'||typeof W.generateAllEvaluationUnitPresentationV388!=='function')return;
+ // O motor completo preserva seus detalhamentos; apenas a capa fica com o nome da escola.
+ W.GRA_PPT_CREATE_RECORDER_V388=function(){const deck=original(),addSlide=deck.addSlide;let first=true;
+  deck.addSlide=function(){const slide=addSlide.apply(this,arguments);if(first){first=false;const addText=slide.addText;slide.addText=function(text,options){if(String(text)===school)return addText.call(this,text,options);return this}}return slide};return deck};
+ dialog().hidden=true;
+ try{await W.generateAllEvaluationUnitPresentationV388()}
+ finally{W.GRA_PPT_CREATE_RECORDER_V388=original}
 }
 function refresh(){
  const form=$('v441SlideForm');if(!form)return;
@@ -207,7 +232,8 @@ function refresh(){
  const availableComponents=new Set(state.rows.filter(r=>raw.assessments.includes(r.assessment)&&raw.years.includes(r.year)).map(r=>r.component));
  for(const x of form.querySelectorAll('[data-group="components"]'))x.disabled=!availableComponents.has(x.value);
  const s=selection(),candidate=state.rows.filter(r=>s.assessments.includes(r.assessment)&&s.years.includes(r.year)&&(r.component==='IDEB'||s.components.includes(r.component))),groups=grouped(candidate);
- const availability={results:groups.some(rs=>metricBundle(rs,state.scope).length),skills:groups.some(rs=>rs[0].component!=='IDEB'&&skills(skillRows(rs,state.scope)).length),evolution:adrEvolution(groups).length>0||evolution(groups,state.scope).length>0};
+ const hasSkills=groups.some(rs=>rs[0].component!=='IDEB'&&skills(skillRows(rs,state.scope)).length);
+ const availability={results:groups.some(rs=>metricBundle(rs,state.scope).length),skills:hasSkills,skillcatalog:hasSkills,evolution:adrEvolution(groups).length>0||evolution(groups,state.scope).length>0,ranking:groups.some(rs=>schoolRanking(rs,state.scope)?.length>=2)};
  for(const x of form.querySelectorAll('[data-group="contents"]'))x.disabled=!availability[x.value];
  state.selection=selection();state.plan=plan(state.rows,state.selection,state.scope);
  const count=state.plan.length?state.plan.length+1:0;$('v441SlideCount').textContent=count?`Capa incluída · ${count} slides`:'Selecione avaliações, anos e conteúdo';
@@ -216,6 +242,56 @@ function refresh(){
  $('v441SlideHint').textContent=!adr3Available?'A opção ADR 3 está disponível. Este recorte ainda não possui registros da ADR 3 nos dados carregados; nenhum valor será inventado.':!availability.evolution?'ADR 3 disponível neste universo. Para exibir a evolução, selecione ao menos duas ADRs e a opção Evolução dos resultados.':'Evolução: Adequado LP/MT → Abaixo do Básico LP/MT → acerto total em Ciências, Geografia e História; até três ADRs, conforme as avaliações marcadas.';
 }
 function addText(slide,text,x,y,w,h,size=18,extra={}){slide.addText(text,{x,y,w,h,fontFace:'Aptos',fontSize:size,color:'19374F',margin:0,breakLine:false,fit:'shrink',...extra})}
+function cover(ppt,ctx,s){
+ if(!s.school){H.cover(ppt,ctx);return}
+ const slide=ppt.addSlide();slide.background={color:'F4F8FA'};
+ slide.addShape('rect',{x:0,y:0,w:13.333,h:7.5,line:{color:'173B59',transparency:100},fill:{color:'173B59'}});
+ slide.addShape('rect',{x:11.25,y:0,w:2.083,h:7.5,line:{color:'2181A4',transparency:100},fill:{color:'2181A4'}});
+ slide.addShape('ellipse',{x:9.8,y:1.12,w:2.7,h:2.7,line:{color:'B8DDE6',width:1.4},fill:{color:'173B59'}});
+ slide.addShape('ellipse',{x:10.4,y:1.72,w:1.5,h:1.5,line:{color:'86C6D7',width:1.6},fill:{color:'2181A4'}});
+ slide.addShape('line',{x:.76,y:5.7,w:9.9,h:0,line:{color:'77B9CA',width:2.2}});
+ addText(slide,s.school,.76,2.05,9.55,2.18,43,{fontFace:'Aptos Display',bold:true,color:'FFFFFF',breakLine:false,fit:'shrink'});
+ // Apenas o nome da escola aparece na capa; os filtros constam dos slides seguintes.
+}
+function renderResults(slide,d){
+ d.metrics.forEach((m,j)=>{const y=1.52+j*.78;
+  slide.addShape('roundRect',{x:.76,y,w:11.85,h:.66,rectRadius:.08,line:{color:'D9E6EC',width:.8},fill:{color:j%2?'F4F9FB':'FFFFFF'}});
+  slide.addShape('rect',{x:.76,y,w:.065,h:.66,line:{color:'2181A4',transparency:100},fill:{color:'2181A4'}});
+  addText(slide,m.label,1.04,y+.16,7.6,.29,16,{bold:j===0});
+  addText(slide,fmt(m.value,m.unit),9.54,y+.12,2.73,.38,21,{bold:true,align:'right',color:'176AA0'});
+ });
+}
+function renderSkills(slide,d){
+ d.items.forEach((k,j)=>{const y=1.5+j*1.03;
+  slide.addShape('roundRect',{x:.76,y,w:11.85,h:.88,rectRadius:.08,line:{color:'DBE7ED',width:.8},fill:{color:'FFFFFF'}});
+  slide.addShape('rect',{x:.76,y,w:.065,h:.88,line:{color:'C18720',transparency:100},fill:{color:'C18720'}});
+  addText(slide,k.code,1.01,y+.12,1.55,.28,15,{bold:true,color:'173B59'});
+  addText(slide,k.description,2.65,y+.12,7.55,.59,k.description.length>260?11:13,{breakLine:false});
+  addText(slide,fmt(k.value,'%'),10.45,y+.19,1.85,.34,21,{bold:true,align:'right',color:'A46D14'});
+ });
+}
+function renderRanking(slide,d){
+ const color=d.color,max=Math.max(1,...d.items.map(x=>x.value));
+ slide.addShape('roundRect',{x:.77,y:1.48,w:11.8,h:5.38,rectRadius:.08,line:{color:'D9E6EC',width:.8},fill:{color:'FFFFFF'}});
+ d.items.forEach((item,i)=>{const y=1.76+i*.49;
+  addText(slide,`${i+1}. ${item.name}`,1.02,y,8.45,.25,13.4,{bold:i<3});
+  addText(slide,fmt(item.value,d.unit),10.54,y,1.62,.25,14.5,{align:'right',bold:true,color});
+  slide.addShape('rect',{x:1.02,y:y+.32,w:11.10,h:.075,line:{color:'E7EEF2',transparency:100},fill:{color:'E7EEF2'}});
+  slide.addShape('rect',{x:1.02,y:y+.32,w:Math.max(.04,11.10*item.value/max),h:.075,line:{color,transparency:100},fill:{color}});
+ });
+}
+function renderSkillCatalog(slide,d){
+ slide.addShape('roundRect',{x:.77,y:1.5,w:11.8,h:5.35,rectRadius:.08,line:{color:'D9E6EC',width:.8},fill:{color:'FFFFFF'}});
+ slide.addShape('rect',{x:.77,y:1.5,w:11.8,h:.42,line:{color:'173B59',transparency:100},fill:{color:'173B59'}});
+ addText(slide,'HABILIDADE',1.02,1.64,9.45,.18,10,{bold:true,color:'FFFFFF'});
+ addText(slide,'ACERTO',10.82,1.64,1.39,.18,10,{bold:true,color:'FFFFFF',align:'right'});
+ d.items.forEach((item,i)=>{const y=1.99+i*.475;
+  if(i%2)slide.addShape('rect',{x:.78,y,w:11.78,h:.47,line:{color:'F4F8FA',transparency:100},fill:{color:'F4F8FA'}});
+  addText(slide,item.code,1.02,y+.075,1.40,.25,11,{bold:true});
+  addText(slide,item.description,2.48,y+.055,8.18,.34,10.3,{breakLine:false});
+  addText(slide,fmt(item.value,'%'),10.88,y+.075,1.32,.25,12.3,{align:'right',bold:true,color:'176AA0'});
+ });
+}
 // Linhas desenhadas como vetores nativos do PPT: valores sempre em uma tabela fixa,
 // sem rótulos sobre os pontos, evitando colisões mesmo quando duas séries coincidem.
 function renderAdrTrend(slide,d){
@@ -250,11 +326,13 @@ function renderAdrTrend(slide,d){
 }
 function renderDeck(descriptors,s,selection){
  const ppt=H.recorder();ppt.layout='LAYOUT_WIDE';ppt.title=`${s.title} — Avaliações`;ppt.author='CGRA · SME-Rio';ppt.company='Secretaria Municipal de Educação';ppt.lang='pt-BR';ppt.theme={headFontFace:'Aptos Display',bodyFontFace:'Aptos',lang:'pt-BR'};
- const ctx={scopeTitle:s.title,scopeKind:s.query?'Recorte de escolas':s.agent||s.mine?'Agente':s.region?'Coordenadoria Regional':'Rede municipal',sectionLabel:'Resultados das avaliações',filters:[selection.assessments.map(assessmentLabel).join(', '),selection.years.join(', '),selection.components.map(compLabel).join(', ')]};H.cover(ppt,ctx);
+ const ctx={scopeTitle:s.title,scopeKind:s.school?'Escola':s.query?'Recorte de escolas':s.agent||s.mine?'Agente':s.region?'Coordenadoria Regional':'Rede municipal',sectionLabel:'Resultados das avaliações',filters:[selection.assessments.map(assessmentLabel).join(', '),selection.years.join(', '),selection.components.map(compLabel).join(', ')]};cover(ppt,ctx,s);
  descriptors.forEach((d,i)=>{const slide=ppt.addSlide();H.header(slide,ctx,d.title,d.kind==='evolution'?`${d.subtitle} · ${d.label}`:d.kind==='adr-trend'?`${d.subtitle} · ${d.adrs.join(' → ')}`:d.subtitle,i+2);
-  if(d.kind==='results'){d.metrics.forEach((m,j)=>{const y=1.65+j*.75;addText(slide,m.label,.8,y,8.4,.36,19);addText(slide,fmt(m.value,m.unit),9.4,y,3.1,.36,24,{bold:true,align:'right'});slide.addShape('line',{x:.8,y:y+.52,w:11.7,h:0,line:{color:'E3EAF0',width:.8}})})}
+  if(d.kind==='results'){renderResults(slide,d)}
   else if(d.kind==='adr-trend'){renderAdrTrend(slide,d)}
-  else if(d.kind==='skills'){d.items.forEach((k,j)=>{const y=1.5+j*1.02;addText(slide,k.code,.8,y,1.3,.25,17,{bold:true});addText(slide,fmt(k.value,'%'),11.1,y,1.4,.25,20,{bold:true,align:'right'});addText(slide,k.description,2.2,y,8.55,.72,k.description.length>330?12:15);slide.addShape('line',{x:.8,y:y+.85,w:11.7,h:0,line:{color:'E3EAF0',width:.8}})})}
+  else if(d.kind==='skills'){renderSkills(slide,d)}
+  else if(d.kind==='skillcatalog'){renderSkillCatalog(slide,d)}
+  else if(d.kind==='ranking'){renderRanking(slide,d)}
   else {slide.addChart('line',[{name:d.label,labels:d.points.map(p=>p.label),values:d.points.map(p=>p.value)}],{x:.9,y:1.6,w:11.5,h:4.55,showLegend:false,showValue:true,showTitle:false,chartColors:['176AA0'],showMarker:true,markerSize:7,lineSize:3,dataLabelPosition:'t',dataLabelFormatCode:d.unit==='%'?'0.0"%"':'0.00',catAxisLabelFontSize:14,valAxisLabelFontSize:13,valAxisTitle:d.label,showCatName:false,showBorder:false});const delta=d.points.at(-1).value-d.points[0].value;addText(slide,`Variação: ${delta>=0?'+':''}${fmt(delta,d.unit==='%'?' p.p.':d.unit)}`,1,6.4,11.3,.3,18,{bold:true})}
  });return ppt;
 }
@@ -268,7 +346,10 @@ async function generate(){
   if(compiled.slideCount!==ppt.slides.length)throw Error('O compilador retornou uma quantidade diferente de slides.');
   const filename=`Ferramenta_GRA_${state.scope.title.replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,95)}_v441.pptx`;
   W.__GRA_PPT_V441_LAST_AUDIT={scope:state.scope.title,selection,slides:ppt.slides.length,kinds:descriptors.map(d=>d.kind),adrTrends:descriptors.filter(d=>d.kind==='adr-trend').map(d=>({title:d.title,adrs:d.adrs,series:d.series.map(s=>({component:s.component,values:s.values}))}))};
-  if(run===session){dialog().hidden=true;await H.save(compiled.blob,filename,null)}
+  if(run===session){await H.save(compiled.blob,filename,null);state.lastBlob=compiled.blob;state.lastFilename=filename;
+   shell('<div class="v441-status" role="status"><strong>Apresentação pronta.</strong><p>O arquivo foi preparado para download. Você pode clicar abaixo para baixar novamente.</p><button type="button" class="v441-generate" id="v441DownloadAgain">Baixar PPT</button></div>');
+   $('v441DownloadAgain').onclick=()=>H.save(state.lastBlob,state.lastFilename,null);
+  }
  }catch(e){shell(`<div class="v441-status v441-error" role="alert">${esc(e.message||'Não foi possível gerar a apresentação.')}<p><button class="v441-text-button" id="v441Retry">Voltar à seleção</button></p></div>`);$('v441Retry').onclick=()=>renderForm(selection)}finally{state.busy=false}
 }
 async function open(){
