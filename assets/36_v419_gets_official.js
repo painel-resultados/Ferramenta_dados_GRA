@@ -81,7 +81,9 @@ function formatInauguration(value){
   const m=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:text;
 }
 function masterOfficialRows(){
-  const select=document.getElementById('regionalScopeSelect'),mode=select?.selectedOptions?.[0]?.dataset?.graMasterMode||window.__GRA_MASTER_SCOPE__||'',cre=creNumber(select?.value)||creNumber(window.__GRA_ACCESS__?.cre);
+  const select=document.getElementById('regionalScopeSelect'),mode=select?.selectedOptions?.[0]?.dataset?.graMasterMode||window.__GRA_MASTER_SCOPE__||'';
+  // A opção vazia representa toda a SME. A CRE do acesso só é fallback quando o seletor ainda não existe.
+  const cre=select?creNumber(select.value):creNumber(window.__GRA_ACCESS__?.cre);
   if(String(window.__GRA_ACCESS__?.role||'').toLowerCase()==='agent'&&mode==='mine'){
     const who=norm(window.__GRA_ACCESS__?.name||''),found=new Map();
     try{
@@ -96,7 +98,7 @@ function contextCard(html){const section=document.createElement('section');secti
 function enhanceContextDrawer(){
   const overlay=document.getElementById('v392SchoolContextOverlay'),body=document.getElementById('v392ContextBody');
   if(!overlay?.classList.contains('open')||!body)return;
-  body.querySelectorAll('[data-gra-get-context]').forEach(x=>x.remove());
+  body.querySelectorAll('.gra-get-context-card').forEach(x=>x.remove());
   if(overlay.dataset.graContextType==='school'){
     const cre=overlay.dataset.graContextSchoolCre||'',row=officialRow({codeSME:overlay.dataset.graContextSchoolCode,name:overlay.dataset.graContextSchoolName,cre},cre);if(!row)return;
     const card=contextCard(`<h3>Ginásio Educacional Tecnológico</h3><p class="v392-desc">Classificação oficial da unidade na base de GETs da SME-Rio.</p><div class="v392-kpis gra-get-context-kpis"><div class="v392-kpi"><small>Inauguração como GET</small><b>${formatInauguration(row.inauguration)}</b><span>Registro informado na planilha oficial</span></div></div>`);
