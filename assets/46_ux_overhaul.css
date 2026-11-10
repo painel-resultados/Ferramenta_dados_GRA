@@ -1,0 +1,136 @@
+/* GRA visual system: presentation only. Existing chart, table and filter DOM remains intact. */
+body.exp-ui {
+  --navy:#173b59;
+  --blue:#156789;
+  --blue2:#2181a4;
+  --sky:#eaf4f7;
+  --line:#d6e3e9;
+  --text:#1c3448;
+  --muted:#526d7e;
+  --card:#fff;
+  --soft:#f5f9fa;
+  --shadow:0 7px 24px rgba(20,57,78,.055);
+  --radius:16px;
+  color:var(--text);
+  background:#f4f8fa;
+  font-family:Inter,"Segoe UI",Arial,sans-serif;
+  line-height:1.45;
+}
+body.exp-ui .main {max-width:none}
+body.exp-ui .section {min-width:0}
+body.exp-ui .section > .card,
+body.exp-ui .section .grid > .card,
+body.exp-ui .section > .grid .card {
+  border-color:#dbe6eb;
+  border-radius:16px;
+  box-shadow:var(--shadow);
+}
+body.exp-ui .section .card {min-width:0}
+body.exp-ui .section .card h3 {font-size:clamp(17px,1.45vw,20px);line-height:1.25;letter-spacing:-.025em;color:#173b59}
+body.exp-ui .section .card h4 {font-size:15px;line-height:1.3}
+body.exp-ui .section .panel-title {align-items:flex-start;gap:14px}
+body.exp-ui .section .panel-title p {color:#557081;font-size:13px;line-height:1.45;max-width:75ch}
+body.exp-ui .section .footer-note,
+body.exp-ui .section .muted {color:#577182}
+body.exp-ui .sidebar {background:#123b56;box-shadow:4px 0 20px rgba(18,48,67,.13)}
+body.exp-ui .sidebar .brand {border-color:rgba(255,255,255,.15)}
+body.exp-ui .sidebar .nav {gap:5px}
+body.exp-ui .sidebar .nav button {
+  font-family:inherit;
+  font-size:14px;
+  line-height:1.25;
+  border-radius:11px;
+  min-height:42px;
+  transition:background .15s ease,color .15s ease;
+}
+body.exp-ui .sidebar .nav button.active {background:#eff8fa;color:#123b56;box-shadow:none}
+body.exp-ui .sidebar .nav button:focus-visible,
+body.exp-ui .main button:focus-visible,
+body.exp-ui .main summary:focus-visible,
+body.exp-ui .main input:focus-visible,
+body.exp-ui .main select:focus-visible {outline:3px solid #51a5c0;outline-offset:2px}
+body.exp-ui .topbar {background:#fff;border:1px solid #dbe6eb;border-radius:17px;padding:16px 18px;box-shadow:var(--shadow)}
+body.exp-ui .topbar .title h2 {font-size:clamp(18px,2vw,27px);line-height:1.2;color:#173b59}
+body.exp-ui .topbar .title p {font-size:13px;color:#557081}
+body.exp-ui .main .btn,
+body.exp-ui .main .pill {box-shadow:none;border-color:#cbdce4}
+body.exp-ui .main .btn:hover,
+body.exp-ui .main .pill:hover {background:#eaf5f8;border-color:#8db8c9}
+body.exp-ui .main .pill.active {background:#173b59;color:#fff}
+body.exp-ui .section select,
+body.exp-ui .section input[type="search"],
+body.exp-ui .section input.search,
+body.exp-ui .section .search {
+  color:#1c3b50;
+  border-color:#cbdde5;
+  background-color:#fff;
+  border-radius:11px;
+  font-family:inherit;
+  font-size:14px;
+  min-height:44px;
+}
+body.exp-ui .section select:disabled,
+body.exp-ui .section input:disabled {opacity:.48;cursor:not-allowed}
+body.exp-ui .section .toolbar {gap:10px}
+body.exp-ui .section .toolbar > select,
+body.exp-ui .section .toolbar > input,
+body.exp-ui .section .toolbar > label {min-width:min(100%,170px);max-width:100%}
+body.exp-ui .section .filter-context,
+body.exp-ui .section .geo-eval-context {font-size:12px;line-height:1.4}
+body.exp-ui .section details > summary {cursor:pointer;color:#1b5270;font-weight:750}
+body.exp-ui .section .table-wrap {border-color:#d9e5ea;border-radius:12px;max-width:100%}
+body.exp-ui .section table {font-variant-numeric:tabular-nums}
+body.exp-ui .section table th {background:#173b59;letter-spacing:.01em}
+body.exp-ui .section table td {border-color:#e6edf0}
+body.exp-ui .section table tr:hover td {background:#f2f8fa}
+body.exp-ui .section .kpi {border-radius:15px;min-height:105px}
+body.exp-ui .section .kpi:after {display:none}
+body.exp-ui .section .kpi .label {letter-spacing:0;text-transform:none;font-size:12px}
+body.exp-ui .section .kpi .value {font-size:clamp(26px,2.7vw,34px);letter-spacing:-.045em}
+body.exp-ui .section .bar-row {min-width:0}
+body.exp-ui .section .bar-name {min-width:0;overflow-wrap:anywhere}
+body.exp-ui .section .legend-row {border-radius:10px}
+body.exp-ui .gra-ux-section-intro {
+  margin:0 0 16px;
+  padding:20px 22px;
+  border:1px solid #d9e7eb;
+  border-left:4px solid #2181a4;
+  background:#fff;
+  border-radius:15px;
+  box-shadow:var(--shadow);
+}
+#adrs.gra-skills-active > .gra-ux-section-intro:not(.gra-skill-page) {display:block!important}
+body.exp-ui .gra-ux-section-intro h2 {font-size:clamp(21px,2.1vw,27px);line-height:1.2;letter-spacing:-.03em;margin:0;color:#173b59}
+body.exp-ui .gra-ux-section-intro p {font-size:13px;color:#557081;margin:6px 0 0;max-width:72ch}
+body.exp-ui .gra-ux-context {display:inline-block;margin-top:10px;padding:5px 9px;background:#eaf4f7;border-radius:8px;color:#245a73;font-size:12px;font-weight:750}
+body.exp-ui .gra-ux-jumps {display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+body.exp-ui .gra-ux-jumps button {border:1px solid #c9dce5;border-radius:9px;background:#f6fafb;color:#25536c;padding:7px 11px;min-height:38px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+body.exp-ui .gra-ux-jumps button:hover {background:#e7f3f7}
+body.exp-ui .gra-ux-jumps button:focus-visible {outline:3px solid #51a5c0;outline-offset:2px}
+body.exp-ui .gra-ux-rank-link {border:1px solid #c9dce5;background:#f6fafb;color:#1d526f;padding:9px 13px;border-radius:10px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+body.exp-ui .adr-hf-complete {margin-top:12px;border:1px solid #d5e4ea;background:#fff;border-radius:11px;padding:11px 15px}
+body.exp-ui .adr-hf-complete summary {font-size:13px}
+body.exp-ui .adr-hf-complete ol {columns:2;column-gap:32px;padding-left:26px;line-height:1.7;font-size:13px}
+body.exp-ui .adr-hf-complete li {break-inside:avoid;margin-bottom:5px}
+@media(max-width:1100px){
+  body.exp-ui .main {padding:16px}
+  body.exp-ui .section .grid {min-width:0}
+}
+@media(max-width:700px){
+  body.exp-ui .main {padding:10px 11px 24px}
+  body.exp-ui .topbar {padding:11px;margin-bottom:12px}
+  body.exp-ui .section > .card,
+  body.exp-ui .section .grid > .card {padding:15px;border-radius:14px}
+  body.exp-ui .gra-ux-section-intro {padding:15px;margin-bottom:12px}
+  body.exp-ui .section .panel-title {flex-wrap:wrap}
+  body.exp-ui .section .toolbar > select,
+  body.exp-ui .section .toolbar > input,
+  body.exp-ui .section .toolbar > label {width:100%;flex:1 1 100%}
+  body.exp-ui .section .table-wrap {overflow-x:auto;overscroll-behavior-inline:contain}
+  body.exp-ui .adr-hf-complete ol {columns:1}
+  body.exp-ui .gra-ux-jumps {display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  body.exp-ui .gra-ux-jumps button {padding:8px 5px;line-height:1.25}
+}
+@media(prefers-reduced-motion:reduce){
+  body.exp-ui .section,body.exp-ui .sidebar .nav button {animation:none;transition:none}
+}
