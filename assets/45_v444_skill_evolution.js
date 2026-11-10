@@ -293,3 +293,9 @@
 (()=>{const s=document.createElement('style');s.textContent='.gra-skill-line{display:block;width:100%;height:auto;background:#f8fbfd;border:1px solid #e2ebf1;border-radius:10px;margin:12px 0}.gra-skill-line text{font-family:system-ui,sans-serif;fill:#234966;font-size:13px;font-weight:750}.gra-skill-line text:nth-last-child(-n+2){fill:#5d7283;font-size:12px}';document.head.appendChild(s)})();
 
 (()=>{const s=document.createElement('style');s.textContent='#graSkillSchoolSuggestions{display:grid;max-height:230px;overflow:auto;border:1px solid #c2d8e7;border-radius:10px;background:white;margin-top:4px}#graSkillSchoolSuggestions[hidden]{display:none}#graSkillSchoolSuggestions button{background:white;border:0;border-bottom:1px solid #e7eef4;text-align:left;padding:12px;color:#183b59;font:inherit;font-size:14px;cursor:pointer}#graSkillSchoolSuggestions button:hover,#graSkillSchoolSuggestions button:focus{background:#e8f3fb}.gra-skill-filters option:disabled{color:#9daab5}';document.head.appendChild(s)})();
+/* v46 design system assets, loaded once after the existing dashboard modules. */
+(()=>{
+  if(document.getElementById('gra-ux46-styles'))return;
+  const link=document.createElement('link');link.id='gra-ux46-styles';link.rel='stylesheet';link.href='assets/46_ux_overhaul.css?v=46-20261110';document.head.append(link);
+  const script=document.createElement('script');script.src='assets/46_ux_overhaul.js?v=46-20261110';script.defer=true;document.body.append(script);
+})();
