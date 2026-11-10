@@ -183,6 +183,11 @@
  const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const fmt=n=>Number(n).toLocaleString('pt-BR',{maximumFractionDigits:1});
  const pairs={12:[0,1],23:[1,2],13:[0,2]};
+ function line(item,first,last){
+   const y=v=>95-Number(v)*.7, color=item.trend==='up'?'#16865f':item.trend==='down'?'#b34444':'#60798c';
+   const x1=55,x2=305,y1=y(item.start.value),y2=y(item.finish.value);
+   return `<svg class="gra-skill-line" viewBox="0 0 360 140" role="img" aria-label="Gráfico de linhas: ${esc(first)} ${fmt(item.start.value)} por cento; ${esc(last)} ${fmt(item.finish.value)} por cento" xmlns="http://www.w3.org/2000/svg"><line x1="40" y1="95" x2="320" y2="95" stroke="#dde7ee"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="4" stroke-linecap="round"/><circle cx="${x1}" cy="${y1}" r="6" fill="${color}"/><circle cx="${x2}" cy="${y2}" r="6" fill="${color}"/><text x="${x1}" y="${Math.max(16,y1-12)}" text-anchor="middle">${fmt(item.start.value)}%</text><text x="${x2}" y="${Math.max(16,y2-12)}" text-anchor="middle">${fmt(item.finish.value)}%</text><text x="${x1}" y="127" text-anchor="middle">${esc(first)}</text><text x="${x2}" y="127" text-anchor="middle">${esc(last)}</text></svg>`;
+ }
  let timer;
  function rows(){
    try{return typeof ADR_ROWS!=='undefined'&&Array.isArray(ADR_ROWS)?ADR_ROWS:window.ADR_ROWS||[]}catch(_){return []}
@@ -228,7 +233,7 @@
    }
    output.sort((x,y)=>x.delta-y.delta||x.code.localeCompare(y.code,'pt-BR'));
    $('graSkillStatus').textContent=`${output.length} habilidade(s) comparáveis · ${year} · ${comp} · ${base} → ${end}. Estagnação: variação de até 1 ponto percentual. Médias ponderadas pelos alunos avaliados de cada escola; as turmas e a dificuldade dos itens podem variar.`;
-   $('graSkillResults').innerHTML=output.length?output.map(item=>`<article class="gra-skill-result ${item.trend}"><div class="gra-skill-result-head"><strong>${esc(item.code)}</strong><span>${item.trend==='up'?'Subiu':item.trend==='down'?'Caiu':'Estagnou'}</span></div><p>${esc(item.description)}</p><div class="gra-skill-values"><span>${base}: <b>${fmt(item.start.value)}%</b></span><span>${end}: <b>${fmt(item.finish.value)}%</b></span><strong>${item.delta>0?'+':''}${fmt(item.delta)} p.p.</strong></div><small>${item.start.schools} escola(s) na primeira ADR · ${item.finish.schools} na segunda</small></article>`).join(''):'<p class="gra-skill-empty">Não há habilidades com dois resultados válidos neste recorte e nestes filtros.</p>';
+   $('graSkillResults').innerHTML=output.length?output.map(item=>`<article class="gra-skill-result ${item.trend}"><div class="gra-skill-result-head"><strong>${esc(item.code)}</strong><span>${item.trend==='up'?'Subiu':item.trend==='down'?'Caiu':'Estagnou'}</span></div><p>${esc(item.description)}</p>${line(item,base,end)}<div class="gra-skill-values"><span>${base}: <b>${fmt(item.start.value)}%</b></span><span>${end}: <b>${fmt(item.finish.value)}%</b></span><strong>${item.delta>0?'+':''}${fmt(item.delta)} p.p.</strong></div><small>${item.start.schools} escola(s) na primeira ADR · ${item.finish.schools} na segunda</small></article>`).join(''):'<p class="gra-skill-empty">Não há habilidades com dois resultados válidos neste recorte e nestes filtros.</p>';
  }
  function schedule(){clearTimeout(timer);timer=setTimeout(render,120)}
  function boot(){
@@ -245,3 +250,4 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
+(()=>{const s=document.createElement('style');s.textContent='.gra-skill-line{display:block;width:100%;height:auto;background:#f8fbfd;border:1px solid #e2ebf1;border-radius:10px;margin:12px 0}.gra-skill-line text{font-family:system-ui,sans-serif;fill:#234966;font-size:13px;font-weight:750}.gra-skill-line text:nth-last-child(-n+2){fill:#5d7283;font-size:12px}';document.head.appendChild(s)})();
