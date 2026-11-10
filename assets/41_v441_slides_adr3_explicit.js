@@ -349,7 +349,7 @@ async function generate(){
   const ppt=renderDeck(descriptors,state.scope,selection);if(ppt.slides.length!==descriptors.length+1)throw Error('A contagem dos slides não corresponde à seleção.');
   await H.preload();const compiled=await H.compile(ppt,e=>{if(run===session&&$('v441SlideProgress'))$('v441SlideProgress').textContent=e.message||'Gerando o PowerPoint…'});
   if(compiled.slideCount!==ppt.slides.length)throw Error('O compilador retornou uma quantidade diferente de slides.');
-  const filename=`Ferramenta_GRA_${state.scope.title.replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,95)}_v441.pptx`;
+  const filename=`Ferramenta_GRA_${state.scope.title.replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,95)}_v444.pptx`;
   W.__GRA_PPT_V441_LAST_AUDIT={scope:state.scope.title,selection,slides:ppt.slides.length,kinds:descriptors.map(d=>d.kind),adrTrends:descriptors.filter(d=>d.kind==='adr-trend').map(d=>({title:d.title,adrs:d.adrs,series:d.series.map(s=>({component:s.component,values:s.values}))}))};
   if(run===session){await H.save(compiled.blob,filename,null);state.lastBlob=compiled.blob;state.lastFilename=filename;
    shell('<div class="v441-status" role="status"><strong>Apresentação pronta.</strong><p>O arquivo foi preparado para download. Você pode clicar abaixo para baixar novamente.</p><button type="button" class="v441-generate" id="v441DownloadAgain">Baixar PPT</button></div>');
@@ -366,6 +366,6 @@ async function open(){
  }catch(e){if(run===session)shell(`<div class="v441-status v441-error" role="alert">${esc(e.message||'Não foi possível carregar as avaliações.')}</div>`)}
 }
 if(!H)return;
-W.GRA_PPT_V388=open;W.__GRA_PPT_ENGINE_VERSION='v441';
+W.GRA_PPT_V388=open;W.__GRA_PPT_ENGINE_VERSION='v444';
 W.GRA_SLIDES_V441={open,close,scope,mergeSources,mergeSourcesAsync,normalized,options,plan,metricBundle,skills,evolution,adrEvolution,renderDeck,weighted,num,get state(){return state}};
 })();
