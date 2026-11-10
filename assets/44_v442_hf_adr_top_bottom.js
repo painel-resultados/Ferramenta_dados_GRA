@@ -123,6 +123,14 @@
    const ed=mode==='progressao'?` · ${first||'ADR inicial'} → ${last||'ADR final'}`:` · ${$('adrSelect')?.value||'ADR'}`;
    $('adrHfSubtitle').textContent=`${year} · ${component||'Componente não selecionado'}${ed} · ${items.length} escolas com resultado válido. ${metric==='abaixo'?'Menor Abaixo do Básico significa melhor desempenho.':'Maior resultado significa melhor desempenho.'}`;
    $('adrHfPanels').innerHTML=panel('Top 10 · melhores resultados',best,metric,mode,false)+panel('Bottom 10 · mais desafiadores',worst,metric,mode,true);
+   if(items.length>best.length+worst.length){
+     const details=document.createElement('details');details.className='adr-hf-complete';
+     const summary=document.createElement('summary');summary.textContent=`Ver lista completa · ${items.length} escolas`;
+     const list=document.createElement('ol');
+     items.forEach(item=>{const li=document.createElement('li');li.textContent=`${item.name} · ${item.cre} · ${pct(item.value)}`;list.appendChild(li)});
+     details.append(summary,list);$('adrHfPanels').after(details);
+     root.querySelectorAll('.adr-hf-complete').forEach((old,i)=>{if(i>0)old.remove()});
+   }else root.querySelectorAll('.adr-hf-complete').forEach(el=>el.remove());
    $('adrHfFootnote').textContent=mode==='progressao'?'Ordenação pelo resultado da última ADR comparável, com variação real em pontos percentuais e somente escolas com resultados nas duas edições. A classificação não usa a variação como nota.': 'Classificação por escola, sem duplicidade entre Top e Bottom; valores agregados por média ponderada de estudantes avaliados. Escolas sem indicador não entram como zero.';
    window.__GRA_V442_HF_ADR_RANK__.last={mode,year,component,metric,total:items.length,top:best.map(x=>x.name),bottom:worst.map(x=>x.name),first,last};
  }
