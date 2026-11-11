@@ -455,10 +455,13 @@ async function open(){
   for(const n of regions){const p=await W.GRA_PPT_DATA_LOAD_V388(n);if(run!==session)return;packages.push(p);$('v441SlideLoading').textContent=`Carregando avaliações… ${packages.length}/${regions.length}`;await new Promise(r=>setTimeout(r,0))}
   if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');
   const data=await mergeSourcesAsync(packages,H.live(),s,p=>{if(run===session&&$('v441SlideLoading'))$('v441SlideLoading').textContent=`Organizando avaliações do recorte… ${Math.round(p.total?p.processed/p.total*100:100)}%`},()=>run===session);if(!data||run!==session)return;if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');state.rows=normalized(data);if(!state.rows.length){shell('<div class="v441-status">Não há avaliações disponíveis para este universo.</div>');return}
-  if(s.school&&s.region===2&&typeof W.GRA_EXP_ENSURE_DATA==='function'){
+  // Uma busca parcial que retorna uma única escola é um recorte escolar real.
+  const names=new Map(state.rows.map(r=>{const name=r.escolaFonte||r.escola;return [H.schoolKey(name),name]}));
+  if(!s.school&&s.region===2&&names.size===1){const school=[...names.values()][0];state.scope={...s,school,title:school}}
+  if(state.scope.school&&s.region===2&&typeof W.GRA_EXP_ENSURE_DATA==='function'){
    $('v441SlideLoading').textContent='Carregando os resultados das turmas da escola…';
    try{const individual=await W.GRA_EXP_ENSURE_DATA(true);if(run!==session)return;
-    const sid=individual?.schools.findIndex(name=>H.schoolKey(name)===H.schoolKey(s.school));
+    const sid=individual?.schools.findIndex(name=>H.schoolKey(name)===H.schoolKey(state.scope.school));
     if(sid>=0)state.individual={...individual,p:individual.p.filter(r=>r[0]===sid)};
    }catch(e){console.warn('Resultados individuais de turmas indisponíveis para o PPT',e)}
   }
