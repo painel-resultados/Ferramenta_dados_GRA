@@ -351,9 +351,11 @@ async function generate(){
   if(compiled.slideCount!==ppt.slides.length)throw Error('O compilador retornou uma quantidade diferente de slides.');
   const filename=`Ferramenta_GRA_${state.scope.title.replace(/[^\p{L}\p{N}_-]/gu,'_').slice(0,95)}_v444.pptx`;
   W.__GRA_PPT_V441_LAST_AUDIT={scope:state.scope.title,selection,slides:ppt.slides.length,kinds:descriptors.map(d=>d.kind),adrTrends:descriptors.filter(d=>d.kind==='adr-trend').map(d=>({title:d.title,adrs:d.adrs,series:d.series.map(s=>({component:s.component,values:s.values}))}))};
-  if(run===session){await H.save(compiled.blob,filename,null);state.lastBlob=compiled.blob;state.lastFilename=filename;
-   shell('<div class="v441-status" role="status"><strong>Apresentação pronta.</strong><p>O arquivo foi preparado para download. Você pode clicar abaixo para baixar novamente.</p><button type="button" class="v441-generate" id="v441DownloadAgain">Baixar PPT</button></div>');
-   $('v441DownloadAgain').onclick=()=>H.save(state.lastBlob,state.lastFilename,null);
+  if(run===session){
+   await H.save(compiled.blob,filename,null);
+   // H.save abre a janela com um link real para o arquivo. Esta janela tem z-index
+   // maior e precisa sair de cena para que o link de download receba o clique.
+   dialog().hidden=true;
   }
  }catch(e){shell(`<div class="v441-status v441-error" role="alert">${esc(e.message||'Não foi possível gerar a apresentação.')}<p><button class="v441-text-button" id="v441Retry">Voltar à seleção</button></p></div>`);$('v441Retry').onclick=()=>renderForm(selection)}finally{state.busy=false}
 }
