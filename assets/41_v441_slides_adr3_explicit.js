@@ -170,18 +170,58 @@ function evolution(groups,s){
  }
  return [...m.values()].filter(x=>x.points.length>=2).map(x=>({...x,points:x.points.sort((a,b)=>(a.order||0)-(b.order||0))}));
 }
-function plan(rows,selection,s){
- const selected=rows.filter(r=>selection.assessments.includes(r.assessment)&&selection.years.includes(r.year)&&(r.component==='IDEB'||selection.components.includes(r.component)));
- const groups=grouped(selected).sort((a,b)=>order(a[0].year)-order(b[0].year||99)||a[0].assessment.localeCompare(b[0].assessment,'pt-BR')||a[0].component.localeCompare(b[0].component));const slides=[];
- for(const rs of groups){const r=rs[0],title=`${assessmentLabel(r.assessment)} — ${r.year}${r.component==='IDEB'?'':' — '+compLabel(r.component)}`;
-  if(selection.contents.includes('results')){const metrics=metricBundle(rs,s);for(let i=0;i<metrics.length;i+=6)slides.push({kind:'results',title,subtitle:'Resultados gerais',metrics:metrics.slice(i,i+6)})}
-  if(selection.contents.includes('skills')&&r.component!=='IDEB'){const items=skills(skillRows(rs,s));if(items.length)slides.push({kind:'skills',title,subtitle:'Habilidades mais desafiadoras',items})}
-  if(selection.contents.includes('skillcatalog')&&r.component!=='IDEB'){const items=skills(skillRows(rs,s),Infinity);for(let i=0;i<items.length;i+=10)slides.push({kind:'skillcatalog',title,subtitle:`Todas as habilidades · ${i+1}–${Math.min(items.length,i+10)} de ${items.length}`,items:items.slice(i,i+10)})}
-  if(selection.contents.includes('ranking')){const rank=schoolRanking(rs,s);if(rank.length>=2){const unit=r.component==='IDEB'||(r.type==='som'&&r.modalidade==='Simulado 2026'&&r.year!=='2º ano')?' pontos':'%';slides.push({kind:'ranking',title,subtitle:'Dez melhores resultados',unit,items:rank.slice(0,10),color:'198560'});slides.push({kind:'ranking',title,subtitle:'Dez resultados mais desafiadores',unit,items:rank.slice(-10).reverse(),color:'C46A55'})}}
+const componentOrder=['LP','MT','CN','GEO','HIS','CH','IDEB'];
+function classStories(data,s,year,component,assessment){
+ if(!data||!s.school||s.region!==2||!['LP','MT'].includes(component)||!/^ADR [123]$/.test(assessment))return [];
+ const id=data.schools.findIndex(name=>H.schoolKey(name)===H.schoolKey(s.school));
+ if(id<0)return [];
+ const yr=order(year),comp=component==='LP'?0:1,adr=order(assessment);
+ const byClass=new Map();
+ for(const r of data.p){if(r[0]!==id||r[2]!==yr||r[3]!==comp||r[4]!==adr)continue;
+  if(!byClass.has(r[1]))byClass.set(r[1],[]);byClass.get(r[1]).push(r);
  }
- if(selection.contents.includes('evolution')){
-  // A ordem de cada ano é sempre Adequado LP/MT → Abaixo LP/MT → Ciências/GEO/HIS.
-  slides.push(...adrEvolution(groups),...evolution(groups,s));
+ if(!byClass.size)return [];
+ const classes=[...byClass].map(([cid,records])=>{
+  const counts=[0,0,0];for(const r of records)if(Number.isInteger(r[6])&&r[6]>=0&&r[6]<3)counts[r[6]]++;
+  const valid=counts.reduce((a,b)=>a+b,0),name=String(data.classes[cid]||'Sem identificação');
+  const raw=data.c?.[[id,cid,yr,comp,adr].join(',')]||[];
+  const items=raw.map(([code,value])=>{const v=num(value);if(v===null)return null;
+   let info={};try{info=W.adrSkillDisplay?.(code,year,component,assessment,false)||{}}catch(_){/* rótulo bruto mantém o dado visível */}
+   return {code:info.label||code,description:String(info.desc||info.title||'').split('|')[0].trim(),value:v,reference:num(data.a?.[[yr,comp,adr,code].join(',')])};
+  }).filter(Boolean).sort((a,b)=>a.value-b.value).slice(0,3);
+  return {name,counts,valid,missing:records.length-valid,items,adequado:valid?counts[2]/valid*100:null};
+ }).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR',{numeric:true}));
+ const title=`${assessment} — ${year} — ${compLabel(component)}`;
+ const ranked=classes.filter(c=>c.adequado!==null).sort((a,b)=>b.adequado-a.adequado||a.name.localeCompare(b.name,'pt-BR',{numeric:true}));
+ const slides=[];
+ for(let i=0;i<ranked.length;i+=10)slides.push({kind:'class-ranking',title,subtitle:`Turmas · % Adequado · ${i+1}–${Math.min(i+10,ranked.length)} de ${ranked.length}`,start:i,items:ranked.slice(i,i+10)});
+ for(const c of classes)slides.push({kind:'class-story',title:`${year} · ${compLabel(component)} · ${assessment} · Turma ${c.name}`,subtitle:'Distribuição da proficiência e três habilidades mais desafiadoras',...c});
+ return slides;
+}
+function plan(rows,selection,s,individual=null){
+ const selected=rows.filter(r=>selection.assessments.includes(r.assessment)&&selection.years.includes(r.year)&&(r.component==='IDEB'||selection.components.includes(r.component)));
+ const groups=grouped(selected),slides=[];
+ const years=uniq(groups.map(g=>g[0].year)).sort((a,b)=>order(a)-order(b)||a.localeCompare(b,'pt-BR'));
+ const trends=selection.contents.includes('evolution')?adrEvolution(groups):[];
+ const otherTrends=selection.contents.includes('evolution')?evolution(groups,s):[];
+ for(const year of years){
+  const yearGroups=groups.filter(g=>g[0].year===year);
+  slides.push({kind:'divider',level:'year',title:year,subtitle:trends.some(d=>d.year===year)?'Panorama e evolução das avaliações deste ano':'Resultados das avaliações deste ano'});
+  // A leitura longitudinal abre o ano antes dos retratos de cada componente/edição.
+  slides.push(...trends.filter(d=>d.year===year));
+  const components=uniq(yearGroups.map(g=>g[0].component)).sort((a,b)=>componentOrder.indexOf(a)-componentOrder.indexOf(b));
+  for(const component of components){
+   const componentGroups=yearGroups.filter(g=>g[0].component===component).sort((a,b)=>order(a[0].assessment)-order(b[0].assessment)||a[0].assessment.localeCompare(b[0].assessment,'pt-BR'));
+   slides.push({kind:'divider',level:'component',title:`${year} · ${compLabel(component)}`,subtitle:'Resultados, habilidades e recortes deste componente'});
+   slides.push(...otherTrends.filter(d=>d.title.includes(`— ${year} — ${compLabel(component)}`)||component==='IDEB'&&d.title===`IDEB — ${year}`));
+   for(const rs of componentGroups){const r=rs[0],title=`${assessmentLabel(r.assessment)} — ${year}${component==='IDEB'?'':' — '+compLabel(component)}`;
+    if(selection.contents.includes('results')){const metrics=metricBundle(rs,s);for(let i=0;i<metrics.length;i+=6)slides.push({kind:'results',title,subtitle:'Resultados gerais',metrics:metrics.slice(i,i+6)})}
+    if(selection.contents.includes('skills')&&component!=='IDEB'){const items=skills(skillRows(rs,s));if(items.length)slides.push({kind:'skills',title,subtitle:'Habilidades mais desafiadoras',items})}
+    if(selection.contents.includes('skillcatalog')&&component!=='IDEB'){const items=skills(skillRows(rs,s),Infinity);for(let i=0;i<items.length;i+=10)slides.push({kind:'skillcatalog',title,subtitle:`Todas as habilidades · ${i+1}–${Math.min(items.length,i+10)} de ${items.length}`,items:items.slice(i,i+10)})}
+    if(selection.contents.includes('ranking')){const rank=schoolRanking(rs,s);if(rank.length>=2){const unit=component==='IDEB'||(r.type==='som'&&r.modalidade==='Simulado 2026'&&year!=='2º ano')?' pontos':'%';slides.push({kind:'ranking',title,subtitle:'Dez melhores resultados',unit,items:rank.slice(0,10),color:'198560'});slides.push({kind:'ranking',title,subtitle:'Dez resultados mais desafiadores',unit,items:rank.slice(-10).reverse(),color:'C46A55'})}}
+    if(selection.contents.some(c=>['results','skills','ranking'].includes(c)))slides.push(...classStories(individual,s,year,component,r.assessment));
+   }
+  }
  }
  return slides;
 }
@@ -240,13 +280,22 @@ function refresh(){
  const hasSkills=groups.some(rs=>rs[0].component!=='IDEB'&&skills(skillRows(rs,state.scope)).length);
  const availability={results:groups.some(rs=>metricBundle(rs,state.scope).length),skills:hasSkills,skillcatalog:hasSkills,evolution:adrEvolution(groups).length>0||evolution(groups,state.scope).length>0,ranking:groups.some(rs=>schoolRanking(rs,state.scope)?.length>=2)};
  for(const x of form.querySelectorAll('[data-group="contents"]'))x.disabled=!availability[x.value];
- state.selection=selection();state.plan=plan(state.rows,state.selection,state.scope);
+ state.selection=selection();state.plan=plan(state.rows,state.selection,state.scope,state.individual);
  const count=state.plan.length?state.plan.length+1:0;$('v441SlideCount').textContent=count?`Capa incluída · ${count} slides`:'Selecione avaliações, anos e conteúdo';
  $('v441SlideGenerate').textContent=`Gerar apresentação${count?' — '+count+' slides':''}`;$('v441SlideGenerate').disabled=!count;
  const adr3Available=state.rows.some(r=>r.assessment==='ADR 3');
  $('v441SlideHint').textContent=!adr3Available?'A opção ADR 3 está disponível. Este recorte ainda não possui registros da ADR 3 nos dados carregados; nenhum valor será inventado.':!availability.evolution?'ADR 3 disponível neste universo. Para exibir a evolução, selecione ao menos duas ADRs e a opção Evolução dos resultados.':'Evolução: Adequado LP/MT → Abaixo do Básico LP/MT → acerto total em Ciências, Geografia e História; até três ADRs, conforme as avaliações marcadas.';
 }
 function addText(slide,text,x,y,w,h,size=18,extra={}){slide.addText(text,{x,y,w,h,fontFace:'Aptos',fontSize:size,color:'19374F',margin:0,breakLine:false,fit:'shrink',...extra})}
+function renderDivider(slide,d,s){
+ slide.background={color:'173B59'};
+ slide.addShape('rect',{x:10.9,y:0,w:2.433,h:7.5,line:{color:'1D7696',transparency:100},fill:{color:'1D7696'}});
+ slide.addShape('rect',{x:.78,y:1.54,w:.12,h:4.2,line:{color:'78C3C3',transparency:100},fill:{color:'78C3C3'}});
+ addText(slide,d.level==='year'?'ANO ESCOLAR':'COMPONENTE CURRICULAR',1.17,1.83,9.4,.33,14,{bold:true,color:'A9D9E2',charSpacing:1.2});
+ addText(slide,d.title,1.15,2.42,10.2,1.52,d.level==='year'?52:36,{fontFace:'Aptos Display',bold:true,color:'FFFFFF',breakLine:false});
+ addText(slide,d.subtitle,1.17,4.19,9.65,.75,18,{color:'D5E9EE'});
+ addText(slide,s.school||s.title,1.17,6.64,10,.34,12,{color:'B9D5DF'});
+}
 function cover(ppt,ctx,s){
  if(!s.school){H.cover(ppt,ctx);return}
  const slide=ppt.addSlide();slide.background={color:'F4F8FA'};
@@ -259,10 +308,12 @@ function cover(ppt,ctx,s){
  // Apenas o nome da escola aparece na capa; os filtros constam dos slides seguintes.
 }
 function renderResults(slide,d){
- d.metrics.forEach((m,j)=>{const y=1.52+j*.78;
+ d.metrics.forEach((m,j)=>{const y=1.52+j*.78,percent=m.unit==='%'&&num(m.value)!==null;
   slide.addShape('roundRect',{x:.76,y,w:11.85,h:.66,rectRadius:.08,line:{color:'D9E6EC',width:.8},fill:{color:j%2?'F4F9FB':'FFFFFF'}});
   slide.addShape('rect',{x:.76,y,w:.065,h:.66,line:{color:'2181A4',transparency:100},fill:{color:'2181A4'}});
-  addText(slide,m.label,1.04,y+.16,7.6,.29,16,{bold:j===0});
+  addText(slide,m.label,1.04,y+.16,4.1,.29,16,{bold:j===0});
+  if(percent){slide.addShape('rect',{x:5.26,y:y+.28,w:3.54,h:.13,line:{color:'E3ECF1',transparency:100},fill:{color:'E3ECF1'}});
+   slide.addShape('rect',{x:5.26,y:y+.28,w:3.54*Math.min(100,Math.max(0,m.value))/100,h:.13,line:{color:'2181A4',transparency:100},fill:{color:'2181A4'}})}
   addText(slide,fmt(m.value,m.unit),9.54,y+.12,2.73,.38,21,{bold:true,align:'right',color:'176AA0'});
  });
 }
@@ -271,9 +322,45 @@ function renderSkills(slide,d){
   slide.addShape('roundRect',{x:.76,y,w:11.85,h:.88,rectRadius:.08,line:{color:'DBE7ED',width:.8},fill:{color:'FFFFFF'}});
   slide.addShape('rect',{x:.76,y,w:.065,h:.88,line:{color:'C18720',transparency:100},fill:{color:'C18720'}});
   addText(slide,k.code,1.01,y+.12,1.55,.28,15,{bold:true,color:'173B59'});
-  addText(slide,k.description,2.65,y+.12,7.55,.59,k.description.length>260?11:13,{breakLine:false});
+  addText(slide,k.description,2.65,y+.10,7.45,.44,k.description.length>260?11:13,{breakLine:false});
+  slide.addShape('rect',{x:2.65,y:y+.72,w:7.44,h:.08,line:{color:'E8EEF2',transparency:100},fill:{color:'E8EEF2'}});
+  slide.addShape('rect',{x:2.65,y:y+.72,w:7.44*Math.max(0,Math.min(100,k.value))/100,h:.08,line:{color:'C18720',transparency:100},fill:{color:'C18720'}});
   addText(slide,fmt(k.value,'%'),10.45,y+.19,1.85,.34,21,{bold:true,align:'right',color:'A46D14'});
  });
+}
+function renderClassRanking(slide,d){
+ slide.addShape('roundRect',{x:.78,y:1.47,w:11.78,h:5.49,rectRadius:.08,line:{color:'D9E6EC',width:.9},fill:{color:'FFFFFF'}});
+ addText(slide,'TURMA',1.02,1.66,4,.24,11,{bold:true,color:'61788A'});
+ addText(slide,'ADEQUADO',10.27,1.66,1.91,.24,11,{bold:true,align:'right',color:'61788A'});
+ d.items.forEach((item,i)=>{const y=2.03+i*.47;
+  addText(slide,`${d.start+i+1}. Turma ${item.name}`,1.02,y,3.25,.27,13,{bold:d.start+i<3});
+  slide.addShape('rect',{x:4.18,y:y+.12,w:5.65,h:.13,line:{color:'E4EDF1',transparency:100},fill:{color:'E4EDF1'}});
+  slide.addShape('rect',{x:4.18,y:y+.12,w:5.65*Math.max(0,Math.min(100,item.adequado))/100,h:.13,line:{color:'198560',transparency:100},fill:{color:'198560'}});
+  addText(slide,fmt(item.adequado,'%'),10.27,y,1.91,.28,14,{bold:true,align:'right',color:'198560'});
+ });
+ addText(slide,'Base: estudantes com nível válido na ADR indicada. A leitura individual de cada turma vem a seguir.',1.03,6.69,11.1,.2,9.5,{color:'657A8C'});
+}
+function renderClassStory(slide,d){
+ const labels=['Abaixo do Básico','Básico','Adequado'],colors=['9C4A09','765B00','166246'],fills=['FFF3E8','FFF9DE','EAF8F1'];
+ d.counts.forEach((count,i)=>{const x=.75+i*4.06;
+  slide.addShape('roundRect',{x,y:1.45,w:3.75,h:1.15,rectRadius:.09,line:{color:'D9E4EC',width:.9},fill:{color:fills[i]}});
+  addText(slide,labels[i],x+.17,1.63,3.3,.24,12,{bold:true,color:colors[i]});
+  addText(slide,String(count),x+.17,1.95,1.15,.38,25,{bold:true,color:colors[i]});
+  addText(slide,d.valid?fmt(count/d.valid*100,'%'):'—',x+2.31,1.99,1.19,.26,14,{bold:true,align:'right',color:colors[i]});
+ });
+ addText(slide,`${d.valid} estudantes com nível válido${d.missing?` · ${d.missing} sem nível registrado`:''}`, .77,2.75,11.7,.27,10,{color:'61788A'});
+ addText(slide,'3 habilidades mais desafiadoras da turma',.77,3.17,10.6,.34,17,{bold:true});
+ if(!d.items.length)addText(slide,'Sem resultado válido de habilidades nesta turma e nesta ADR.',.77,3.7,11.5,.4,13,{color:'8A6C45'});
+ d.items.forEach((k,i)=>{const y=3.67+i*.84;
+  slide.addShape('roundRect',{x:.77,y,w:11.8,h:.73,rectRadius:.06,line:{color:'DBE7ED',width:.8},fill:{color:i%2?'FFFFFF':'F8FBFD'}});
+  addText(slide,k.code,1.00,y+.12,1.57,.23,12,{bold:true});
+  addText(slide,k.description||'Descrição não disponível',2.62,y+.10,7.05,.47,k.description.length>140?9:11,{color:'526A7F'});
+  slide.addShape('rect',{x:2.63,y:y+.60,w:7.02,h:.05,line:{color:'E5EDF1',transparency:100},fill:{color:'E5EDF1'}});
+  slide.addShape('rect',{x:2.63,y:y+.60,w:7.02*Math.max(0,Math.min(100,k.value))/100,h:.05,line:{color:'2181A4',transparency:100},fill:{color:'2181A4'}});
+  addText(slide,fmt(k.value,'%'),10.38,y+.12,1.85,.27,15,{bold:true,align:'right',color:'176AA0'});
+  if(k.reference!==null)addText(slide,`2ª CRE ${fmt(k.reference,'%')}`,10.08,y+.47,2.14,.17,9,{align:'right',color:'61788A'});
+ });
+ addText(slide,'Cada turma tem suas próprias habilidades críticas. Percentuais de acerto pertencem apenas à ADR indicada.',.78,6.74,11.78,.22,9,{color:'61788A'});
 }
 function renderRanking(slide,d){
  const color=d.color,max=Math.max(1,...d.items.map(x=>x.value));
@@ -332,17 +419,20 @@ function renderAdrTrend(slide,d){
 function renderDeck(descriptors,s,selection){
  const ppt=H.recorder();ppt.layout='LAYOUT_WIDE';ppt.title=`${s.title} — Avaliações`;ppt.author='CGRA · SME-Rio';ppt.company='Secretaria Municipal de Educação';ppt.lang='pt-BR';ppt.theme={headFontFace:'Aptos Display',bodyFontFace:'Aptos',lang:'pt-BR'};
  const ctx={scopeTitle:s.title,scopeKind:s.school?'Escola':s.query?'Recorte de escolas':s.agent||s.mine?'Agente':s.region?'Coordenadoria Regional':'Rede municipal',sectionLabel:'Resultados das avaliações',filters:[selection.assessments.map(assessmentLabel).join(', '),selection.years.join(', '),selection.components.map(compLabel).join(', ')]};cover(ppt,ctx,s);
- descriptors.forEach((d,i)=>{const slide=ppt.addSlide();H.header(slide,ctx,d.title,d.kind==='evolution'?`${d.subtitle} · ${d.label}`:d.kind==='adr-trend'?`${d.subtitle} · ${d.adrs.join(' → ')}`:d.subtitle,i+2);
+ descriptors.forEach((d,i)=>{const slide=ppt.addSlide();if(d.kind==='divider'){renderDivider(slide,d,s);return}
+  H.header(slide,ctx,d.title,d.kind==='evolution'?`${d.subtitle} · ${d.label}`:d.kind==='adr-trend'?`${d.subtitle} · ${d.adrs.join(' → ')}`:d.subtitle,i+2);
   if(d.kind==='results'){renderResults(slide,d)}
   else if(d.kind==='adr-trend'){renderAdrTrend(slide,d)}
   else if(d.kind==='skills'){renderSkills(slide,d)}
   else if(d.kind==='skillcatalog'){renderSkillCatalog(slide,d)}
   else if(d.kind==='ranking'){renderRanking(slide,d)}
+  else if(d.kind==='class-ranking'){renderClassRanking(slide,d)}
+  else if(d.kind==='class-story'){renderClassStory(slide,d)}
   else {slide.addChart('line',[{name:d.label,labels:d.points.map(p=>p.label),values:d.points.map(p=>p.value)}],{x:.9,y:1.6,w:11.5,h:4.55,showLegend:false,showValue:true,showTitle:false,chartColors:['176AA0'],showMarker:true,markerSize:7,lineSize:3,dataLabelPosition:'t',dataLabelFormatCode:d.unit==='%'?'0.0"%"':'0.00',catAxisLabelFontSize:14,valAxisLabelFontSize:13,valAxisTitle:d.label,showCatName:false,showBorder:false});const delta=d.points.at(-1).value-d.points[0].value;addText(slide,`Variação: ${delta>=0?'+':''}${fmt(delta,d.unit==='%'?' p.p.':d.unit)}`,1,6.4,11.3,.3,18,{bold:true})}
  });return ppt;
 }
 async function generate(){
- if(!state?.plan.length||state.busy)return;
+  if(!state?.plan.length||state.busy)return;
  if(scopeKey(scope())!==state.scopeKey){shell('<div class="v441-status">O universo mudou. Feche esta janela e abra Slides novamente para carregar o novo recorte.</div>');return}
  const run=session,selection=state.selection,descriptors=state.plan.slice();state.busy=true;shell('<div class="v441-status" id="v441SlideProgress" role="status">Preparando a apresentação…</div>');
  try{
@@ -364,7 +454,15 @@ async function open(){
  try{const regions=s.region?[s.region]:[1,2,3,4,5,6,7,8,9,10,11],packages=[];
   for(const n of regions){const p=await W.GRA_PPT_DATA_LOAD_V388(n);if(run!==session)return;packages.push(p);$('v441SlideLoading').textContent=`Carregando avaliações… ${packages.length}/${regions.length}`;await new Promise(r=>setTimeout(r,0))}
   if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');
-  const data=await mergeSourcesAsync(packages,H.live(),s,p=>{if(run===session&&$('v441SlideLoading'))$('v441SlideLoading').textContent=`Organizando avaliações do recorte… ${Math.round(p.total?p.processed/p.total*100:100)}%`},()=>run===session);if(!data||run!==session)return;if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');state.rows=normalized(data);if(!state.rows.length){shell('<div class="v441-status">Não há avaliações disponíveis para este universo.</div>');return}renderForm();
+  const data=await mergeSourcesAsync(packages,H.live(),s,p=>{if(run===session&&$('v441SlideLoading'))$('v441SlideLoading').textContent=`Organizando avaliações do recorte… ${Math.round(p.total?p.processed/p.total*100:100)}%`},()=>run===session);if(!data||run!==session)return;if(scopeKey(scope())!==state.scopeKey)throw Error('O universo mudou durante o carregamento. Abra Slides novamente.');state.rows=normalized(data);if(!state.rows.length){shell('<div class="v441-status">Não há avaliações disponíveis para este universo.</div>');return}
+  if(s.school&&s.region===2&&typeof W.GRA_EXP_ENSURE_DATA==='function'){
+   $('v441SlideLoading').textContent='Carregando os resultados das turmas da escola…';
+   try{const individual=await W.GRA_EXP_ENSURE_DATA(true);if(run!==session)return;
+    const sid=individual?.schools.findIndex(name=>H.schoolKey(name)===H.schoolKey(s.school));
+    if(sid>=0)state.individual={...individual,p:individual.p.filter(r=>r[0]===sid)};
+   }catch(e){console.warn('Resultados individuais de turmas indisponíveis para o PPT',e)}
+  }
+  if(run===session)renderForm();
  }catch(e){if(run===session)shell(`<div class="v441-status v441-error" role="alert">${esc(e.message||'Não foi possível carregar as avaliações.')}</div>`)}
 }
 if(!H)return;
