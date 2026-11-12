@@ -174,6 +174,164 @@
  window.__GRA_V444_SKILL_EVOLUTION__={match,series,scoped,open,plot,pct,attach,stamp};
 })();
 
+/* Ordenação explícita e consistente das colunas de resultados. O controle
+   reaparece depois de qualquer atualização de filtros sem alterar os dados. */
+(()=>{
+ 'use strict';
+ if(window.__GRA_RESULT_SORT_V1__)return;
+ window.__GRA_RESULT_SORT_V1__=true;
+ const collator=new Intl.Collator('pt-BR',{numeric:true,sensitivity:'base'});
+ const state=new WeakMap();
+ let pending=false;const dirty=new Set();
+ const text=cell=>String(cell?.textContent||'').trim();
+ function number(value){
+   let s=String(value??'').trim().replace(/\u00a0/g,' ');
+   if(!s||/^[—–-]+$/.test(s))return null;
+   // A unidade nunca deve participar do valor usado na ordenação.
+   s=s.replace(/\s*(?:p\.?p\.?|%|alunos?|escolas?|unidades?)\s*$/i,'').replace(/\s/g,'');
+   if(!/^[+\-\u2212]?[\d.,]+$/.test(s)){
+     const first=s.match(/^([+\-\u2212]?[\d.,]+)%?\/?REF:/i);
+     if(!first)return null;
+     s=first[1];
+   }
+   s=s.replace('\u2212','-');
+   if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+   else if(/^[-+]?\d{1,3}(?:\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+   const n=Number(s);return Number.isFinite(n)?n:null;
+ }
+ function headers(table){
+   const head=table.tHead?.rows?.[table.tHead.rows.length-1]||[...table.rows].find(r=>r.querySelector('th'));
+   if(!head)return [];
+   let col=0;
+   return [...head.cells].map(th=>{const entry={th,col};col+=th.colSpan||1;return entry});
+ }
+ function rowsOf(body,table){
+   const head=table.tHead?null:headers(table)[0]?.th?.parentElement;
+   return [...body.rows].filter(r=>r!==head&&r.cells.length&&!r.querySelector('th'));
+ }
+ function numeric(table,col){
+   let valid=0,total=0;
+   for(const body of table.tBodies){
+     for(const row of rowsOf(body,table)){
+       if(row.classList.contains('sim414-turma-row'))continue;
+       const v=text(row.cells[col]);if(!v||/^[—–-]+$/.test(v))continue;
+       total++;if(number(v)!==null)valid++;
+       if(total>=50)break;
+     }
+     if(total>=50)break;
+   }
+   return total>0&&valid/total>=.7;
+ }
+ function groupsOf(rows){
+   if(!rows.some(r=>r.classList.contains('sim414-school-row')))return rows.map(row=>({main:row,children:[]}));
+   const groups=[];let active=null;
+   for(const row of rows){
+     if(row.classList.contains('sim414-school-row')||!active){active={main:row,children:[]};groups.push(active)}
+     else if(row.classList.contains('sim414-turma-row'))active.children.push(row);
+     else {active={main:row,children:[]};groups.push(active)}
+   }
+   return groups;
+ }
+ function compare(a,b,col,dir){
+   const av=text(a.cells[col]),bv=text(b.cells[col]);
+   const an=number(av),bn=number(bv);
+   if(an===null&&bn===null)return collator.compare(av,bv)*dir;
+   // Ausências ficam ao fim nos dois sentidos.
+   if(an===null)return 1;if(bn===null)return -1;
+   return (an-bn)*dir;
+ }
+ function sort(table,col,dir){
+   if(table.dataset.graChunking==='1')return;
+   const choices=headers(table),choice=choices.find(h=>h.col===col);
+   if(!choice||!numeric(table,col))return;
+   const current=state.get(table)||{};
+   state.set(table,{...current,col,dir,head:choice.th.parentElement});
+   for(const body of table.tBodies){
+     const group=groupsOf(rowsOf(body,table));
+     group.sort((a,b)=>compare(a.main,b.main,col,dir));
+     const frag=document.createDocumentFragment();
+     for(const item of group){frag.appendChild(item.main);for(const child of item.children)frag.appendChild(child)}
+     body.appendChild(frag);
+   }
+   for(const {th,col:index} of choices){
+     th.setAttribute('aria-sort',index===col?(dir===1?'ascending':'descending'):'none');
+     th.querySelectorAll('.gra-rsort-button').forEach(button=>button.setAttribute('aria-pressed',String(index===col&&Number(button.dataset.direction)===dir)));
+   }
+   const toolbar=table.id==='adrProgressTable'?document.getElementById('gra-progress-sort-toolbar'):null;
+   if(toolbar){toolbar.querySelector('select').value=String(col);toolbar.querySelectorAll('button').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.direction)===dir)))}
+ }
+ function progressToolbar(table,choices){
+   const wrap=table.closest('.table-wrap');if(!wrap)return;
+   let bar=document.getElementById('gra-progress-sort-toolbar');
+   if(!bar){
+     bar=document.createElement('div');bar.id='gra-progress-sort-toolbar';bar.className='gra-rsort-toolbar';
+     bar.innerHTML='<label for="gra-progress-sort-column">Ordenar resultados por</label><select id="gra-progress-sort-column" aria-label="Coluna para ordenar a progressão"></select><div class="gra-rsort-pair"><button type="button" data-direction="-1" aria-label="Maior para menor" title="Maior para menor">↓</button><button type="button" data-direction="1" aria-label="Menor para maior" title="Menor para maior">↑</button></div>';
+     wrap.before(bar);
+   }
+   const select=bar.querySelector('select'),previous=select.value;
+   const signature=choices.map(({th,col})=>col+':'+(th.dataset.graSortLabel||text(th).replace(/[↑↓]/g,'').trim())).join('|');
+   if(bar.dataset.columns!==signature){
+     select.replaceChildren(...choices.map(({th,col})=>{const option=document.createElement('option');option.value=String(col);option.textContent=th.dataset.graSortLabel||text(th).replace(/[↑↓]/g,'').trim();return option}));
+     bar.dataset.columns=signature;
+     select.value=choices.some(c=>String(c.col)===previous)?previous:String(choices.find(c=>/varia|progres|delta/i.test(c.th.dataset.graSortLabel||''))?.col??choices.at(-1)?.col);
+   }
+   bar.hidden=!choices.length;
+ }
+ function prepare(table){
+   if(!(table instanceof HTMLTableElement)||!table.isConnected)return;
+   const head=headers(table),results=head.filter(({th,col})=>th.colSpan===1&&numeric(table,col));
+   for(const {th,col} of head){
+     if(!results.some(item=>item.th===th))continue;
+     if(th.querySelector('.gra-rsort-pair'))continue;
+     const label=text(th);th.dataset.graSortLabel=label;
+     // A ordenação antiga por clique no título é substituída pelo par de botões.
+     th.removeAttribute('data-gra-global-sort');th.removeAttribute('tabindex');th.removeAttribute('title');
+     const pair=document.createElement('span');pair.className='gra-rsort-pair';
+     for(const [direction,title,glyph] of [[-1,'Maior para menor','↓'],[1,'Menor para maior','↑']]){
+       const button=document.createElement('button');button.type='button';button.className='gra-rsort-button';
+       button.dataset.column=String(col);button.dataset.direction=String(direction);
+       button.setAttribute('aria-label',`${label}: ${title.toLowerCase()}`);button.title=title;button.textContent=glyph;
+       pair.append(button);
+     }
+     th.appendChild(pair);
+   }
+   if(table.id==='adrProgressTable')progressToolbar(table,results);
+   const old=state.get(table),current=head[0]?.th?.parentElement;
+   if(old&&old.head!==current&&results.some(c=>c.col===old.col))sort(table,old.col,old.dir);
+ }
+ function scan(){document.querySelectorAll('table').forEach(prepare)}
+ function schedule(table){if(table instanceof HTMLTableElement)dirty.add(table);if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;for(const item of dirty)prepare(item);dirty.clear()})}
+ const style=document.createElement('style');style.id='gra-result-sort-style';
+ style.textContent=`table th:has(> .gra-rsort-pair){white-space:normal;min-width:105px}table th:has(> .gra-rsort-pair)::after{display:none!important}.gra-rsort-pair{display:inline-flex;vertical-align:middle;gap:3px;margin-left:7px;white-space:nowrap}.gra-rsort-pair button{display:inline-grid;place-items:center;width:28px;height:28px;border:1px solid #bed5e5;border-radius:7px;background:#fff;color:#17496b;font:800 18px/1 system-ui;cursor:pointer}.gra-rsort-pair button:hover,.gra-rsort-pair button[aria-pressed="true"]{background:#12385d;color:#fff;border-color:#12385d}.gra-rsort-pair button:focus-visible{outline:3px solid #51a5c0;outline-offset:2px}.gra-rsort-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:14px 0 6px;color:#234b68;font-size:13px;font-weight:750}.gra-rsort-toolbar select{width:auto;min-width:130px;max-width:220px;min-height:36px;border:1px solid #c4d9e8;border-radius:8px;padding:5px 9px;background:#fff;color:#12385d;font:inherit}.gra-rsort-toolbar .gra-rsort-pair{margin-left:0}@media(max-width:650px){.gra-rsort-toolbar{align-items:stretch}.gra-rsort-toolbar label{width:100%}.gra-rsort-toolbar select{flex:1}.gra-rsort-pair button{width:34px;height:34px}}`;
+ document.head.appendChild(style);
+ window.addEventListener('click',event=>{
+   const button=event.target.closest?.('.gra-rsort-button,#gra-progress-sort-toolbar button');
+   if(!button)return;
+   const table=button.closest('table')||document.getElementById('adrProgressTable');
+   const col=button.closest('table')?Number(button.dataset.column):Number(document.getElementById('gra-progress-sort-column')?.value);
+   event.preventDefault();event.stopPropagation();sort(table,col,Number(button.dataset.direction));
+ },true);
+ document.addEventListener('change',event=>{if(event.target?.id==='gra-progress-sort-column'){const table=document.getElementById('adrProgressTable');sort(table,Number(event.target.value),state.get(table)?.dir||-1)}},true);
+ function boot(){
+   scan();
+   const observer=new MutationObserver(mutations=>{
+     for(const mutation of mutations){
+       if(!mutation.addedNodes.length)continue;
+       const owner=mutation.target.closest?.('table');
+       if(owner) {schedule(owner);continue}
+       for(const node of mutation.addedNodes){
+         if(node.nodeType!==1)continue;
+         if(node.matches?.('table'))schedule(node);
+         node.querySelectorAll?.('table').forEach(schedule);
+       }
+     }
+   });
+   observer.observe(document.body,{childList:true,subtree:true});
+   document.addEventListener('gra-table-rendered',event=>schedule(event.target),true);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+
 // Identidade visual compartilhada com o ranking de habilidades mais desafiadoras.
 (()=>{const style=document.createElement('style');style.id='gra-skill-catalog-identity';style.textContent=`
  #graSkillResults.gra-skill-results{display:flex;flex-direction:column;gap:0;margin-top:14px}
