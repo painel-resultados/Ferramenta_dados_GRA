@@ -334,7 +334,7 @@
 
 // Identidade visual compartilhada com o ranking de habilidades mais desafiadoras.
 (()=>{const style=document.createElement('style');style.id='gra-skill-catalog-identity';style.textContent=`
- #graSkillResults.gra-skill-results{display:flex;flex-direction:column;gap:0;margin-top:14px}
+ #graSkillPage.gra-skill-catalog #graSkillResults.gra-skill-results{display:flex;flex-direction:column;gap:0;margin-top:14px}
  #graSkillResults .gra-skill-catalog-row{display:block;border:0;border-bottom:1px solid #edf1f5;border-left:0;border-radius:0;padding:12px 0 13px;background:transparent;min-width:0}
  #graSkillResults .gra-skill-catalog-row:first-child{border-top:1px solid #edf1f5}
  #graSkillResults .gra-skill-catalog-row .gra-skill-result-head{justify-content:flex-start;gap:8px}
@@ -533,7 +533,7 @@
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
-(()=>{const s=document.createElement('style');s.textContent='.gra-skill-line{display:block;width:100%;height:auto;background:#f8fbfd;border:1px solid #e2ebf1;border-radius:10px;margin:12px 0}.gra-skill-line text{font-family:system-ui,sans-serif;fill:#234966;font-size:13px;font-weight:750}.gra-skill-line text:nth-last-child(-n+2){fill:#5d7283;font-size:12px}';document.head.appendChild(s)})();
+(()=>{const s=document.createElement('style');s.textContent='.gra-skill-line{display:block;width:100%;max-width:540px;height:auto;background:#f8fbfd;border:1px solid #e2ebf1;border-radius:10px;margin:10px auto}.gra-skill-line text{font-family:system-ui,sans-serif;fill:#234966;font-size:13px;font-weight:750}.gra-skill-line text:nth-last-child(-n+2){fill:#5d7283;font-size:12px}#graSkillPage{container:gra-skill-panel / inline-size}#graSkillPage:not(.gra-skill-catalog) #graSkillResults.gra-skill-results{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:14px}@container gra-skill-panel (min-width:760px){#graSkillPage:not(.gra-skill-catalog) #graSkillResults.gra-skill-results{grid-template-columns:repeat(2,minmax(0,1fr))}}';document.head.appendChild(s)})();
 
 (()=>{const s=document.createElement('style');s.textContent='#graSkillSchoolSuggestions{display:grid;max-height:230px;overflow:auto;border:1px solid #c2d8e7;border-radius:10px;background:white;margin-top:4px}#graSkillSchoolSuggestions[hidden]{display:none}#graSkillSchoolSuggestions button{background:white;border:0;border-bottom:1px solid #e7eef4;text-align:left;padding:12px;color:#183b59;font:inherit;font-size:14px;cursor:pointer}#graSkillSchoolSuggestions button:hover,#graSkillSchoolSuggestions button:focus{background:#e8f3fb}.gra-skill-filters option:disabled{color:#9daab5}';document.head.appendChild(s)})();
 
