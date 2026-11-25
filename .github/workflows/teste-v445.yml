@@ -1,0 +1,21 @@
+name: Verificacao v445
+on:
+  push:
+    branches: [teste-v445-exercicios]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Verificar navegador e banco
+        run: |
+          node -e "const { chromium } = require('playwright'); (async()=>{const b=await chromium.launch({headless:true});const p=await b.newPage();await p.goto('file://' + process.cwd() + '/index.html');console.log('Titulo:',await p.title());await b.close()})().catch(e=>{console.error(e);process.exit(1)})"
